@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://csnte7pcw20yh"]
+
+[node name="Hud2" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+
+[node name="A" type="VBoxContainer" parent="."]
+layout_mode = 0
+
+[node name="B" type="HBoxContainer" parent="A"]
+layout_mode = 2
+
+[node name="D" type="Label" parent="A"]
+layout_mode = 2
+text = "D"
+
+[node name="B#C" type="Label" parent="."]
+layout_mode = 0
+text = "C"

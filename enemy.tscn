@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3 uid="uid://rui5sml5vao5"]
+
+[ext_resource type="Script" uid="uid://blc80km0c65ap" path="res://enemy.gd" id="1_4gyqm"]
+[ext_resource type="Texture2D" uid="uid://cbj5qmh8y3e0i" path="res://sprites/Red Pixel Creature in Grid.png" id="2_4gyqm"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_qi2p4"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_4gyqm"]
+
+[node name="Enemy" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 5
+script = ExtResource("1_4gyqm")
+base_hp = 50
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(60, 60)
+scale = Vector2(0.117, 0.117)
+texture = ExtResource("2_4gyqm")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 100)
+shape = SubResource("RectangleShape2D_qi2p4")
+debug_color = Color(0.764062, 0.276735, 0.877764, 0.42)
+
+[node name="AttackZone" type="Area2D" parent="."]
+position = Vector2(0, 70)
+collision_layer = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackZone"]
+scale = Vector2(5, 5)
+shape = SubResource("CircleShape2D_4gyqm")
+one_way_collision_margin = 30.0
+debug_color = Color(0.848393, 0.307375, 0.556307, 0.42)
+
+[connection signal="body_entered" from="AttackZone" to="." method="_on_attack_zone_body_entered"]
+[connection signal="body_exited" from="AttackZone" to="." method="_on_attack_zone_body_exited"]

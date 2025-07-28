@@ -1,0 +1,444 @@
+[gd_scene load_steps=8 format=3 uid="uid://chqqg7ul8u4i3"]
+
+[ext_resource type="Script" uid="uid://couwo0squ5ulu" path="res://main_hud.gd" id="1_0d230"]
+[ext_resource type="Theme" uid="uid://y0ilp3xckc6r" path="res://ui/themes/Test.tres" id="1_jlfqq"]
+[ext_resource type="Texture2D" uid="uid://73uvhv1tkelg" path="res://icon.svg" id="2_b71xr"]
+[ext_resource type="Script" uid="uid://din35uqqvb175" path="res://spawner.gd" id="2_lkse2"]
+[ext_resource type="PackedScene" uid="uid://bm0t5u5mp1ef" path="res://tower.tscn" id="5_dsl44"]
+[ext_resource type="PackedScene" uid="uid://bcaftvgc5ios8" path="res://death_screen.tscn" id="6_jlfqq"]
+[ext_resource type="Script" uid="uid://bmu03nxtiowff" path="res://upgrade_ui.gd" id="6_r1slb"]
+
+[node name="MainHUD" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = -2.0
+offset_right = -342.0
+offset_bottom = 194.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_jlfqq")
+script = ExtResource("1_0d230")
+
+[node name="DeathScreen" parent="." instance=ExtResource("6_jlfqq")]
+
+[node name="TopBanner" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = -47.0
+offset_top = 14.0
+offset_right = -47.0
+offset_bottom = 114.0
+grow_horizontal = 2
+theme = ExtResource("1_jlfqq")
+
+[node name="WaveLabel" type="Label" parent="TopBanner"]
+layout_mode = 0
+offset_left = 163.0
+offset_top = 10.0
+offset_right = 223.0
+offset_bottom = 33.0
+text = "Wave: 1"
+
+[node name="ATLabel" type="Label" parent="TopBanner"]
+layout_mode = 0
+offset_left = 6.0
+offset_top = 22.0
+offset_right = 141.0
+offset_bottom = 45.0
+text = "Archive Tokens: 0"
+
+[node name="DCLabel" type="Label" parent="TopBanner"]
+layout_mode = 0
+offset_left = 246.0
+offset_top = 24.0
+offset_right = 360.0
+offset_bottom = 47.0
+text = "Data Credits: 0"
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 0
+offset_left = -46.0
+offset_top = 100.0
+offset_right = 344.0
+offset_bottom = 744.0
+
+[node name="BottomBanner" type="Panel" parent="."]
+layout_mode = 0
+offset_left = -45.0
+offset_top = 793.0
+offset_right = 345.0
+offset_bottom = 843.0
+
+[node name="BuyXButton" type="Button" parent="BottomBanner"]
+z_index = 3
+layout_mode = 0
+offset_left = 307.0
+offset_top = 9.0
+offset_right = 382.0
+offset_bottom = 40.0
+
+[node name="SpeedButton" type="Button" parent="BottomBanner"]
+layout_mode = 0
+offset_left = 203.0
+offset_top = 10.0
+offset_right = 281.0
+offset_bottom = 41.0
+text = "1x Speed"
+
+[node name="SpeedButtonLabel" type="Label" parent="BottomBanner"]
+layout_mode = 0
+offset_left = 182.0
+offset_top = 12.0
+offset_right = 222.0
+offset_bottom = 35.0
+
+[node name="Main Tower Sprite" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+offset_left = 92.0
+offset_top = 503.0
+offset_right = 220.0
+offset_bottom = 631.0
+texture = ExtResource("2_b71xr")
+
+[node name="Drone 2" type="TextureRect" parent="."]
+layout_mode = 2
+offset_left = 213.0
+offset_top = 626.0
+offset_right = 243.0
+offset_bottom = 656.0
+
+[node name="Drone 4" type="TextureRect" parent="."]
+layout_mode = 2
+offset_left = 277.0
+offset_top = 624.0
+offset_right = 307.0
+offset_bottom = 654.0
+
+[node name="Drone 3" type="TextureRect" parent="."]
+layout_mode = 2
+offset_left = 48.0
+offset_top = 620.0
+offset_right = 78.0
+offset_bottom = 650.0
+
+[node name="Drone 1" type="TextureRect" parent="."]
+layout_mode = 2
+offset_left = -18.0
+offset_top = 615.0
+offset_right = 12.0
+offset_bottom = 645.0
+
+[node name="Spawner" type="Node2D" parent="." node_paths=PackedStringArray("tower_ref")]
+position = Vector2(131, 133)
+script = ExtResource("2_lkse2")
+tower_ref = NodePath("../tower")
+
+[node name="tower" parent="." instance=ExtResource("5_dsl44")]
+position = Vector2(156, 559)
+
+[node name="UpgradeUI" type="Control" parent="."]
+anchors_preset = 0
+offset_left = -47.0
+offset_top = 657.0
+offset_right = 108.0
+offset_bottom = 995.0
+script = ExtResource("6_r1slb")
+
+[node name="OffensePanel" type="VBoxContainer" parent="UpgradeUI"]
+layout_mode = 2
+offset_top = -140.0
+offset_right = 173.0
+offset_bottom = 93.0
+
+[node name="DamageUpgradeButton" type="Button" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Damage
+"
+
+[node name="FireRateUpgradeButton" type="Button" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Fire Rate
+"
+
+[node name="CritChanceUpgradeButton" type="Button" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Crit Chance %"
+
+[node name="CritDamageUpgradeButton" type="Button" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Crit Damage"
+
+[node name="UnlockMultiTargetButton" type="Button" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Unlock Multi Target"
+
+[node name="UpgradeMultiTargetButton" type="Button" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Upgrade Multi Target"
+
+[node name="MultiTargetLabel" type="Label" parent="UpgradeUI/OffensePanel"]
+layout_mode = 2
+text = "Multi Target X:"
+
+[node name="DefensePanel" type="VBoxContainer" parent="UpgradeUI"]
+layout_mode = 2
+offset_left = 129.0
+offset_top = -43.0
+offset_right = 284.0
+offset_bottom = 107.0
+
+[node name="ShieldIntegrityUpgradeButton" type="Button" parent="UpgradeUI/DefensePanel"]
+layout_mode = 2
+text = "Shield Integrity
+"
+
+[node name="ShieldRegenUpgradeButton" type="Button" parent="UpgradeUI/DefensePanel"]
+layout_mode = 2
+text = "Shield Regen"
+
+[node name="DamageReductionUpgradeButton" type="Button" parent="UpgradeUI/DefensePanel"]
+layout_mode = 2
+text = "Damage Reduction"
+
+[node name="ButtonBar" type="HBoxContainer" parent="UpgradeUI"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 95.0
+offset_right = 391.0
+offset_bottom = 135.0
+alignment = 1
+
+[node name="OffenseButton" type="Button" parent="UpgradeUI/ButtonBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Offense
+"
+
+[node name="DefenseButton" type="Button" parent="UpgradeUI/ButtonBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Defense "
+
+[node name="EconomyButton" type="Button" parent="UpgradeUI/ButtonBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Economy "
+
+[node name="EconomyPanel" type="VBoxContainer" parent="UpgradeUI"]
+layout_mode = 0
+offset_left = 279.0
+offset_top = -40.0
+offset_right = 476.0
+offset_bottom = 110.0
+scale = Vector2(0.6, 0.6)
+
+[node name="DataCreditsUpgradeButton" type="Button" parent="UpgradeUI/EconomyPanel"]
+layout_mode = 2
+text = "Data Credits Multipler
+"
+
+[node name="ArchiveTokenUpgradeButton" type="Button" parent="UpgradeUI/EconomyPanel"]
+layout_mode = 2
+text = "Archive Token Multiplier
+"
+
+[node name="FreeUpgradeChanceButton" type="Button" parent="UpgradeUI/EconomyPanel"]
+layout_mode = 2
+text = "Free Upgrade Chance"
+
+[node name="WaveSkipChanceButton" type="Button" parent="UpgradeUI/EconomyPanel"]
+layout_mode = 2
+text = "Wave Skip Chance"
+
+[node name="PermUpgradesPanel" type="Panel" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="PermUpgradesLabel" type="Label" parent="PermUpgradesPanel"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
+[node name="PermUpgradesList" type="VBoxContainer" parent="PermUpgradesPanel"]
+layout_mode = 0
+offset_left = -48.0
+offset_top = 100.0
+offset_right = 342.0
+offset_bottom = 450.0
+
+[node name="PermProjectileDamage" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermProjectileDamageName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermProjectileDamage"]
+layout_mode = 2
+text = "Projectile Damage: 
+"
+
+[node name="PermProjectileDamageLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermProjectileDamage"]
+layout_mode = 2
+
+[node name="PermProjectileDamageButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermProjectileDamage"]
+layout_mode = 2
+
+[node name="PermFireRate" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermFireRateName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermFireRate"]
+layout_mode = 2
+text = "Fire Rate"
+
+[node name="PermFireRateLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermFireRate"]
+layout_mode = 2
+
+[node name="PermFireRateButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermFireRate"]
+layout_mode = 2
+
+[node name="PermCritChance" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermCritChanceName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermCritChance"]
+layout_mode = 2
+text = "Crit Chance"
+
+[node name="PermCritChanceLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermCritChance"]
+layout_mode = 2
+
+[node name="PermCritChanceButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermCritChance"]
+layout_mode = 2
+
+[node name="PermCritDamage" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermCritDamageName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermCritDamage"]
+layout_mode = 2
+text = "Crit Damage"
+
+[node name="PermCritDamageLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermCritDamage"]
+layout_mode = 2
+
+[node name="PermCritDamageButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermCritDamage"]
+layout_mode = 2
+
+[node name="PermShieldIntegrity" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermShieldIntegrityName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermShieldIntegrity"]
+layout_mode = 2
+text = "Shield Integrity"
+
+[node name="PermShieldIntegrityLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermShieldIntegrity"]
+layout_mode = 2
+
+[node name="PermShieldIntegrityButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermShieldIntegrity"]
+layout_mode = 2
+
+[node name="PermShieldRegen" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermShieldRegenName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermShieldRegen"]
+layout_mode = 2
+text = "Shield Regen"
+
+[node name="PermShieldRegenLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermShieldRegen"]
+layout_mode = 2
+
+[node name="PermShieldRegenButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermShieldRegen"]
+layout_mode = 2
+
+[node name="PermDamageReduction" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermDamageReductionName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermDamageReduction"]
+layout_mode = 2
+text = "Damage Reduction"
+
+[node name="PermDamageReductionLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermDamageReduction"]
+layout_mode = 2
+
+[node name="PermDamageReductionButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermDamageReduction"]
+layout_mode = 2
+
+[node name="PermDataCreditMultiplier" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermDataCreditMultiplierName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermDataCreditMultiplier"]
+layout_mode = 2
+text = "Credit Multiplier"
+
+[node name="PermDataCreditMultiplierLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermDataCreditMultiplier"]
+layout_mode = 2
+
+[node name="PermDataCreditMultiplierButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermDataCreditMultiplier"]
+layout_mode = 2
+
+[node name="PermArchiveTokenMultiplier" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermArchiveTokenMultiplierName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermArchiveTokenMultiplier"]
+layout_mode = 2
+text = "Archive Token"
+
+[node name="PermArchiveTokenMultiplierLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermArchiveTokenMultiplier"]
+layout_mode = 2
+
+[node name="PermArchiveTokenMultiplierButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermArchiveTokenMultiplier"]
+layout_mode = 2
+
+[node name="PermFreeUpgradeChance" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermFreeUpgradeChanceName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermFreeUpgradeChance"]
+layout_mode = 2
+text = "Free Upgrade %"
+
+[node name="PermFreeUpgradeChanceLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermFreeUpgradeChance"]
+layout_mode = 2
+
+[node name="PermFreeUpgradeChanceButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermFreeUpgradeChance"]
+layout_mode = 2
+
+[node name="PermWaveSkipChance" type="HBoxContainer" parent="PermUpgradesPanel/PermUpgradesList"]
+layout_mode = 2
+
+[node name="PermWaveSkipChanceName" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermWaveSkipChance"]
+layout_mode = 2
+text = "Wave Skip %"
+
+[node name="PermWaveSkipChanceLevel" type="Label" parent="PermUpgradesPanel/PermUpgradesList/PermWaveSkipChance"]
+layout_mode = 2
+
+[node name="PermWaveSkipChanceButton" type="Button" parent="PermUpgradesPanel/PermUpgradesList/PermWaveSkipChance"]
+layout_mode = 2
+
+[node name="PermPanelToggleButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = -39.0
+offset_top = 804.0
+offset_right = 134.0
+offset_bottom = 835.0
+text = "Permanent Upgrades"
+
+[node name="QuitButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 311.0
+offset_top = 2.0
+offset_right = 342.0
+offset_bottom = 33.0
+text = "x"
+
+[connection signal="pressed" from="BottomBanner/BuyXButton" to="." method="_on_buy_x_button_pressed"]
+[connection signal="pressed" from="BottomBanner/SpeedButton" to="." method="_on_speed_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/ButtonBar/OffenseButton" to="." method="_on_upgrade_damage_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/ButtonBar/DefenseButton" to="." method="_on_defense_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/ButtonBar/EconomyButton" to="." method="_on_economy_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/EconomyPanel/DataCreditsUpgradeButton" to="." method="_on_data_credits_upgrade_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/EconomyPanel/ArchiveTokenUpgradeButton" to="." method="_on_archive_token_upgrade_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/EconomyPanel/FreeUpgradeChanceButton" to="." method="_on_free_upgrade_chance_button_pressed"]
+[connection signal="pressed" from="UpgradeUI/EconomyPanel/WaveSkipChanceButton" to="." method="_on_wave_skip_chance_button_pressed"]
+[connection signal="pressed" from="QuitButton" to="." method="_on_quit_button_pressed"]

@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://bbbrlvjgwenny"]
+
+[ext_resource type="PackedScene" uid="uid://rui5sml5vao5" path="res://enemy.tscn" id="1_osffu"]
+[ext_resource type="Texture2D" uid="uid://b7bketfm312v1" path="res://sprites/Override Sprite.png" id="2_cl35m"]
+
+[node name="Enemy" instance=ExtResource("1_osffu")]
+base_hp = 2000
+base_damage = 50
+base_speed = 80.0
+enemy_type = "override"
+
+[node name="Sprite2D" parent="." index="0"]
+z_index = 1
+scale = Vector2(1, 1)
+texture = ExtResource("2_cl35m")

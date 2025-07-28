@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://ct3aigxj8y1l7"]
+
+[ext_resource type="PackedScene" uid="uid://rui5sml5vao5" path="res://enemy.tscn" id="1_gefki"]
+[ext_resource type="Texture2D" uid="uid://d21ua6v2u8ifb" path="res://sprites/Slicer Sprite.png" id="2_xwor7"]
+
+[node name="Enemy" instance=ExtResource("1_gefki")]
+base_hp = 25
+base_damage = 6
+base_speed = 180.0
+enemy_type = "slicer"
+
+[node name="Sprite2D" parent="." index="0"]
+z_index = 1
+scale = Vector2(1, 1)
+texture = ExtResource("2_xwor7")

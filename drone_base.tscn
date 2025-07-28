@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://c0xs6jpvoe8ds"]
+
+[ext_resource type="Script" uid="uid://c6gvvxtjxcu15" path="res://drone_base.gd" id="1_3557c"]
+
+[node name="drone_base" type="Node2D"]
+script = ExtResource("1_3557c")
+
+[node name="FireTimer" type="Timer" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]

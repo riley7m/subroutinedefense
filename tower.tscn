@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3 uid="uid://bm0t5u5mp1ef"]
+
+[ext_resource type="Texture2D" uid="uid://73uvhv1tkelg" path="res://icon.svg" id="1_k1sas"]
+[ext_resource type="Script" uid="uid://cm6k32isa6a48" path="res://tower.gd" id="1_vedim"]
+[ext_resource type="PackedScene" uid="uid://cneqmvf787vve" path="res://projectile.tscn" id="2_stebd"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vedim"]
+radius = 150.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vedim"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stebd"]
+bg_color = Color(3.65794e-06, 0.637464, 0.948514, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jbe1c"]
+bg_color = Color(0.234576, 0.708981, 0.308556, 1)
+
+[node name="tower" type="StaticBody2D" groups=["Tower"]]
+position = Vector2(193, 637)
+script = ExtResource("1_vedim")
+projectile_scene = ExtResource("2_stebd")
+
+[node name="sprite" type="Sprite2D" parent="."]
+texture = ExtResource("1_k1sas")
+
+[node name="RangeArea" type="Area2D" parent="."]
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RangeArea"]
+position = Vector2(4, -15)
+shape = SubResource("CircleShape2D_vedim")
+
+[node name="FireTimer" type="Timer" parent="."]
+autostart = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_vedim")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ShieldBar" type="ProgressBar" parent="CanvasLayer"]
+offset_left = 155.0
+offset_top = 432.0
+offset_right = 255.0
+offset_bottom = 459.0
+theme_override_styles/fill = SubResource("StyleBoxFlat_stebd")
+
+[node name="HealthBar" type="ProgressBar" parent="CanvasLayer"]
+offset_left = 155.0
+offset_top = 462.0
+offset_right = 255.0
+offset_bottom = 489.0
+theme_override_styles/fill = SubResource("StyleBoxFlat_jbe1c")
+
+[connection signal="timeout" from="FireTimer" to="." method="_on_fire_timer_timeout"]

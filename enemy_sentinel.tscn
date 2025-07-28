@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://cgtq6cg250fyn"]
+
+[ext_resource type="PackedScene" uid="uid://rui5sml5vao5" path="res://enemy.tscn" id="1_utbdq"]
+[ext_resource type="Texture2D" uid="uid://cluaylgqjxp0" path="res://sprites/Sentinel Sprite.png" id="2_k78mi"]
+
+[node name="Enemy" instance=ExtResource("1_utbdq")]
+base_hp = 200
+base_damage = 25
+base_speed = 50.0
+enemy_type = "sentinel"
+
+[node name="Sprite2D" parent="." index="0"]
+z_index = 1
+scale = Vector2(1, 1)
+texture = ExtResource("2_k78mi")

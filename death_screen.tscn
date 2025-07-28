@@ -1,0 +1,30 @@
+[gd_scene load_steps=2 format=3 uid="uid://bcaftvgc5ios8"]
+
+[ext_resource type="Script" uid="uid://cadqc1sktg2wl" path="res://death_screen.gd" id="1_if853"]
+
+[node name="DeathScreen" type="CanvasLayer"]
+process_mode = 2
+visible = false
+script = ExtResource("1_if853")
+
+[node name="Panel" type="Panel" parent="."]
+offset_right = 390.0
+offset_bottom = 844.0
+
+[node name="RestartButton" type="Button" parent="Panel"]
+layout_mode = 0
+offset_left = 139.0
+offset_top = 330.0
+offset_right = 239.0
+offset_bottom = 360.0
+text = "Restart"
+
+[node name="GameOverLabel" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 142.0
+offset_top = 241.0
+offset_right = 442.0
+offset_bottom = 341.0
+text = "GAME OVER"
+
+[connection signal="pressed" from="Panel/RestartButton" to="." method="_on_restart_button_pressed"]
