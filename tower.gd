@@ -14,8 +14,9 @@ var target: Node2D = null
 # Shield + HP
 var tower_hp: int = 1000
 var max_shield: int
-var current_shield: int
+var current_shield: int = 0
 var shield_regen_rate: float
+var shield_initialized: bool = false
 
 @onready var death_screen = get_tree().current_scene.get_node("DeathScreen")
 
@@ -25,7 +26,8 @@ func _ready() -> void:
 	add_to_group("Tower")
 
 	# Init timers
-	fire_timer.wait_time = 1.0 / UpgradeManager.get_projectile_fire_rate()
+	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)  # Guard against division by zero
+	fire_timer.wait_time = 1.0 / fire_rate
 	fire_timer.timeout.connect(_on_fire_timer_timeout)
 	fire_timer.one_shot = false
 	add_child(fire_timer)
@@ -44,12 +46,20 @@ func _ready() -> void:
 	refresh_shield_stats()
 
 func refresh_fire_rate():
-	fire_timer.wait_time = 1.0 / UpgradeManager.get_projectile_fire_rate()
+	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)  # Guard against division by zero
+	fire_timer.wait_time = 1.0 / fire_rate
 
 func refresh_shield_stats():
 	max_shield = UpgradeManager.get_shield_capacity()
 	shield_regen_rate = UpgradeManager.get_shield_regen_rate()
-	current_shield = min(current_shield, max_shield)
+
+	# On first initialization, set shield to max; otherwise cap at new max
+	if not shield_initialized:
+		current_shield = max_shield
+		shield_initialized = true
+	else:
+		current_shield = min(current_shield, max_shield)
+
 	update_bars()
 
 func get_closest_enemy() -> Node2D:

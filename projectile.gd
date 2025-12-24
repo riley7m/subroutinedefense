@@ -3,14 +3,14 @@ extends Area2D
 @export var speed: float = 400
 var target: Node2D = null
 
-func _ready():
+func _ready() -> void:
 	if not body_entered.is_connected(Callable(self, "_on_body_entered")):
 		body_entered.connect(Callable(self, "_on_body_entered"))
 
 	# Create visual representation
 	VisualFactory.create_projectile_visual(self)
 
-func _process(delta):
+func _process(delta: float) -> void:
 	if target and is_instance_valid(target):
 		var direction = (target.global_position - global_position).normalized()
 		global_position += direction * speed * delta

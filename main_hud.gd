@@ -197,8 +197,8 @@ func _process(delta: float) -> void:
 	if wave_timer >= WAVE_INTERVAL:
 		wave_timer = 0.0
 		if spawner and spawner.has_method("start_wave"):
+			UpgradeManager.maybe_grant_free_upgrade()  # Grant before wave starts
 			spawner.start_wave(spawner.current_wave + 1)  # always request next wave
-			UpgradeManager.maybe_grant_free_upgrade()
 			update_labels()
 
 
@@ -527,7 +527,7 @@ func _on_quit_button_pressed():
 		spawner.spawned_enemies = 0
 		# Remove any enemy nodes
 		for e in spawner.get_children():
-			if e.is_in_group("enemies"):
+			if is_instance_valid(e) and e.is_in_group("enemies"):
 				e.queue_free()
 
 	# 4. Reset the tower

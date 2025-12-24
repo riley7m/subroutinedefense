@@ -1,6 +1,6 @@
 extends "res://drone_base.gd"
 
-func _ready():
+func _ready() -> void:
 	drone_type = "poison"
 	super._ready()
 
