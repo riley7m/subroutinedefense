@@ -49,6 +49,12 @@ var stun_duration: float = 0.0
 
 func _ready() -> void:
 	add_to_group("enemies")
+
+	# Initialize stats (will be overwritten by apply_wave_scaling, but safe defaults)
+	hp = base_hp
+	damage_to_tower = base_damage
+	move_speed = base_speed
+
 	if not $AttackZone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
 		$AttackZone.body_entered.connect(Callable(self, "_on_attack_zone_body_entered"))
 
@@ -78,7 +84,7 @@ func _physics_process(delta: float) -> void:
 		return
 	# Move toward tower
 	var direction = (tower_position - global_position).normalized()
-	velocity = (direction * move_speed) / 2
+	velocity = direction * move_speed
 	move_and_slide()
 
 	time_since_last_attack += delta
@@ -133,10 +139,8 @@ func _physics_process(delta: float) -> void:
 		if hp <= 0 and not is_dead:
 			is_dead = true
 			die()
-		# --- Apply slow effect ---
-	var effective_speed = move_speed
+	# --- Apply slow effect ---
 	if slow_active:
-		effective_speed = move_speed * (1.0 - slow_percent)
 		slow_timer += delta
 		if slow_timer >= slow_duration:
 			slow_active = false
@@ -145,13 +149,15 @@ func _physics_process(delta: float) -> void:
 			# Remove visual effect
 			VisualFactory.remove_status_effect_overlay("slow", self)
 			#print("🟦", name, "slow effect ended.")
+		else:
+			# Apply slow to current movement
+			var slow_multiplier = (1.0 - slow_percent)
+			velocity *= slow_multiplier
 
-	# Use effective_speed for movement!
-		var direction_slow = (tower_position - global_position).normalized()
-		velocity = (direction * effective_speed) / 2
-		move_and_slide()
-	
-		# --- Handle stun ---
+	# --- Final death check (in case status effects reduced hp to 0) ---
+	if hp <= 0 and not is_dead:
+		is_dead = true
+		die()
 
 
 

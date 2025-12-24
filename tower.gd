@@ -21,6 +21,9 @@ var shield_regen_rate: float
 
 
 func _ready() -> void:
+	# Add to Tower group for easy reference
+	add_to_group("Tower")
+
 	# Init timers
 	fire_timer.wait_time = 1.0 / UpgradeManager.get_projectile_fire_rate()
 	fire_timer.timeout.connect(_on_fire_timer_timeout)

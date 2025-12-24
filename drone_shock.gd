@@ -10,8 +10,12 @@ func pick_target() -> Node2D:
 	var closest_enemy: Node2D = null
 	var min_distance = INF
 
-	# Find the main tower in the scene
-	var tower = get_node("/root/MainHUD/tower")
+	# Find the tower in the scene tree (more flexible approach)
+	var tower = get_tree().get_first_node_in_group("Tower")
+	if not tower:
+		# Fallback: try to find node named "tower" in current scene
+		tower = get_node_or_null("../tower")
+
 	if not tower:
 		print("⚡ Shock Drone: No tower found.")
 		return null
