@@ -147,6 +147,9 @@ func save_permanent_upgrades():
 		"fragments": fragments,
 	}
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.WRITE)
+	if file == null:
+		push_error("Failed to open save file for writing: " + str(FileAccess.get_open_error()))
+		return
 	file.store_var(data)
 	file.close()
 	print("💾 Permanent upgrades saved.")
@@ -155,25 +158,38 @@ func load_permanent_upgrades():
 	if not FileAccess.file_exists("user://perm_upgrades.save"):
 		print("No permanent upgrades save found.")
 		return
+
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.READ)
+	if file == null:
+		push_error("Failed to open save file for reading: " + str(FileAccess.get_open_error()))
+		return
+
 	var data = file.get_var()
 	file.close()
-	perm_projectile_damage = data.get("perm_projectile_damage", 0)
-	perm_projectile_fire_rate = data.get("perm_projectile_fire_rate", 0.0)
-	perm_crit_chance = data.get("perm_crit_chance", 0)
-	perm_crit_damage = data.get("perm_crit_damage", 0.0)
-	perm_shield_integrity = data.get("perm_shield_integrity", 0)
-	perm_damage_reduction = data.get("perm_damage_reduction", 0.0)
-	perm_shield_regen = data.get("perm_shield_regen", 0.0)
-	perm_data_credit_multiplier = data.get("perm_data_credit_multiplier", 0.0)
-	perm_archive_token_multiplier = data.get("perm_archive_token_multiplier", 0.0)
-	perm_wave_skip_chance = data.get("perm_wave_skip_chance", 0.0)
-	perm_free_upgrade_chance = data.get("perm_free_upgrade_chance", 0.0)
+
+	# Validate data is a dictionary
+	if typeof(data) != TYPE_DICTIONARY:
+		push_error("Save file corrupted: Invalid data type")
+		return
+
+	# Load with validation (clamp to reasonable ranges)
+	perm_projectile_damage = clamp(data.get("perm_projectile_damage", 0), 0, 100000)
+	perm_projectile_fire_rate = clamp(data.get("perm_projectile_fire_rate", 0.0), 0.0, 1000.0)
+	perm_crit_chance = clamp(data.get("perm_crit_chance", 0), 0, 100000)
+	perm_crit_damage = clamp(data.get("perm_crit_damage", 0.0), 0.0, 1000.0)
+	perm_shield_integrity = clamp(data.get("perm_shield_integrity", 0), 0, 100000)
+	perm_damage_reduction = clamp(data.get("perm_damage_reduction", 0.0), 0.0, 1000.0)
+	perm_shield_regen = clamp(data.get("perm_shield_regen", 0.0), 0.0, 1000.0)
+	perm_data_credit_multiplier = clamp(data.get("perm_data_credit_multiplier", 0.0), 0.0, 1000.0)
+	perm_archive_token_multiplier = clamp(data.get("perm_archive_token_multiplier", 0.0), 0.0, 1000.0)
+	perm_wave_skip_chance = clamp(data.get("perm_wave_skip_chance", 0.0), 0.0, 100.0)
+	perm_free_upgrade_chance = clamp(data.get("perm_free_upgrade_chance", 0.0), 0.0, 100.0)
 	perm_multi_target_unlocked = data.get("perm_multi_target_unlocked", false)
-	perm_drone_flame_level = data.get("perm_drone_flame_level", 0)
-	perm_drone_frost_level = data.get("perm_drone_frost_level", 0)
-	perm_drone_poison_level = data.get("perm_drone_poison_level", 0)
-	perm_drone_shock_level = data.get("perm_drone_shock_level", 0)
-	archive_tokens = data.get("archive_tokens", 0)
-	fragments = data.get("fragments", 0)
+	perm_drone_flame_level = clamp(data.get("perm_drone_flame_level", 0), 0, 10000)
+	perm_drone_frost_level = clamp(data.get("perm_drone_frost_level", 0), 0, 10000)
+	perm_drone_poison_level = clamp(data.get("perm_drone_poison_level", 0), 0, 10000)
+	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
+	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
+	fragments = clamp(data.get("fragments", 0), 0, 999999999)
+
 	print("🔄 Permanent upgrades loaded.")

@@ -23,8 +23,24 @@ func _on_fire_timer_timeout() -> void:
 # --- Methods to be overridden in child drone scripts ---
 
 func pick_target() -> Node2D:
-	# Placeholder: Override this in derived drones
-	return null
+	# Default implementation: pick enemy with lowest HP
+	# Override in child classes for different targeting strategies
+	return pick_lowest_hp_enemy()
+
+# Helper: Pick enemy with lowest HP (used by flame and poison drones)
+func pick_lowest_hp_enemy() -> Node2D:
+	var best: Node2D = null
+	var min_hp = INF
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(enemy):
+			continue
+		if not enemy.has_method("get_current_hp"):
+			continue
+		var hp = enemy.get_current_hp()
+		if hp < min_hp:
+			min_hp = hp
+			best = enemy
+	return best
 
 @warning_ignore("unused_parameter")
 func fire_at(target: Node2D) -> void:

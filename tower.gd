@@ -116,17 +116,21 @@ func take_damage(amount: int) -> void:
 	# Apply remaining damage to HP
 	if reduced_amount > 0:
 		tower_hp -= reduced_amount
-		death_screen.show_death()
 		#print("💥 Tower hit! Remaining HP:", tower_hp)
-		# if tower_hp <= 0: game over logic here
+
+		# Check for death
+		if tower_hp <= 0 and death_screen:
+			death_screen.show_death()
+
 	update_bars()
 
 func _on_shield_regen_tick() -> void:
 	if current_shield < max_shield:
 		var regen_amount = int(max_shield * (shield_regen_rate / 100.0))
-		current_shield = min(current_shield + regen_amount, max_shield)
-		#print("🌀 Shield regenerated:", regen_amount, "→", current_shield)
-	update_bars()
+		if regen_amount > 0:
+			current_shield = min(current_shield + regen_amount, max_shield)
+			update_bars()
+			#print("🌀 Shield regenerated:", regen_amount, "→", current_shield)
 	
 
 func update_bars() -> void:
