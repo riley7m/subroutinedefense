@@ -1,5 +1,9 @@
 extends "res://drone_base.gd"
 
+func _ready():
+	drone_type = "shock"
+	super._ready()
+
 # Shock Drone: Targets the closest enemy to the tower and applies a stun effect
 
 func pick_target() -> Node2D:

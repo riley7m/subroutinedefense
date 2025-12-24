@@ -7,6 +7,9 @@ func _ready():
 	if not body_entered.is_connected(Callable(self, "_on_body_entered")):
 		body_entered.connect(Callable(self, "_on_body_entered"))
 
+	# Create visual representation
+	VisualFactory.create_projectile_visual(self)
+
 func _process(delta):
 	if target and is_instance_valid(target):
 		var direction = (target.global_position - global_position).normalized()

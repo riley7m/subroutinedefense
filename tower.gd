@@ -34,6 +34,9 @@ func _ready() -> void:
 	add_child(shield_regen_timer)
 	shield_regen_timer.start()
 
+	# Create visual representation
+	VisualFactory.create_tower_visual(self)
+
 	# Shield init
 	refresh_shield_stats()
 

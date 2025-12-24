@@ -1,5 +1,9 @@
 extends "res://drone_base.gd"
 
+func _ready():
+	drone_type = "flame"
+	super._ready()
+
 # Pick the enemy with the lowest HP
 func pick_target() -> Node2D:
 	var best: Node2D = null

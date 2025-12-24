@@ -1,5 +1,9 @@
 extends "res://drone_base.gd"
 
+func _ready():
+	drone_type = "frost"
+	super._ready()
+
 # Frost Drone: Targets the enemy with the highest speed and applies a slow effect
 
 func pick_target() -> Node2D:
