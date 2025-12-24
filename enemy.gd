@@ -1,5 +1,34 @@
 extends CharacterBody2D
 
+# Wave Scaling Constants
+const HP_PER_WAVE: float = 2.5
+const DAMAGE_PER_WAVE: float = 0.4
+const SPEED_PER_WAVE: float = 0.25
+
+# Burn Effect Constants
+const BURN_MIN_PERCENT: float = 0.15
+const BURN_MAX_PERCENT: float = 1.5
+const BURN_HP_CAP_PERCENT: float = 0.10
+const BURN_BASE_DURATION: float = 3.0
+const BURN_DURATION_PER_LEVEL: float = 0.5
+
+# Poison Effect Constants
+const POISON_MIN_PERCENT: float = 0.01
+const POISON_MAX_PERCENT: float = 0.10
+const POISON_PERCENT_PER_LEVEL: float = 0.01
+const POISON_DURATION: float = 4.0
+
+# Slow Effect Constants
+const SLOW_MIN_PERCENT: float = 0.3
+const SLOW_MAX_PERCENT: float = 0.8
+const SLOW_PERCENT_PER_LEVEL: float = 0.05
+const SLOW_BASE_DURATION: float = 2.0
+const SLOW_DURATION_PER_LEVEL: float = 0.1
+
+# Stun Effect Constants
+const STUN_BASE_DURATION: float = 0.5
+const STUN_DURATION_PER_LEVEL: float = 0.25
+const STUN_MAX_DURATION: float = 2.0
 
 @export var base_hp: int = 10
 @export var base_damage: int = 1
@@ -192,25 +221,25 @@ func die():
 	queue_free()
 	
 func apply_wave_scaling():
-	hp = base_hp + int(wave_number * 2.5)
-	damage_to_tower = base_damage + int(wave_number * 0.4)
-	move_speed = (base_speed + wave_number * 0.25) / 2
+	hp = base_hp + int(wave_number * HP_PER_WAVE)
+	damage_to_tower = base_damage + int(wave_number * DAMAGE_PER_WAVE)
+	move_speed = (base_speed + wave_number * SPEED_PER_WAVE) / 2
 	#print("wave number:", wave_number)
 	#print("enemy hp:", hp)
 	
 func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) -> void:
 	# 15% at level 1 → 150% at level 10 (linear)
-	var percent = 0.15 + ((level - 1) * (1.5 - 0.15) / 9)
-	percent = clamp(percent, 0.15, 1.5)
+	var percent = BURN_MIN_PERCENT + ((level - 1) * (BURN_MAX_PERCENT - BURN_MIN_PERCENT) / 9)
+	percent = clamp(percent, BURN_MIN_PERCENT, BURN_MAX_PERCENT)
 	burn_damage_per_tick = base_damage * percent * crit_multiplier
 
 	# Cap at 10% of max HP per second
-	var max_hp = base_hp + int(wave_number * 2.5)  # Use the same as your HP scaling
-	var max_burn_per_tick = max_hp * 0.10
+	var max_hp = base_hp + int(wave_number * HP_PER_WAVE)
+	var max_burn_per_tick = max_hp * BURN_HP_CAP_PERCENT
 	if burn_damage_per_tick > max_burn_per_tick:
 		burn_damage_per_tick = max_burn_per_tick
 
-	burn_duration = 3.0 + level * 0.5
+	burn_duration = BURN_BASE_DURATION + level * BURN_DURATION_PER_LEVEL
 	burn_active = true
 	burn_timer = 0.0
 	burn_tick_timer = 0.0
@@ -222,12 +251,12 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) ->
 func apply_poison(level: int) -> void:
 	#print("🟣 apply_poison CALLED on", name, "level", level)
 	# Level 1 = 1% per sec, Level 10 = 10% per sec, capped at 10%
-	var percent_per_sec = 0.01 + (level - 1) * 0.01
-	percent_per_sec = clamp(percent_per_sec, 0.01, 0.10)
-	var max_hp = base_hp + int(wave_number * 2.5)  # Or use your stored max_hp var
+	var percent_per_sec = POISON_MIN_PERCENT + (level - 1) * POISON_PERCENT_PER_LEVEL
+	percent_per_sec = clamp(percent_per_sec, POISON_MIN_PERCENT, POISON_MAX_PERCENT)
+	var max_hp = base_hp + int(wave_number * HP_PER_WAVE)
 	poison_damage_per_tick = max_hp * percent_per_sec
 
-	poison_duration = 4.0
+	poison_duration = POISON_DURATION
 	poison_active = true
 	poison_timer = 0.0
 	poison_tick_timer = 0.0
@@ -238,10 +267,8 @@ func apply_poison(level: int) -> void:
 
 func apply_slow(level: int) -> void:
 	# Scaling: starts at 30%, up to 80% over 10 levels, 2 sec duration
-	var base_slow = 0.3  # 30% slow
-	var max_slow = 0.8   # 80% slow
-	slow_percent = clamp(base_slow + (level - 1) * 0.05, base_slow, max_slow)
-	slow_duration = 2.0 + (level * 0.1)  # Optionally scale duration up a bit
+	slow_percent = clamp(SLOW_MIN_PERCENT + (level - 1) * SLOW_PERCENT_PER_LEVEL, SLOW_MIN_PERCENT, SLOW_MAX_PERCENT)
+	slow_duration = SLOW_BASE_DURATION + (level * SLOW_DURATION_PER_LEVEL)
 	slow_timer = 0.0
 	slow_active = true
 
@@ -251,7 +278,7 @@ func apply_slow(level: int) -> void:
 
 func apply_stun(level: int) -> void:
 	# Example scaling: 1 second base, +0.25s per drone level, max 2.0s
-	stun_duration = min(0.5 + (level * 0.25), 2.0)
+	stun_duration = min(STUN_BASE_DURATION + (level * STUN_DURATION_PER_LEVEL), STUN_MAX_DURATION)
 	stun_timer = 0.0
 	stun_active = true
 

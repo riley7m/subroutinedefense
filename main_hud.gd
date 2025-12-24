@@ -120,6 +120,8 @@ var current_speed_index := 0
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
 
 @onready var death_screen = get_tree().current_scene.get_node("DeathScreen")
+@onready var spawner: Node = $Spawner
+@onready var tower: Node = $tower
 
 
 
@@ -171,11 +173,9 @@ func _ready() -> void:
 		add_child(drone)
 		
 	# Spawner hookup
-	var hud = get_node(".")
-	var spawner = get_node("Spawner")
 	spawner.set_main_hud(self)
 	spawner.start_wave(wave)
-	spawner.set_main_hud(hud)
+	spawner.set_main_hud(self)
 	randomize()
 	RewardManager.load_permanent_upgrades()
 	update_all_perm_upgrade_ui()
@@ -191,19 +191,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	wave_timer += delta
-	var spawner = get_node("Spawner")
-	if spawner and spawner.wave_spawning:
+	if spawner.wave_spawning:
 		return
 	if wave_timer >= WAVE_INTERVAL:
 		wave_timer = 0.0
-		if spawner and spawner.has_method("start_wave"):
-			UpgradeManager.maybe_grant_free_upgrade()  # Grant before wave starts
-			spawner.start_wave(spawner.current_wave + 1)  # always request next wave
-			update_labels()
+		UpgradeManager.maybe_grant_free_upgrade()  # Grant before wave starts
+		spawner.start_wave(spawner.current_wave + 1)  # always request next wave
+		update_labels()
 
 
 func update_labels() -> void:
-	var spawner = get_node("Spawner")
 	wave_label.text = "Wave: %d" % spawner.current_wave
 	at_label.text = "AT: %d" % RewardManager.archive_tokens
 	dc_label.text = "DC: %d" % RewardManager.data_credits
@@ -253,7 +250,7 @@ func _on_fire_rate_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_fire_rate():
 				break
-	get_node("tower").refresh_fire_rate()
+	tower.refresh_fire_rate()
 	update_labels()
 
 func _on_crit_chance_upgrade_pressed() -> void:
@@ -329,7 +326,7 @@ func _on_shield_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_shield_integrity():
 				break
-	get_node("tower").refresh_shield_stats()
+	tower.refresh_shield_stats()
 	update_labels()
 
 func _on_damage_reduction_upgrade_pressed() -> void:
@@ -352,7 +349,7 @@ func _on_shield_regen_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_shield_regen():
 				break
-	get_node("tower").refresh_shield_stats()
+	tower.refresh_shield_stats()
 	update_labels()
 
 # --- Economy Panel Logic ---
@@ -517,26 +514,22 @@ func _on_quit_button_pressed():
 		RewardManager.data_credits = 100000
 
 	# 3. Reset wave and clear enemies
-	var spawner = get_tree().current_scene.get_node("Spawner")
-	if spawner:
-		if spawner.has_method("reset_wave_timers"):
-			spawner.reset_wave_timers()
-		spawner.wave_spawning = false
-		spawner.current_wave = 1
-		spawner.enemies_to_spawn = 0
-		spawner.spawned_enemies = 0
-		# Remove any enemy nodes
-		for e in spawner.get_children():
-			if is_instance_valid(e) and e.is_in_group("enemies"):
-				e.queue_free()
+	if spawner.has_method("reset_wave_timers"):
+		spawner.reset_wave_timers()
+	spawner.wave_spawning = false
+	spawner.current_wave = 1
+	spawner.enemies_to_spawn = 0
+	spawner.spawned_enemies = 0
+	# Remove any enemy nodes
+	for e in spawner.get_children():
+		if is_instance_valid(e) and e.is_in_group("enemies"):
+			e.queue_free()
 
 	# 4. Reset the tower
-	var tower = get_tree().current_scene.get_node("tower")
-	if tower:
-		tower.tower_hp = 1000
-		tower.refresh_shield_stats()
-		tower.current_shield = tower.max_shield
-		tower.update_bars()
+	tower.tower_hp = 1000
+	tower.refresh_shield_stats()
+	tower.current_shield = tower.max_shield
+	tower.update_bars()
 
 	# 5. Hide all upgrade panels
 	if has_node("OffensePanel"):

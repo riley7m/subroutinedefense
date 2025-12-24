@@ -1,5 +1,9 @@
 extends Node2D
 
+# Spawn Configuration Constants
+const SPAWN_MARGIN: int = 60
+const SPAWN_Y_OFFSET: float = -150.0
+
 @export var enemy_scenes: Array[PackedScene] = [
 	preload("res://enemy_breacher.tscn"),
 	preload("res://enemy_slicer.tscn"),
@@ -70,14 +74,14 @@ func spawn_enemy() -> void:
 
 	# Spawn within horizontal bounds
 	var screen_size = get_viewport().get_visible_rect().size
-	var margin = 60  # Reduced margin to fit smaller screen
+	var margin = SPAWN_MARGIN
 	var max_x = screen_size.x - margin
 	# Ensure min < max to avoid randf_range crash
 	if margin >= max_x:
 		margin = 0
 		max_x = screen_size.x
 	var spawn_x = randf_range(margin, max_x)
-	var spawn_y = -150.0  # Off-screen above
+	var spawn_y = SPAWN_Y_OFFSET  # Off-screen above
 	enemy.position = Vector2(spawn_x, spawn_y)
 
 func spawn_boss(wave_number: int) -> void:
