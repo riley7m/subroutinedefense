@@ -218,6 +218,12 @@ func die():
 	RewardManager.reward_enemy(enemy_type, wave_number)
 	RewardManager.reward_enemy_at(enemy_type, wave_number)
 
+	# Grant fragments for boss kills
+	if enemy_type == "override":
+		var fragment_reward = 10 + int(wave_number / 10)  # Scales with wave
+		RewardManager.add_fragments(fragment_reward)
+		print("💎 Boss killed! Fragments earned:", fragment_reward)
+
 	queue_free()
 	
 func apply_wave_scaling():

@@ -97,8 +97,8 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	#print("🪙 DC from", enemy_type, "→", scaled_dc, "→ Total:", data_credits)
 
 func get_wave_at_reward(wave_number: int) -> int:
-	var base = floor(0.25 * pow(wave_number, 1.15))
-	return int(base * at_multiplier)
+	# Apply multiplier BEFORE floor to maintain canonical formula precision
+	return int(floor(0.25 * pow(wave_number, 1.15) * at_multiplier))
 
 func add_wave_at(wave_number: int) -> void:
 	var reward = get_wave_at_reward(wave_number)
@@ -123,6 +123,11 @@ func reset_rewards() -> void:
 	archive_tokens = 0
 	fragments = 0
 	print("🔄 Rewards reset")
+
+func reset_run_currency() -> void:
+	# Reset in-run currency to starting values (preserves permanent upgrades)
+	data_credits = 100000
+	print("🔄 In-run currency reset to starting values")
 
 # === PERSISTENCE: Save/Load All Permanent Upgrades and Currency ===
 func save_permanent_upgrades():

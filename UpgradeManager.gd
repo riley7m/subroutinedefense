@@ -67,7 +67,9 @@ func get_projectile_damage() -> int:
 	var level = projectile_damage_level
 	var base = 100 + (floor(5 * pow(level, 1.12) + 5))
 	var milestones = floor(level / 100)
-	var multiplier = pow(1.5, milestones)
+	# Cap milestones at 500 to prevent overflow (pow(1.5, 500) ≈ 10^88)
+	# Beyond this, only base scaling continues to grow
+	var multiplier = pow(1.5, min(milestones, 500))
 	return int(base * multiplier) + RewardManager.perm_projectile_damage
 
 func get_projectile_fire_rate() -> float:

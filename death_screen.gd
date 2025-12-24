@@ -38,7 +38,7 @@ func _on_restart_button_pressed():
 		economy_panel.visible = false
 
 	# Reset currencies
-	RewardManager.data_credits = 100000
+	RewardManager.reset_run_currency()
 	RewardManager.save_permanent_upgrades()
 
 	# Reset in-run upgrades and state

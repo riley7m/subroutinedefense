@@ -511,7 +511,7 @@ func _on_quit_button_pressed():
 	# 2. Save permanent upgrades and reset currencies
 	if Engine.has_singleton("RewardManager"):
 		RewardManager.save_permanent_upgrades()
-		RewardManager.data_credits = 100000
+		RewardManager.reset_run_currency()
 
 	# 3. Reset wave and clear enemies
 	if spawner.has_method("reset_wave_timers"):

@@ -35,6 +35,9 @@ func _process(delta: float) -> void:
 			enemies_to_spawn -= 1
 		if enemies_to_spawn <= 0:
 			wave_spawning = false
+			# Award Archive Tokens for completing the wave
+			RewardManager.add_wave_at(current_wave)
+			print("📦 Wave", current_wave, "completed! AT reward granted.")
 
 func start_wave(wave_number: int) -> int:
 	print("Called start_wave with wave number: ", wave_number)
