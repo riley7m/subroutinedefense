@@ -223,6 +223,11 @@ func die():
 		var fragment_reward = 10 + int(wave_number / 10)  # Scales with wave
 		RewardManager.add_fragments(fragment_reward)
 		print("💎 Boss killed! Fragments earned:", fragment_reward)
+		# Boss mega explosion
+		ParticleEffects.create_boss_explosion(global_position, get_parent())
+	else:
+		# Normal enemy explosion
+		ParticleEffects.create_enemy_explosion(global_position, enemy_type, get_parent())
 
 	queue_free()
 	

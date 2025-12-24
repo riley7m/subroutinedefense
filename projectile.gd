@@ -34,5 +34,8 @@ func _on_body_entered(body: Node2D) -> void:
 		# --- Record damage dealt before applying to enemy (for run stats)
 		RunStats.damage_dealt += dealt_dmg
 
+		# Create impact effect
+		ParticleEffects.create_projectile_impact(global_position, get_parent())
+
 		body.take_damage(dealt_dmg)
 		queue_free()

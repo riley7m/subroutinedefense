@@ -52,8 +52,12 @@ func start_wave(wave_number: int) -> int:
 	wave_spawning = true
 	enemy_spawn_timer = 0.0
 
+	# Show wave transition
 	if current_wave % 10 == 0:
 		spawn_boss(current_wave)
+		ScreenEffects.boss_wave_transition(current_wave)
+	else:
+		ScreenEffects.wave_transition(current_wave)
 
 	print("🟦 Starting wave", current_wave, "→ Spawning", enemies_to_spawn, "enemies")
 	return current_wave  # ← return the actual started wave

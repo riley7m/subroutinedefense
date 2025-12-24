@@ -126,6 +126,16 @@ var current_speed_index := 0
 
 
 func _ready() -> void:
+	# Add background layers (parallax depth)
+	var bg_layers = preload("res://BackgroundLayers.gd").new()
+	add_child(bg_layers)
+	move_child(bg_layers, 0)  # Render first (furthest back)
+
+	# Add background effects (grid + CRT shader)
+	var bg_effects = preload("res://BackgroundEffects.gd").new()
+	add_child(bg_effects)
+	move_child(bg_effects, 1)  # Render after layers
+
 	# Connect upgrade and toggle buttons
 	offense_button.pressed.connect(_on_offense_button_pressed)
 	damage_upgrade.pressed.connect(_on_damage_upgrade_pressed)
@@ -188,6 +198,9 @@ func _ready() -> void:
 	RewardManager.archive_tokens_changed.connect(update_all_perm_upgrade_ui)
 	update_labels()
 	update_damage_label()
+
+	# Apply cyber theme to all UI elements
+	UIStyler.apply_theme_to_node(self)
 
 func _process(delta: float) -> void:
 	wave_timer += delta

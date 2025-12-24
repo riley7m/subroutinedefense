@@ -99,12 +99,19 @@ func fire_projectile() -> void:
 		projectile.target = enemy
 		get_tree().current_scene.add_child(projectile)
 
+		# Create muzzle flash effect
+		var direction = (enemy.global_position - global_position).normalized()
+		ParticleEffects.create_muzzle_flash(global_position, direction, get_tree().current_scene)
+
 func take_damage(amount: int) -> void:
 	# Apply damage reduction
 	var reduction = UpgradeManager.get_damage_reduction_level()
 	var reduced_amount = int(amount * (1.0 - (reduction / 100.0)))
 
 	RunStats.damage_taken += reduced_amount
+
+	# Screen shake when hit
+	ScreenEffects.screen_shake(3.0, 0.2)
 
 	# Apply to shield first
 	if current_shield > 0:
@@ -120,6 +127,7 @@ func take_damage(amount: int) -> void:
 
 		# Check for death
 		if tower_hp <= 0 and death_screen:
+			ScreenEffects.death_transition()
 			death_screen.show_death()
 
 	update_bars()
