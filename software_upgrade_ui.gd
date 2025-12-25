@@ -174,12 +174,7 @@ func _update_available_upgrades() -> void:
 			duration_str = _format_time(duration)
 
 			var cost = SoftwareUpgradeManager.get_cost_for_level(lab_id, next_level)
-			if cost.get("fragments", 0) > 0:
-				cost_str += "%d Fragments" % cost["fragments"]
-			if cost.get("archive_tokens", 0) > 0:
-				if cost_str != "":
-					cost_str += ", "
-				cost_str += "%d AT" % cost["archive_tokens"]
+			cost_str = "%d AT" % cost
 		else:
 			duration_str = "MAXED"
 			cost_str = "---"

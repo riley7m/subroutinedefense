@@ -42,10 +42,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 3600,  # 1 hour for level 1
 			"duration_scaling": 1.05,  # 5% longer each level
-			"base_cost_fragments": 50,
-			"base_cost_at": 0,
+			"base_cost_at": 500,  # AT-only cost from level 1
 			"cost_scaling": 1.08,  # 8% more expensive each level
-			"at_cost_starts_at_level": 20,  # AT cost starts at level 20
 			"bonus_per_level": {"projectile_damage_perm": 10},
 			"tier": 1,
 		},
@@ -56,10 +54,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 3600,
 			"duration_scaling": 1.05,
-			"base_cost_fragments": 50,
-			"base_cost_at": 0,
+			"base_cost_at": 500,
 			"cost_scaling": 1.08,
-			"at_cost_starts_at_level": 20,
 			"bonus_per_level": {"fire_rate_perm": 0.01},
 			"tier": 1,
 		},
@@ -70,10 +66,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 7200,  # 2 hours
 			"duration_scaling": 1.06,
-			"base_cost_fragments": 100,
-			"base_cost_at": 0,
+			"base_cost_at": 600,
 			"cost_scaling": 1.10,
-			"at_cost_starts_at_level": 15,
 			"bonus_per_level": {"crit_chance_perm": 0.5},  # 0.5% per level
 			"tier": 1,
 		},
@@ -84,10 +78,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 14400,  # 4 hours
 			"duration_scaling": 1.07,
-			"base_cost_fragments": 200,
-			"base_cost_at": 50,
+			"base_cost_at": 1000,
 			"cost_scaling": 1.12,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"crit_damage_perm": 0.02},  # 2% per level
 			"tier": 2,
 		},
@@ -98,10 +90,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 3600,
 			"duration_scaling": 1.05,
-			"base_cost_fragments": 50,
-			"base_cost_at": 0,
+			"base_cost_at": 500,
 			"cost_scaling": 1.08,
-			"at_cost_starts_at_level": 20,
 			"bonus_per_level": {"shield_integrity_perm": 20},
 			"tier": 1,
 		},
@@ -112,10 +102,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 14400,  # 4 hours
 			"duration_scaling": 1.07,
-			"base_cost_fragments": 200,
-			"base_cost_at": 50,
+			"base_cost_at": 1000,
 			"cost_scaling": 1.12,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"damage_reduction_perm": 0.005},  # 0.5% per level
 			"tier": 2,
 		},
@@ -126,10 +114,8 @@ func _initialize_labs() -> void:
 			"max_level": 76,
 			"base_duration": 7200,  # 2 hours
 			"duration_scaling": 1.06,
-			"base_cost_fragments": 100,
-			"base_cost_at": 0,
+			"base_cost_at": 500,
 			"cost_scaling": 1.09,
-			"at_cost_starts_at_level": 25,
 			"bonus_per_level": {"shield_regen_perm": 0.5},
 			"tier": 1,
 		},
@@ -140,10 +126,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 10800,  # 3 hours
 			"duration_scaling": 1.08,
-			"base_cost_fragments": 150,
-			"base_cost_at": 100,
+			"base_cost_at": 1200,
 			"cost_scaling": 1.15,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"data_credit_multiplier": 0.01},  # 1% per level
 			"tier": 2,
 		},
@@ -154,10 +138,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 10800,  # 3 hours
 			"duration_scaling": 1.08,
-			"base_cost_fragments": 150,
-			"base_cost_at": 100,
+			"base_cost_at": 1200,
 			"cost_scaling": 1.15,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"archive_token_multiplier": 0.01},  # 1% per level
 			"tier": 2,
 		},
@@ -168,10 +150,8 @@ func _initialize_labs() -> void:
 			"max_level": 30,
 			"base_duration": 21600,  # 6 hours
 			"duration_scaling": 1.10,
-			"base_cost_fragments": 500,
-			"base_cost_at": 200,
+			"base_cost_at": 2000,
 			"cost_scaling": 1.18,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"wave_skip_chance_perm": 0.5},  # 0.5% per level
 			"tier": 3,
 		},
@@ -182,10 +162,8 @@ func _initialize_labs() -> void:
 			"max_level": 30,
 			"base_duration": 21600,  # 6 hours
 			"duration_scaling": 1.10,
-			"base_cost_fragments": 500,
-			"base_cost_at": 200,
+			"base_cost_at": 2000,
 			"cost_scaling": 1.18,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"free_upgrade_chance_perm": 0.5},  # 0.5% per level
 			"tier": 3,
 		},
@@ -196,10 +174,8 @@ func _initialize_labs() -> void:
 			"max_level": 30,
 			"base_duration": 28800,  # 8 hours
 			"duration_scaling": 1.12,
-			"base_cost_fragments": 1000,
-			"base_cost_at": 500,
+			"base_cost_at": 5000,
 			"cost_scaling": 1.20,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"multi_target_bonus": 0.1},  # 0.1 per level
 			"tier": 3,
 		},
@@ -227,26 +203,18 @@ func get_duration_for_level(lab_id: String, level: int) -> int:
 	# Duration = base * (scaling ^ (level - 1))
 	return int(base * pow(scaling, level - 1))
 
-func get_cost_for_level(lab_id: String, level: int) -> Dictionary:
+func get_cost_for_level(lab_id: String, level: int) -> int:
 	if not labs.has(lab_id):
-		return {"fragments": 0, "archive_tokens": 0}
+		return 0
 
 	var lab = labs[lab_id]
-	var base_frag = lab["base_cost_fragments"]
 	var base_at = lab["base_cost_at"]
 	var scaling = lab["cost_scaling"]
-	var at_starts = lab["at_cost_starts_at_level"]
 
-	var frag_cost = int(base_frag * pow(scaling, level - 1))
-	var at_cost = 0
+	# Cost = base_at * (scaling ^ (level - 1))
+	var at_cost = int(base_at * pow(scaling, level - 1))
 
-	if level >= at_starts:
-		at_cost = int(base_at * pow(scaling, level - at_starts))
-
-	return {
-		"fragments": frag_cost,
-		"archive_tokens": at_cost
-	}
+	return at_cost
 
 func can_start_upgrade(lab_id: String) -> bool:
 	# Check if lab exists
@@ -266,9 +234,8 @@ func can_start_upgrade(lab_id: String) -> bool:
 	var next_level = get_level(lab_id) + 1
 	var cost = get_cost_for_level(lab_id, next_level)
 
-	if cost["fragments"] > RewardManager.fragments:
-		return false
-	if cost["archive_tokens"] > RewardManager.archive_tokens:
+	# Only check AT cost
+	if cost > RewardManager.archive_tokens:
 		return false
 
 	return true
@@ -288,9 +255,8 @@ func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	var cost = get_cost_for_level(lab_id, next_level)
 	var duration = get_duration_for_level(lab_id, next_level)
 
-	# Deduct cost
-	RewardManager.fragments -= cost["fragments"]
-	RewardManager.archive_tokens -= cost["archive_tokens"]
+	# Deduct AT cost
+	RewardManager.archive_tokens -= cost
 
 	# Start upgrade
 	active_upgrades[slot_index] = {
@@ -304,7 +270,7 @@ func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	emit_signal("upgrades_updated")
 	save_upgrade_state()
 
-	print("🔬 Started %s level %d (slot %d)" % [lab["name"], next_level, slot_index])
+	print("🔬 Started %s level %d (slot %d) - Cost: %d AT" % [lab["name"], next_level, slot_index, cost])
 	return true
 
 func update_upgrades() -> void:
