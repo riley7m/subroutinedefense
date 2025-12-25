@@ -1,13 +1,13 @@
 extends Node2D
 
-@export var fire_interval: float = 1.0
 @export var drone_type: String = "base"  # Override in child scripts
 var drone_level: int = 1
 
 @onready var fire_timer: Timer = $FireTimer
 
 func _ready() -> void:
-	fire_timer.wait_time = fire_interval
+	# Use tower's fire rate (drones fire at same rate as tower)
+	refresh_fire_rate()
 	var err = fire_timer.timeout.connect(_on_fire_timer_timeout)
 	if err != OK:
 		push_error("Failed to connect fire_timer.timeout signal: " + str(err))
@@ -16,6 +16,11 @@ func _ready() -> void:
 
 	# Create visual representation (child classes should set drone_type)
 	_create_drone_visual()
+
+func refresh_fire_rate() -> void:
+	# Drones use the same fire rate as the tower
+	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)
+	fire_timer.wait_time = 1.0 / fire_rate
 
 func _on_fire_timer_timeout() -> void:
 	var target = pick_target()
@@ -56,9 +61,6 @@ func apply_upgrade(level: int) -> void:
 func _create_drone_visual() -> void:
 	# Create visual based on drone type
 	VisualFactory.create_drone_visual(drone_type, self)
-
-	# Add spawn animation
-	VisualFactory.add_spawn_animation(self, 0.35)
 
 func _exit_tree() -> void:
 	# Clean up timer when drone is removed

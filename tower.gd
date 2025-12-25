@@ -52,9 +52,6 @@ func _ready() -> void:
 	# Create visual representation (includes Light2D)
 	VisualFactory.create_tower_visual(self)
 
-	# Add spawn animation
-	VisualFactory.add_spawn_animation(self, 0.5)
-
 	# Shield init
 	refresh_shield_stats()
 

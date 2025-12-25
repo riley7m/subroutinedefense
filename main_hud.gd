@@ -214,10 +214,30 @@ func _ready() -> void:
 	economy_panel.visible = false
 	perm_panel.visible = false
 	
+	# Spawn drones and apply permanent upgrades
+	var drone_index = 0
 	for drone_type in drone_scenes.keys():
 		var drone = drone_scenes[drone_type].instantiate()
 		active_drones.append(drone)
 		add_child(drone)
+
+		# Apply permanent upgrade levels
+		match drone_type:
+			"flame":
+				drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
+			"frost":
+				drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
+			"poison":
+				drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
+			"shock":
+				drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+
+		# Position drones around the tower in a circular formation
+		var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
+		var radius = 80  # Distance from tower
+		var angle = (drone_index * TAU) / 4  # Divide circle by 4 drones
+		drone.global_position = tower_pos + Vector2(cos(angle), sin(angle)) * radius
+		drone_index += 1
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
@@ -326,6 +346,10 @@ func _on_fire_rate_upgrade_pressed() -> void:
 	if tower and is_instance_valid(tower):
 		tower.refresh_fire_rate()
 		tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
+	# Also refresh fire rate for all drones
+	for drone in active_drones:
+		if is_instance_valid(drone) and drone.has_method("refresh_fire_rate"):
+			drone.refresh_fire_rate()
 	update_labels()
 
 func _on_crit_chance_upgrade_pressed() -> void:
@@ -510,6 +534,10 @@ func _on_perm_upgrade_pressed(key):
 				break
 	update_all_perm_upgrade_ui()
 
+	# Refresh drones if drone upgrades were purchased
+	if key in ["drone_flame", "drone_frost", "drone_poison", "drone_shock"]:
+		refresh_all_drones()
+
 	
 func _on_buy_x_button_pressed():
 	current_buy_index = (current_buy_index + 1) % buy_x_options.size()
@@ -544,7 +572,30 @@ func update_perm_upgrade_ui(key):
 func update_all_perm_upgrade_ui():
 	for key in perm_nodes.keys():
 		update_perm_upgrade_ui(key)
-		
+
+func refresh_all_drones() -> void:
+	# Update all active drones with current permanent upgrade levels
+	for drone in active_drones:
+		if not is_instance_valid(drone):
+			continue
+
+		# Determine drone type and apply permanent upgrade level
+		if drone.has_method("apply_upgrade"):
+			var drone_type = drone.drone_type if drone.get("drone_type") else ""
+			match drone_type:
+				"flame":
+					drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
+				"frost":
+					drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
+				"poison":
+					drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
+				"shock":
+					drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+
+		# Also refresh fire rate to match tower
+		if drone.has_method("refresh_fire_rate"):
+			drone.refresh_fire_rate()
+
 func get_current_buy_amount() -> int:
 	var x = buy_x_options[current_buy_index]
 	return -1 if x is String and x == "Max" else x
