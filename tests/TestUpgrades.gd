@@ -22,9 +22,9 @@ func test_reset_upgrades() -> void:
 	UpgradeManager.projectile_damage_level = 10
 	UpgradeManager.fire_rate_level = 5
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
-	assert_equal(UpgradeManager.projectile_damage_level, 0, "Damage level should reset to 0")
+	assert_equal(UpgradeManager.projectile_damage_level, 1, "Damage level should reset to 1 (base)")
 	assert_equal(UpgradeManager.fire_rate_level, 0, "Fire rate level should reset to 0")
 
 	log_info("Upgrades reset successfully")
@@ -35,7 +35,7 @@ func test_reset_upgrades() -> void:
 
 func test_damage_upgrade_progression() -> void:
 	# Test that damage increases with each level
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_damage = UpgradeManager.get_projectile_damage()
 
@@ -54,20 +54,18 @@ func test_damage_upgrade_progression() -> void:
 
 	log_info("Damage progression: %d -> %d -> %d -> %d" % [level0_damage, level1_damage, level5_damage, level10_damage])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func test_damage_upgrade_cost() -> void:
-	# Test that upgrade costs increase
-	UpgradeManager.reset_upgrades()
+	# Test that damage upgrade has a constant cost (DAMAGE_UPGRADE_COST = 100)
+	UpgradeManager.reset_run_upgrades()
 
-	var cost_level_1 = UpgradeManager.get_damage_cost_for_level(1)
-	var cost_level_5 = UpgradeManager.get_damage_cost_for_level(5)
-	var cost_level_10 = UpgradeManager.get_damage_cost_for_level(10)
+	# Damage upgrades cost a flat 100 DC per level in this game
+	var expected_cost = UpgradeManager.DAMAGE_UPGRADE_COST
 
-	assert_greater(cost_level_5, cost_level_1, "Level 5 should cost more than level 1")
-	assert_greater(cost_level_10, cost_level_5, "Level 10 should cost more than level 5")
+	assert_equal(expected_cost, 100, "Damage upgrade cost should be 100 DC")
 
-	log_info("Upgrade costs: Lvl 1: %d, Lvl 5: %d, Lvl 10: %d" % [cost_level_1, cost_level_5, cost_level_10])
+	log_info("Damage upgrade cost: %d DC per level" % expected_cost)
 
 # ============================================================================
 # FIRE RATE UPGRADE TESTS
@@ -75,7 +73,7 @@ func test_damage_upgrade_cost() -> void:
 
 func test_fire_rate_upgrade_progression() -> void:
 	# Test that fire rate increases with levels
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_rate = UpgradeManager.get_projectile_fire_rate()
 
@@ -90,7 +88,7 @@ func test_fire_rate_upgrade_progression() -> void:
 
 	log_info("Fire rate progression: %.2f -> %.2f -> %.2f shots/sec" % [level0_rate, level3_rate, level7_rate])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 # ============================================================================
 # CRIT UPGRADE TESTS
@@ -98,7 +96,7 @@ func test_fire_rate_upgrade_progression() -> void:
 
 func test_crit_chance_upgrade() -> void:
 	# Test crit chance upgrade progression
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_chance = UpgradeManager.get_crit_chance()
 
@@ -114,11 +112,11 @@ func test_crit_chance_upgrade() -> void:
 
 	log_info("Crit chance progression: %d%% -> %d%% -> %d%%" % [level0_chance, level5_chance, level10_chance])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func test_crit_damage_upgrade() -> void:
 	# Test crit damage multiplier upgrade
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_mult = UpgradeManager.get_crit_damage_multiplier()
 
@@ -134,7 +132,7 @@ func test_crit_damage_upgrade() -> void:
 
 	log_info("Crit damage progression: %.2fx -> %.2fx -> %.2fx" % [level0_mult, level4_mult, level8_mult])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 # ============================================================================
 # DEFENSIVE UPGRADE TESTS
@@ -142,7 +140,7 @@ func test_crit_damage_upgrade() -> void:
 
 func test_shield_capacity_upgrade() -> void:
 	# Test shield capacity upgrade
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_shield = UpgradeManager.get_shield_capacity()
 
@@ -157,11 +155,11 @@ func test_shield_capacity_upgrade() -> void:
 
 	log_info("Shield capacity progression: %d -> %d -> %d" % [level0_shield, level3_shield, level7_shield])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func test_shield_regen_upgrade() -> void:
 	# Test shield regen rate upgrade
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_regen = UpgradeManager.get_shield_regen_rate()
 
@@ -176,11 +174,11 @@ func test_shield_regen_upgrade() -> void:
 
 	log_info("Shield regen progression: %.2f%% -> %.2f%% -> %.2f%%" % [level0_regen, level3_regen, level6_regen])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func test_damage_reduction_upgrade() -> void:
 	# Test damage reduction upgrade
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_reduction = UpgradeManager.get_damage_reduction_level()
 
@@ -192,7 +190,7 @@ func test_damage_reduction_upgrade() -> void:
 
 	log_info("Damage reduction: %d%% -> %d%%" % [level0_reduction, level3_reduction])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 # ============================================================================
 # MULTI-TARGET UPGRADE TESTS
@@ -200,7 +198,7 @@ func test_damage_reduction_upgrade() -> void:
 
 func test_multi_target_upgrade() -> void:
 	# Test multi-target upgrade
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var level0_targets = UpgradeManager.get_multi_target_level()
 	assert_equal(level0_targets, 1, "Should start with 1 target")
@@ -215,7 +213,7 @@ func test_multi_target_upgrade() -> void:
 
 	log_info("Multi-target progression: %d -> %d -> %d (max)" % [level0_targets, level1_targets, max_targets])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func test_multi_target_cost() -> void:
 	# Test multi-target upgrade cost
@@ -233,7 +231,7 @@ func test_multi_target_cost() -> void:
 
 func test_max_upgrade_levels() -> void:
 	# Test that upgrades respect max levels
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	# Try to set beyond reasonable limits
 	UpgradeManager.projectile_damage_level = 100
@@ -251,7 +249,7 @@ func test_max_upgrade_levels() -> void:
 
 	log_info("Extreme level test passed - upgrades remain valid")
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func assert_less_equal(actual, expected, message: String = "") -> bool:
 	if actual <= expected:

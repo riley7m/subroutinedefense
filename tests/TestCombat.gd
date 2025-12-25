@@ -14,7 +14,7 @@ func _ready() -> void:
 
 func test_critical_hit_calculation() -> void:
 	# Test that critical hits work correctly
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var base_damage = UpgradeManager.get_projectile_damage()
 	var crit_multiplier = UpgradeManager.get_crit_damage_multiplier()
@@ -30,7 +30,7 @@ func test_critical_hit_calculation() -> void:
 
 func test_critical_chance() -> void:
 	# Test that crit chance is within valid range
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var crit_chance = UpgradeManager.get_crit_chance()
 
@@ -45,7 +45,7 @@ func test_critical_chance() -> void:
 	assert_in_range(upgraded_chance, 0.0, 100.0, "Upgraded crit chance should still be valid range")
 	log_info("Upgraded Crit Chance (Lvl 5): %d%%" % upgraded_chance)
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 # ============================================================================
 # DAMAGE CALCULATION TESTS
@@ -53,7 +53,7 @@ func test_critical_chance() -> void:
 
 func test_tower_damage_output() -> void:
 	# Test tower's base damage
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var base_damage = UpgradeManager.get_projectile_damage()
 
@@ -62,7 +62,7 @@ func test_tower_damage_output() -> void:
 
 func test_damage_upgrades() -> void:
 	# Test that damage upgrades increase damage
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var base_damage = UpgradeManager.get_projectile_damage()
 
@@ -72,11 +72,11 @@ func test_damage_upgrades() -> void:
 	assert_greater(upgraded_damage, base_damage, "Upgraded damage should be higher than base")
 	log_info("Damage increase from 5 upgrades: %d -> %d" % [base_damage, upgraded_damage])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func test_damage_reduction() -> void:
 	# Test enemy damage reduction mechanic
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var reduction = UpgradeManager.get_damage_reduction_level()
 	assert_in_range(reduction, 0, 100, "Damage reduction should be between 0-100%")
@@ -88,7 +88,7 @@ func test_damage_reduction() -> void:
 	assert_greater(upgraded_reduction, reduction, "Upgraded reduction should be higher")
 	log_info("Damage Reduction: %d%% -> %d%% (after 3 upgrades)" % [reduction, upgraded_reduction])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 # ============================================================================
 # FIRE RATE TESTS
@@ -96,7 +96,7 @@ func test_damage_reduction() -> void:
 
 func test_fire_rate() -> void:
 	# Test tower fire rate
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var base_fire_rate = UpgradeManager.get_projectile_fire_rate()
 
@@ -110,7 +110,7 @@ func test_fire_rate() -> void:
 	assert_greater(upgraded_fire_rate, base_fire_rate, "Upgraded fire rate should be higher")
 	log_info("Upgraded fire rate: %.2f shots/sec" % upgraded_fire_rate)
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 # ============================================================================
 # MULTI-TARGET TESTS
@@ -118,7 +118,7 @@ func test_fire_rate() -> void:
 
 func test_multi_target() -> void:
 	# Test multi-target upgrade
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var base_targets = UpgradeManager.get_multi_target_level()
 	assert_equal(base_targets, 1, "Base should target 1 enemy")
@@ -133,7 +133,7 @@ func test_multi_target() -> void:
 
 	log_info("Multi-target: %d -> %d enemies" % [base_targets, upgraded_targets])
 
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 func assert_less_equal(actual, expected, message: String = "") -> bool:
 	if actual <= expected:
@@ -209,7 +209,7 @@ func test_tower_health() -> void:
 
 func test_tower_shield() -> void:
 	# Test tower shield system
-	UpgradeManager.reset_upgrades()
+	UpgradeManager.reset_run_upgrades()
 
 	var shield_capacity = UpgradeManager.get_shield_capacity()
 	var shield_regen = UpgradeManager.get_shield_regen_rate()

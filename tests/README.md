@@ -1,5 +1,7 @@
 # Test Suite for Subroutine Defense
 
+⚠️ **IMPORTANT DISCLAIMER**: These tests have been written but **NOT YET EXECUTED** in Godot. They may contain errors, incorrect API calls, or other issues. Please run the test suite in Godot and report any failures so they can be fixed.
+
 This directory contains comprehensive tests for all major gameplay loops and systems.
 
 ## Test Structure
@@ -163,8 +165,22 @@ func test_my_feature() -> void:
 - **Test edge cases**: Zero values, max values, invalid inputs
 - **Document intent**: Comment what behavior you're testing
 
+## Known Fixes Applied
+
+During development, the following API mismatches were corrected:
+
+- ✅ Fixed `UpgradeManager.reset_upgrades()` → `reset_run_upgrades()` (correct method)
+- ✅ Fixed `RunStats.reset_stats()` → `RunStats.reset()` (correct method)
+- ✅ Fixed `RunStats.enemies_killed` → `RunStats.data_credits_earned` (correct variable)
+- ✅ Rewrote spending tests to manually check `data_credits >= cost` (no `can_afford()` method exists)
+- ✅ Rewrote spending tests to manually subtract credits (no `spend_data_credits()` method exists)
+- ✅ Fixed cost tests to check constant values instead of calling non-existent `get_damage_cost_for_level()`
+
+**Note**: Additional issues may still exist. Run the tests in Godot to verify!
+
 ## Known Limitations
 
+- **Tests have NOT been executed** - may contain additional errors
 - Tests run sequentially (not parallel)
 - Some tests require scene instantiation (slower)
 - Visual/rendering effects are not tested
