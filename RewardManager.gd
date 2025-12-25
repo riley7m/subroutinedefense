@@ -5,6 +5,14 @@ var data_credits: int = 100000
 var archive_tokens: int = 100000
 var fragments: int = 0  # For drone upgrades
 
+# --- Offline Progress ---
+var last_play_time: int = 0  # Unix timestamp
+var offline_progress_ready: bool = false
+var offline_waves: int = 0
+var offline_dc: int = 0
+var offline_at: int = 0
+var offline_duration: float = 0.0
+
 # --- Permanent Upgrades (all are managed here now) ---
 var perm_projectile_damage: int = 0
 var perm_projectile_fire_rate: float = 0.0
@@ -32,6 +40,7 @@ var perm_multi_target_unlocked: bool = false
 @export var at_multiplier: float = 1.0
 
 signal archive_tokens_changed
+signal offline_progress_calculated(waves: int, dc: int, at: int, duration: float)
 
 var UpgradeManager = null
 
@@ -136,8 +145,121 @@ func reset_run_currency() -> void:
 	data_credits = 100000
 	print("🔄 In-run currency reset to starting values")
 
+# === OFFLINE PROGRESS CALCULATION ===
+func calculate_offline_progress(watched_ad: bool = false) -> void:
+	if last_play_time == 0:
+		last_play_time = Time.get_unix_time_from_system()
+		return  # First time playing
+
+	var now = Time.get_unix_time_from_system()
+	var seconds_away = now - last_play_time
+
+	# Update timestamp for next session
+	last_play_time = now
+
+	# Cap at 24 hours (86400 seconds)
+	seconds_away = min(seconds_away, 86400)
+
+	# Ignore absences less than 1 minute
+	if seconds_away < 60:
+		return
+
+	# Calculate efficiency: 25% base, 50% if watched ad
+	var efficiency = 0.25
+	if watched_ad:
+		efficiency = 0.50
+
+	# Simulate offline progress
+	var results = _simulate_offline_waves(seconds_away, efficiency)
+
+	offline_waves = results["waves"]
+	offline_dc = results["dc"]
+	offline_at = results["at"]
+	offline_duration = seconds_away
+	offline_progress_ready = true
+
+	# Emit signal so UI can show popup
+	emit_signal("offline_progress_calculated", offline_waves, offline_dc, offline_at, seconds_away)
+
+func _simulate_offline_waves(seconds: float, efficiency: float) -> Dictionary:
+	# Constants tuned for balance
+	const AVG_WAVE_DURATION = 10.0  # seconds per wave
+	const BASE_DC_PER_WAVE = 50  # rough estimate
+	const BASE_AT_PER_WAVE = 5   # rough estimate
+
+	# Get player's current power from UpgradeManager
+	var damage_mult = 1.0
+	var fire_rate_mult = 1.0
+	var wave_skip_mult = 1.0
+
+	if UpgradeManager:
+		# Factor in permanent upgrades
+		wave_skip_mult = 1.0 + (UpgradeManager.get_wave_skip_chance() / 100.0)
+		# Damage and fire rate affect clear speed
+		var damage = UpgradeManager.get_projectile_damage()
+		var base_damage = 10.0  # baseline
+		damage_mult = max(1.0, damage / base_damage)
+
+		var fire_rate = UpgradeManager.get_fire_rate()
+		var base_fire_rate = 1.0
+		fire_rate_mult = max(1.0, fire_rate / base_fire_rate)
+
+	# Calculate effective power (damage * fire_rate)
+	var power_mult = sqrt(damage_mult * fire_rate_mult)  # sqrt to prevent runaway scaling
+
+	# Calculate waves cleared
+	var effective_time = seconds * efficiency
+	var clear_speed = AVG_WAVE_DURATION / power_mult
+	var waves_cleared = floor(effective_time / clear_speed)
+
+	# Apply wave skip chance (expected value, not RNG)
+	waves_cleared = floor(waves_cleared * wave_skip_mult)
+
+	# Add drone contribution (flat 5% per drone level)
+	var drone_mult = 1.0
+	drone_mult += perm_drone_flame_level * 0.05
+	drone_mult += perm_drone_frost_level * 0.05
+	drone_mult += perm_drone_poison_level * 0.05
+	drone_mult += perm_drone_shock_level * 0.05
+	waves_cleared = floor(waves_cleared * drone_mult)
+
+	# Cap to prevent absurd numbers
+	waves_cleared = min(waves_cleared, 1000)
+
+	# Calculate rewards (simplified - average across waves)
+	var dc_mult = get_data_credit_multiplier()
+	var at_mult = get_archive_token_multiplier()
+
+	var dc_earned = int(waves_cleared * BASE_DC_PER_WAVE * dc_mult)
+	var at_earned = int(waves_cleared * BASE_AT_PER_WAVE * at_mult)
+
+	return {
+		"waves": int(waves_cleared),
+		"dc": dc_earned,
+		"at": at_earned
+	}
+
+func apply_offline_rewards() -> void:
+	if not offline_progress_ready:
+		return
+
+	data_credits += offline_dc
+	archive_tokens += offline_at
+
+	offline_progress_ready = false
+	offline_waves = 0
+	offline_dc = 0
+	offline_at = 0
+	offline_duration = 0.0
+
+	emit_signal("archive_tokens_changed")
+	print("🌙 Offline rewards applied: %d DC, %d AT" % [offline_dc, offline_at])
+
 # === PERSISTENCE: Save/Load All Permanent Upgrades and Currency ===
 func save_permanent_upgrades():
+	# Update last play time on save
+	last_play_time = Time.get_unix_time_from_system()
+
 	var data = {
 		"perm_projectile_damage": perm_projectile_damage,
 		"perm_projectile_fire_rate": perm_projectile_fire_rate,
@@ -157,6 +279,7 @@ func save_permanent_upgrades():
 		"perm_multi_target_unlocked": perm_multi_target_unlocked,
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
+		"last_play_time": last_play_time,
 	}
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.WRITE)
 	if file == null:
@@ -203,5 +326,9 @@ func load_permanent_upgrades():
 	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
 	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
 	fragments = clamp(data.get("fragments", 0), 0, 999999999)
+	last_play_time = data.get("last_play_time", 0)
 
 	print("🔄 Permanent upgrades loaded.")
+
+	# Calculate offline progress (without ad by default - UI will handle ad option)
+	calculate_offline_progress(false)

@@ -67,6 +67,9 @@ const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
 @onready var perm_panel: Control = $PermUpgradesPanel
 @onready var perm_panel_toggle_button: Button = $PermPanelToggleButton
 
+var software_upgrade_panel: Control = null
+var software_upgrade_button: Button = null
+
 
 var drone_scenes = {
 	"flame": DRONE_FLAME_SCENE,
@@ -134,6 +137,22 @@ func _ready() -> void:
 	var current = get_tree().current_scene
 	if current:
 		death_screen = current.get_node_or_null("DeathScreen")
+
+	# Add offline progress popup (highest z-index)
+	var offline_popup = preload("res://offline_progress_popup.gd").new()
+	add_child(offline_popup)
+
+	# Add Software Upgrade panel and toggle button
+	software_upgrade_panel = preload("res://software_upgrade_ui.gd").new()
+	software_upgrade_panel.visible = false
+	add_child(software_upgrade_panel)
+
+	software_upgrade_button = Button.new()
+	software_upgrade_button.text = "🔬 Software"
+	software_upgrade_button.position = Vector2(10, 900)
+	software_upgrade_button.custom_minimum_size = Vector2(150, 40)
+	software_upgrade_button.pressed.connect(_on_software_upgrade_button_pressed)
+	add_child(software_upgrade_button)
 
 	# Add matrix code rain (furthest back)
 	var matrix_rain = preload("res://MatrixCodeRain.gd").new()
@@ -574,8 +593,20 @@ func _on_perm_panel_toggle_button_pressed():
 		offense_panel.visible = false
 		defense_panel.visible = false
 		economy_panel.visible = false
+		if software_upgrade_panel:
+			software_upgrade_panel.visible = false
 	else:
 		perm_panel_toggle_button.text = "Show Upgrades"
+
+func _on_software_upgrade_button_pressed():
+	if software_upgrade_panel:
+		software_upgrade_panel.visible = not software_upgrade_panel.visible
+		if software_upgrade_panel.visible:
+			# Hide other panels
+			offense_panel.visible = false
+			defense_panel.visible = false
+			economy_panel.visible = false
+			perm_panel.visible = false
 		
 func _on_quit_button_pressed():
 	# 1. Reset in-run upgrades
