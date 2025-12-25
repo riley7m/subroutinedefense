@@ -114,10 +114,10 @@ func _update_labels() -> void:
 
 	# Get best run info
 	var best_run = RewardManager.get_best_run_last_week()
-	var efficiency_str = "%.2f waves/sec" % best_run["efficiency"]
+	var efficiency_str = "%.0f AT/hour" % best_run["at_per_hour"]
 
 	time_label.text = "Time away: %s (Best run: %s)" % [time_str, efficiency_str]
-	waves_label.text = "Waves cleared: %d" % waves_cleared
+	waves_label.text = "Waves cleared: ~%d" % waves_cleared
 
 	# Show current rewards (25% efficiency)
 	dc_label.text = "Data Credits: +%d" % dc_earned

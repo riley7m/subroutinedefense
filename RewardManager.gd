@@ -14,9 +14,9 @@ var offline_at: int = 0
 var offline_duration: float = 0.0
 
 # --- Run Performance Tracking ---
-var run_history: Array = []  # Array of {waves: int, duration: float, timestamp: int, efficiency: float}
+var run_history: Array = []  # Array of {at_earned: int, duration: float, timestamp: int, at_per_hour: float}
 var current_run_start_time: int = 0
-var current_run_start_wave: int = 1
+var current_run_at_start: int = 0
 const MAX_RUN_HISTORY = 100  # Keep last 100 runs
 const WEEK_IN_SECONDS = 604800  # 7 days
 
@@ -155,10 +155,10 @@ func reset_run_currency() -> void:
 # === RUN PERFORMANCE TRACKING ===
 func start_run_tracking(starting_wave: int = 1) -> void:
 	current_run_start_time = Time.get_unix_time_from_system()
-	current_run_start_wave = starting_wave
-	print("📊 Started tracking run from wave %d" % starting_wave)
+	current_run_at_start = archive_tokens
+	print("📊 Started tracking run (starting AT: %d)" % current_run_at_start)
 
-func record_run_performance(final_wave: int) -> void:
+func record_run_performance(final_wave: int = 1) -> void:
 	if current_run_start_time == 0:
 		return  # No run was tracked
 
@@ -169,18 +169,20 @@ func record_run_performance(final_wave: int) -> void:
 	if duration < 30:
 		return
 
-	var waves_cleared = final_wave - current_run_start_wave
-	if waves_cleared < 1:
-		return
+	# Calculate AT earned during this run
+	var at_earned = archive_tokens - current_run_at_start
+	if at_earned < 1:
+		return  # Must earn at least 1 AT
 
-	var efficiency = float(waves_cleared) / float(duration)  # waves per second
+	# Calculate AT per hour
+	var duration_hours = float(duration) / 3600.0
+	var at_per_hour = float(at_earned) / duration_hours
 
 	var run_data = {
-		"waves": waves_cleared,
+		"at_earned": at_earned,
 		"duration": duration,
 		"timestamp": now,
-		"efficiency": efficiency,
-		"final_wave": final_wave
+		"at_per_hour": at_per_hour,
 	}
 
 	run_history.append(run_data)
@@ -192,11 +194,11 @@ func record_run_performance(final_wave: int) -> void:
 	# Clean up old runs (older than 1 week)
 	_clean_old_runs()
 
-	print("📊 Recorded run: %d waves in %d seconds (%.3f w/s)" % [waves_cleared, duration, efficiency])
+	print("📊 Recorded run: %d AT in %d seconds (%.1f AT/hour)" % [at_earned, duration, at_per_hour])
 
 	# Reset tracking
 	current_run_start_time = 0
-	current_run_start_wave = 1
+	current_run_at_start = 0
 
 func _clean_old_runs() -> void:
 	var now = Time.get_unix_time_from_system()
@@ -214,18 +216,18 @@ func get_best_run_last_week() -> Dictionary:
 	_clean_old_runs()
 
 	if run_history.is_empty():
-		# No runs recorded, return default
+		# No runs recorded, return default (100 AT/hour baseline)
 		return {
-			"waves": 10,
-			"duration": 100,
-			"efficiency": 0.1,
-			"final_wave": 10
+			"at_earned": 100,
+			"duration": 3600,
+			"at_per_hour": 100.0,
+			"timestamp": 0
 		}
 
-	# Find run with highest efficiency
+	# Find run with highest AT per hour
 	var best_run = run_history[0]
 	for run in run_history:
-		if run["efficiency"] > best_run["efficiency"]:
+		if run["at_per_hour"] > best_run["at_per_hour"]:
 			best_run = run
 
 	return best_run
@@ -269,38 +271,34 @@ func calculate_offline_progress(watched_ad: bool = false) -> void:
 func _simulate_offline_waves(seconds: float, efficiency: float) -> Dictionary:
 	# Get best run from last week
 	var best_run = get_best_run_last_week()
-	var best_efficiency = best_run["efficiency"]  # waves per second
+	var best_at_per_hour = best_run["at_per_hour"]
 
-	# Calculate waves based on best run performance
+	# Calculate AT based on best run performance
 	# efficiency parameter is 0.25 (25% base) or 0.50 (50% with ad)
-	var waves_per_second_offline = best_efficiency * efficiency
-	var waves_cleared = floor(seconds * waves_per_second_offline)
+	var hours_away = seconds / 3600.0
+	var at_per_hour_offline = best_at_per_hour * efficiency
+	var at_earned = int(floor(hours_away * at_per_hour_offline))
 
 	# Cap to prevent absurd numbers
-	waves_cleared = min(waves_cleared, 2000)
-	waves_cleared = max(waves_cleared, 0)
+	at_earned = min(at_earned, 1000000)
+	at_earned = max(at_earned, 0)
 
-	# Calculate rewards based on waves cleared
-	# Use simplified average rewards
-	const BASE_DC_PER_WAVE = 50
-	const BASE_AT_PER_WAVE = 5
+	# Calculate DC proportionally (roughly 10x AT based on typical rewards)
+	var dc_earned = at_earned * 10
 
-	var dc_mult = get_data_credit_multiplier()
-	var at_mult = get_archive_token_multiplier()
+	# Estimate waves cleared for display (roughly 1 AT per 0.2 waves)
+	var waves_cleared = int(at_earned * 0.2)
 
-	var dc_earned = int(waves_cleared * BASE_DC_PER_WAVE * dc_mult)
-	var at_earned = int(waves_cleared * BASE_AT_PER_WAVE * at_mult)
-
-	print("📊 Offline calc: Best run %.3f w/s, offline %.3f w/s (%.0f%%), %d waves in %d seconds" % [
-		best_efficiency,
-		waves_per_second_offline,
+	print("📊 Offline calc: Best run %.1f AT/h, offline %.1f AT/h (%.0f%%), %d AT in %.2f hours" % [
+		best_at_per_hour,
+		at_per_hour_offline,
 		efficiency * 100,
-		waves_cleared,
-		seconds
+		at_earned,
+		hours_away
 	])
 
 	return {
-		"waves": int(waves_cleared),
+		"waves": waves_cleared,
 		"dc": dc_earned,
 		"at": at_earned
 	}
