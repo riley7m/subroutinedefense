@@ -132,6 +132,12 @@ var current_speed_index := 0
 @onready var free_upgrade_chance: Button = $UpgradeUI/EconomyPanel/FreeUpgradeChanceButton
 @onready var wave_skip_chance: Button = $UpgradeUI/EconomyPanel/WaveSkipChanceButton
 
+# Drones Panel (created programmatically)
+var drones_button: Button = null
+var drones_panel: VBoxContainer = null
+var drone_purchase_buttons: Dictionary = {}
+var drone_status_labels: Dictionary = {}
+
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
 
 @onready var death_screen = null  # Will be set in _ready()
@@ -202,9 +208,10 @@ func _ready() -> void:
 	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
 	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
 
+	# Create Drones Panel and Button
+	_create_drones_panel()
 
-	
-	
+
 	for key in perm_nodes.keys():
 		var button = perm_nodes[key]["button"]
 		button.pressed.connect(_on_perm_upgrade_pressed.bind(key))
@@ -221,9 +228,10 @@ func _ready() -> void:
 	defense_panel.visible = false
 	economy_panel.visible = false
 	perm_panel.visible = false
+	if drones_panel:
+		drones_panel.visible = false
 
-	# Drones will be spawned when purchased (not automatically)
-	# TODO: Create drone purchase UI
+	# Drones will be spawned when purchased via Drones panel
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
@@ -300,6 +308,8 @@ func _on_offense_button_pressed() -> void:
 	defense_panel.visible = false
 	economy_panel.visible = false
 	perm_panel.visible = false
+	if drones_panel:
+		drones_panel.visible = false
 
 func _on_damage_upgrade_pressed() -> void:
 	print("DEBUG: DC before:", RewardManager.data_credits)
@@ -405,6 +415,8 @@ func _on_defense_button_pressed():
 	offense_panel.visible = false
 	economy_panel.visible = false
 	perm_panel.visible = false
+	if drones_panel:
+		drones_panel.visible = false
 	
 func _on_shield_upgrade_pressed() -> void:
 	var amount = get_current_buy_amount()
@@ -448,7 +460,22 @@ func _on_economy_button_pressed():
 	offense_panel.visible = false
 	defense_panel.visible = false
 	perm_panel.visible = false
+	if drones_panel:
+		drones_panel.visible = false
 
+func _on_drones_button_pressed():
+	if not drones_panel:
+		return
+	var new_state = not drones_panel.visible
+	drones_panel.visible = new_state
+	offense_panel.visible = false
+	defense_panel.visible = false
+	economy_panel.visible = false
+	perm_panel.visible = false
+
+	# Update drone UI when opening panel
+	if new_state:
+		_update_drone_purchase_ui()
 
 func _on_data_credits_upgrade_pressed() -> void:
 	var amount = get_current_buy_amount()
@@ -576,7 +603,134 @@ func refresh_all_drones() -> void:
 					drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
 			# Fire rate automatically updates in apply_upgrade()
 
-# Drone purchase system
+# === DRONES PANEL CREATION ===
+
+func _create_drones_panel() -> void:
+	# Get the UpgradeUI node
+	var upgrade_ui = get_node_or_null("UpgradeUI")
+	if not upgrade_ui:
+		print("⚠️ UpgradeUI not found!")
+		return
+
+	# Create Drones button in ButtonBar
+	var button_bar = upgrade_ui.get_node_or_null("ButtonBar")
+	if button_bar:
+		drones_button = Button.new()
+		drones_button.name = "DronesButton"
+		drones_button.text = "Drones"
+		drones_button.custom_minimum_size = Vector2(80, 30)
+		drones_button.pressed.connect(_on_drones_button_pressed)
+		button_bar.add_child(drones_button)
+
+	# Create Drones Panel
+	drones_panel = VBoxContainer.new()
+	drones_panel.name = "DronesPanel"
+	drones_panel.visible = false
+	drones_panel.position = Vector2(10, 80)  # Position similar to other panels
+	drones_panel.custom_minimum_size = Vector2(370, 400)
+	upgrade_ui.add_child(drones_panel)
+
+	# Add title label
+	var title = Label.new()
+	title.text = "=== DRONES (Purchase Once Per Run) ==="
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	drones_panel.add_child(title)
+
+	# Drone types and their display info
+	var drone_info = {
+		"flame": {"name": "🔥 Flame Drone", "desc": "Burns enemies (% HP damage)"},
+		"frost": {"name": "❄️ Frost Drone", "desc": "Slows fastest enemy"},
+		"poison": {"name": "🟣 Poison Drone", "desc": "Poisons enemies (% HP DoT)"},
+		"shock": {"name": "⚡ Shock Drone", "desc": "Stuns closest enemy"}
+	}
+
+	# Create purchase UI for each drone
+	for drone_type in ["flame", "frost", "poison", "shock"]:
+		var info = drone_info[drone_type]
+
+		# Container for this drone
+		var drone_container = VBoxContainer.new()
+		drone_container.add_theme_constant_override("separation", 5)
+		drones_panel.add_child(drone_container)
+
+		# Status label (shows level and owned status)
+		var status_label = Label.new()
+		status_label.name = "Status_" + drone_type
+		status_label.text = "Not Owned"
+		drone_status_labels[drone_type] = status_label
+		drone_container.add_child(status_label)
+
+		# Description label
+		var desc_label = Label.new()
+		desc_label.text = info["desc"]
+		desc_label.add_theme_font_size_override("font_size", 10)
+		drone_container.add_child(desc_label)
+
+		# Purchase button
+		var purchase_button = Button.new()
+		purchase_button.name = "Purchase_" + drone_type
+		purchase_button.text = info["name"] + " (100 DC)"
+		purchase_button.custom_minimum_size = Vector2(350, 40)
+		purchase_button.pressed.connect(_on_drone_purchase_pressed.bind(drone_type))
+		drone_purchase_buttons[drone_type] = purchase_button
+		drone_container.add_child(purchase_button)
+
+		# Add separator
+		var separator = HSeparator.new()
+		drones_panel.add_child(separator)
+
+	# Apply cyber theme
+	UIStyler.apply_theme_to_node(drones_panel)
+
+	# Initial UI update
+	_update_drone_purchase_ui()
+
+func _on_drone_purchase_pressed(drone_type: String) -> void:
+	if purchase_drone(drone_type):
+		_update_drone_purchase_ui()
+
+func _update_drone_purchase_ui() -> void:
+	for drone_type in ["flame", "frost", "poison", "shock"]:
+		if not drone_purchase_buttons.has(drone_type):
+			continue
+
+		var button = drone_purchase_buttons[drone_type]
+		var status_label = drone_status_labels[drone_type]
+		var is_owned = purchased_drones.get(drone_type, false)
+		var cost = get_drone_purchase_cost(drone_type)
+		var can_afford = RewardManager.data_credits >= cost
+
+		# Get permanent level
+		var level = 0
+		match drone_type:
+			"flame": level = UpgradeManager.get_perm_drone_flame_level()
+			"frost": level = UpgradeManager.get_perm_drone_frost_level()
+			"poison": level = UpgradeManager.get_perm_drone_poison_level()
+			"shock": level = UpgradeManager.get_perm_drone_shock_level()
+
+		# Update status label
+		if is_owned:
+			status_label.text = "✅ OWNED - Level %d" % level
+		else:
+			status_label.text = "Level %d (not owned this run)" % level
+
+		# Update button
+		button.disabled = is_owned or not can_afford
+		if is_owned:
+			button.text = "✅ Already Purchased"
+		else:
+			button.text = "%s (%d DC)" % [_get_drone_display_name(drone_type), cost]
+
+func _get_drone_display_name(drone_type: String) -> String:
+	match drone_type:
+		"flame": return "🔥 Flame Drone"
+		"frost": return "❄️ Frost Drone"
+		"poison": return "🟣 Poison Drone"
+		"shock": return "⚡ Shock Drone"
+		_: return drone_type
+
+# === DRONE PURCHASE SYSTEM ===
+
 func purchase_drone(drone_type: String) -> bool:
 	# Check if already purchased
 	if purchased_drones.get(drone_type, false):
@@ -696,6 +850,8 @@ func _on_perm_panel_toggle_button_pressed():
 		offense_panel.visible = false
 		defense_panel.visible = false
 		economy_panel.visible = false
+		if drones_panel:
+			drones_panel.visible = false
 		if software_upgrade_panel:
 			software_upgrade_panel.visible = false
 	else:
@@ -710,6 +866,8 @@ func _on_software_upgrade_button_pressed():
 			defense_panel.visible = false
 			economy_panel.visible = false
 			perm_panel.visible = false
+			if drones_panel:
+				drones_panel.visible = false
 		
 func _on_quit_button_pressed():
 	# Record run performance before quitting
