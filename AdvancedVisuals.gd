@@ -136,10 +136,11 @@ func create_damage_number(damage: int, position: Vector2, is_crit: bool, parent:
 	# Fade out
 	tween.tween_property(label, "modulate:a", 0.0, 0.4).set_delay(float_time - 0.4)
 
-	# Cleanup
-	await tween.finished
-	if is_instance_valid(label):
-		label.queue_free()
+	# Cleanup - use callback instead of await to prevent race condition
+	tween.tween_callback(func():
+		if is_instance_valid(label):
+			label.queue_free()
+	)
 
 # ============================================================================
 # CHARGING/TELEGRAPH EFFECTS
@@ -190,10 +191,11 @@ func create_charge_indicator(parent: Node2D, duration: float, color: Color = Col
 	# Rotation
 	tween.tween_property(container, "rotation_degrees", 360, duration)
 
-	# Cleanup
-	await tween.finished
-	if is_instance_valid(container):
-		container.queue_free()
+	# Cleanup - use callback instead of await to prevent race condition
+	tween.tween_callback(func():
+		if is_instance_valid(container):
+			container.queue_free()
+	)
 
 	return container
 

@@ -85,7 +85,10 @@ func screen_flash(color: Color, duration: float = 0.2, parent: Node = null) -> v
 	# Fade out
 	var tween = flash_rect.create_tween()
 	tween.tween_property(flash_rect, "modulate:a", 0.0, duration)
-	tween.tween_callback(flash_rect.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(flash_rect):
+			flash_rect.queue_free()
+	)
 
 func _get_main_scene() -> Node:
 	var tree = Engine.get_main_loop() as SceneTree
@@ -166,7 +169,10 @@ func wave_transition(wave_number: int, parent: Node = null) -> void:
 	tween.parallel().tween_property(label, "theme_override_colors/font_outline_color:a", 0.0, 0.3)
 
 	# Cleanup
-	tween.tween_callback(overlay.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(overlay):
+			overlay.queue_free()
+	)
 
 func _create_portal_effect(parent: Node) -> void:
 	# Create portal overlay with shader
@@ -190,7 +196,10 @@ func _create_portal_effect(parent: Node) -> void:
 	# Animate portal expansion
 	var tween = portal_rect.create_tween()
 	tween.tween_method(func(val): portal_material.set_shader_parameter("progress", val), 0.0, 1.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_callback(portal_rect.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(portal_rect):
+			portal_rect.queue_free()
+	)
 
 # ============================================================================
 # BOSS WAVE TRANSITION (Enhanced)
@@ -281,7 +290,10 @@ func boss_wave_transition(wave_number: int, parent: Node = null) -> void:
 	tween.parallel().tween_property(label, "theme_override_colors/font_outline_color:a", 0.0, 0.4)
 
 	# Cleanup
-	tween.tween_callback(overlay.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(overlay):
+			overlay.queue_free()
+	)
 
 # ============================================================================
 # DEATH SCREEN TRANSITION

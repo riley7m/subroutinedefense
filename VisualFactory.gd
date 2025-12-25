@@ -313,6 +313,8 @@ func _create_burn_effect(container: Node2D) -> void:
 	var ring = _create_ring(25, 20, Color(1.0, 0.3, 0.1, 0.7))
 	container.add_child(ring)
 
+	var active_tweens: Array = []
+
 	# Add flame particles
 	for i in range(6):
 		var flame = ColorRect.new()
@@ -331,17 +333,28 @@ func _create_burn_effect(container: Node2D) -> void:
 			flame.position.y += 10
 			flame.modulate.a = 0.8
 		)
+		active_tweens.append(tween)
 
 	# Pulse ring
 	var ring_tween = container.create_tween()
 	ring_tween.set_loops()
 	ring_tween.tween_property(ring, "scale", Vector2(1.15, 1.15), 0.4)
 	ring_tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.4)
+	active_tweens.append(ring_tween)
+
+	# Auto-cleanup tweens when container is removed
+	container.tree_exiting.connect(func():
+		for tween in active_tweens:
+			if is_instance_valid(tween):
+				tween.kill()
+	)
 
 func _create_poison_effect(container: Node2D) -> void:
 	# Purple pulsing ring
 	var ring = _create_ring(25, 20, Color(0.6, 0.1, 0.9, 0.7))
 	container.add_child(ring)
+
+	var active_tweens: Array = []
 
 	# Add bubbling poison particles
 	for i in range(8):
@@ -361,12 +374,21 @@ func _create_poison_effect(container: Node2D) -> void:
 			bubble.position.y += 15
 			bubble.modulate.a = 0.6
 		)
+		active_tweens.append(tween)
 
 	# Pulse ring
 	var ring_tween = container.create_tween()
 	ring_tween.set_loops()
 	ring_tween.tween_property(ring, "scale", Vector2(1.2, 1.2), 0.6)
 	ring_tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.6)
+	active_tweens.append(ring_tween)
+
+	# Auto-cleanup tweens when container is removed
+	container.tree_exiting.connect(func():
+		for tween in active_tweens:
+			if is_instance_valid(tween):
+				tween.kill()
+	)
 
 func _create_slow_effect(container: Node2D) -> void:
 	# Ice blue rings
@@ -374,6 +396,8 @@ func _create_slow_effect(container: Node2D) -> void:
 	var ring2 = _create_ring(22, 18, Color(0.4, 0.8, 1.0, 0.6))
 	container.add_child(ring1)
 	container.add_child(ring2)
+
+	var active_tweens: Array = []
 
 	# Add frost particles
 	for i in range(12):
@@ -390,22 +414,34 @@ func _create_slow_effect(container: Node2D) -> void:
 		var tween = frost.create_tween()
 		tween.set_loops()
 		tween.tween_property(frost, "rotation", frost.rotation + TAU, 3.0)
+		active_tweens.append(tween)
 
 	# Pulse rings
 	var tween1 = container.create_tween()
 	tween1.set_loops()
 	tween1.tween_property(ring1, "scale", Vector2(1.1, 1.1), 0.8)
 	tween1.tween_property(ring1, "scale", Vector2(1.0, 1.0), 0.8)
+	active_tweens.append(tween1)
 
 	var tween2 = container.create_tween()
 	tween2.set_loops()
 	tween2.tween_property(ring2, "scale", Vector2(0.9, 0.9), 0.6)
 	tween2.tween_property(ring2, "scale", Vector2(1.0, 1.0), 0.6)
+	active_tweens.append(tween2)
+
+	# Auto-cleanup tweens when container is removed
+	container.tree_exiting.connect(func():
+		for tween in active_tweens:
+			if is_instance_valid(tween):
+				tween.kill()
+	)
 
 func _create_stun_effect(container: Node2D) -> void:
 	# Yellow/white electric ring
 	var ring = _create_ring(25, 20, Color(1.0, 1.0, 0.3, 0.8))
 	container.add_child(ring)
+
+	var active_tweens: Array = []
 
 	# Add electric sparks
 	for i in range(8):
@@ -422,12 +458,21 @@ func _create_stun_effect(container: Node2D) -> void:
 		tween.set_loops()
 		tween.tween_property(spark, "modulate:a", 0.2, 0.1)
 		tween.tween_property(spark, "modulate:a", 1.0, 0.1)
+		active_tweens.append(tween)
 
 	# Fast pulse for electric effect
 	var ring_tween = container.create_tween()
 	ring_tween.set_loops()
 	ring_tween.tween_property(ring, "scale", Vector2(1.3, 1.3), 0.2)
 	ring_tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.2)
+	active_tweens.append(ring_tween)
+
+	# Auto-cleanup tweens when container is removed
+	container.tree_exiting.connect(func():
+		for tween in active_tweens:
+			if is_instance_valid(tween):
+				tween.kill()
+	)
 
 func _create_default_effect(container: Node2D) -> void:
 	var ring = _create_ring(25, 20, Color(1.0, 1.0, 1.0, 0.5))
@@ -438,24 +483,17 @@ func _create_default_effect(container: Node2D) -> void:
 	tween.tween_property(ring, "scale", Vector2(1.2, 1.2), 0.5)
 	tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.5)
 
+	# Auto-cleanup tween when container is removed
+	container.tree_exiting.connect(func():
+		if is_instance_valid(tween):
+			tween.kill()
+	)
+
 func remove_status_effect_overlay(effect_type: String, parent: Node2D) -> void:
 	var overlay = parent.get_node_or_null("StatusEffect_" + effect_type)
 	if overlay:
-		# Kill all running tweens to prevent leaks
-		for child in overlay.get_children():
-			# Stop tweens on overlay children
-			var child_tweens = child.get_tree().get_processed_tweens() if child.get_tree() else []
-			for tween in child_tweens:
-				if tween.is_valid():
-					tween.kill()
-
-		# Stop tweens on the overlay itself
-		if overlay.get_tree():
-			var overlay_tweens = overlay.get_tree().get_processed_tweens()
-			for tween in overlay_tweens:
-				if tween.is_valid():
-					tween.kill()
-
+		# Tweens are now auto-cleaned via tree_exiting signal
+		# Just queue_free the overlay, cleanup will happen automatically
 		overlay.queue_free()
 
 # ============================================================================
@@ -511,8 +549,20 @@ func add_rotation_animation(node: Node2D, speed: float = 1.0) -> void:
 	tween.tween_property(node, "rotation_degrees", 360, 2.0 / speed)
 	tween.tween_callback(func(): node.rotation_degrees = 0)
 
+	# Auto-cleanup tween when node is removed
+	node.tree_exiting.connect(func():
+		if is_instance_valid(tween):
+			tween.kill()
+	)
+
 func add_pulse_animation(node: Node2D, scale_min: float = 0.9, scale_max: float = 1.1, duration: float = 1.0) -> void:
 	var tween = node.create_tween()
 	tween.set_loops()
 	tween.tween_property(node, "scale", Vector2(scale_max, scale_max), duration / 2)
 	tween.tween_property(node, "scale", Vector2(scale_min, scale_min), duration / 2)
+
+	# Auto-cleanup tween when node is removed
+	node.tree_exiting.connect(func():
+		if is_instance_valid(tween):
+			tween.kill()
+	)

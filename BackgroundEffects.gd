@@ -133,4 +133,7 @@ func trigger_impact_distortion(screen_position: Vector2) -> void:
 
 	# Fade out and cleanup
 	tween.tween_property(distort_rect, "modulate:a", 0.0, 0.2).set_delay(duration - 0.2)
-	tween.tween_callback(distort_rect.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(distort_rect):
+			distort_rect.queue_free()
+	)
