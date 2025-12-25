@@ -49,20 +49,8 @@ func _ready() -> void:
 	if current:
 		death_screen = current.get_node_or_null("DeathScreen")
 
-	# Create visual representation
+	# Create visual representation (includes Light2D)
 	VisualFactory.create_tower_visual(self)
-
-	# Add Light2D for tower glow
-	var light = Light2D.new()
-	light.name = "TowerLight"
-	light.enabled = true
-	light.texture = preload("res://icon.svg")  # Using default texture
-	light.texture_scale = 2.0
-	light.color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
-	light.energy = 1.5
-	light.blend_mode = Light2D.BLEND_MODE_ADD
-	light.shadow_enabled = false
-	add_child(light)
 
 	# Shield init
 	refresh_shield_stats()
