@@ -11,7 +11,9 @@ var last_trail_pos: Vector2
 
 func _ready() -> void:
 	if not body_entered.is_connected(Callable(self, "_on_body_entered")):
-		body_entered.connect(Callable(self, "_on_body_entered"))
+		var err = body_entered.connect(Callable(self, "_on_body_entered"))
+		if err != OK:
+			push_error("Failed to connect projectile body_entered signal: " + str(err))
 
 	# Create visual representation
 	VisualFactory.create_projectile_visual(self)
@@ -71,9 +73,24 @@ func _process(delta: float) -> void:
 				if trail.get_point_count() > MAX_TRAIL_POINTS:
 					trail.remove_point(0)
 	else:
+		# Target is invalid, clean up
 		if trail and is_instance_valid(trail):
 			trail.queue_free()
+
+		# Disconnect signal before freeing
+		if body_entered.is_connected(Callable(self, "_on_body_entered")):
+			body_entered.disconnect(Callable(self, "_on_body_entered"))
+
 		queue_free()
+
+func _exit_tree() -> void:
+	# Safety cleanup if projectile is freed without hitting target
+	if trail and is_instance_valid(trail):
+		trail.queue_free()
+
+	# Disconnect signal if still connected
+	if body_entered.is_connected(Callable(self, "_on_body_entered")):
+		body_entered.disconnect(Callable(self, "_on_body_entered"))
 
 func _on_body_entered(body: Node2D) -> void:
 	if body == target and body.has_method("take_damage"):
@@ -111,8 +128,12 @@ func _on_body_entered(body: Node2D) -> void:
 			else:
 				body.take_damage(dealt_dmg)
 
-		# Clean up trail
+		# Clean up trail and signal
 		if trail and is_instance_valid(trail):
 			trail.queue_free()
+
+		# Disconnect signal before freeing
+		if body_entered.is_connected(Callable(self, "_on_body_entered")):
+			body_entered.disconnect(Callable(self, "_on_body_entered"))
 
 		queue_free()
