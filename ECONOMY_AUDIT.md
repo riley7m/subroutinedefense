@@ -161,50 +161,56 @@ Wave 500: ~550 AT (enemies) + 915 AT (wave) = ~1,465 AT
 
 ## 💸 Spending Systems Analysis
 
-### 1. In-Run Upgrades (DC Cost) ✅ **FIXED - Wave-Based Scaling**
+### 1. In-Run Upgrades (DC Cost) ✅ **FIXED - Per-Purchase Scaling (The Tower Model)**
 
-**Wave-Based Cost Formula:** All upgrades now scale using `base_cost * sqrt(current_wave)`
+**Per-Purchase Cost Formula:** `base_cost * (1.15 ^ purchases_this_run)`
+
+Each upgrade tracks its own purchase count and costs 15% more with each purchase.
+This system works like "The Tower - Idle Tower Defense" - costs scale with usage, not with wave progression.
 
 **Offense:**
 ```
-Damage:       50 DC base * sqrt(wave) (unlimited levels)
-Fire Rate:    50 DC base * sqrt(wave) (unlimited levels)
-Crit Chance: 100 DC base * sqrt(wave) (capped at 60%)
-Crit Damage: 125 DC base * sqrt(wave) (unlimited levels)
+Damage:       50 DC base * (1.15^purchases) (unlimited levels)
+Fire Rate:    50 DC base * (1.15^purchases) (unlimited levels)
+Crit Chance: 100 DC base * (1.15^purchases) (capped at 60%)
+Crit Damage: 125 DC base * (1.15^purchases) (unlimited levels)
 Multi-Target: 1,000 DC base * (2.5^level) [EXPONENTIAL - unchanged]
 ```
 
 **Defense:**
 ```
-Shield:        50 DC base * sqrt(wave)
-Dam Reduction: 75 DC base * sqrt(wave)
-Shield Regen: 100 DC base * sqrt(wave)
+Shield:        50 DC base * (1.15^purchases)
+Dam Reduction: 75 DC base * (1.15^purchases)
+Shield Regen: 100 DC base * (1.15^purchases)
 ```
 
 **Economy:**
 ```
-DC Multiplier:  60 DC base * sqrt(wave)
-AT Multiplier:  70 DC base * sqrt(wave)
-Wave Skip:     400 DC base * sqrt(wave) (capped at 25%)
-Free Upgrade:  250 DC base * sqrt(wave) (capped at 50%)
+DC Multiplier:  60 DC base * (1.15^purchases)
+AT Multiplier:  70 DC base * (1.15^purchases)
+Wave Skip:     400 DC base * (1.15^purchases) (capped at 25%)
+Free Upgrade:  250 DC base * (1.15^purchases) (capped at 50%)
 ```
 
 **Cost Progression Example (Damage Upgrade, 50 DC base):**
 ```
-Wave 1:    50 DC   (1.0x)
-Wave 10:   158 DC  (3.2x)
-Wave 100:  500 DC  (10x)
-Wave 500: 1,118 DC (22.4x)
-Wave 2000: 2,236 DC (44.7x)
+Purchase  1:     50 DC   (1.0x base)
+Purchase  2:     58 DC   (1.15x)
+Purchase  5:     87 DC   (1.75x)
+Purchase 10:    176 DC   (3.52x)
+Purchase 20:    736 DC   (14.7x)
+Purchase 30:  3,075 DC   (61.5x)
+Purchase 50: 36,841 DC (736.8x)
 ```
 
-**Analysis:**
-- ✅ Wave 1: ~50 DC cost, earning ~30 DC/wave → 1-2 upgrades per wave
-- ✅ Wave 100: ~500 DC cost, earning ~800+ DC/wave → 1-2 upgrades per wave
-- ✅ Wave 2000: ~2,236 DC cost → endgame players can fully max all upgrades
-- ✅ Square root scaling prevents exponential explosion while maintaining progression
-- ✅ Early game: tight economy, meaningful choices
-- ✅ Late game: can afford multiple upgrades, progressing toward maxing out
+**Why This Works Better:**
+- ✅ New players (wave 1-10, few purchases): Upgrades cost 50-200 DC → tight economy
+- ✅ Late-game players (wave 5000+, many purchases): Can afford 30-50+ purchases per run
+- ✅ **Wave number doesn't matter** - late-game player at wave 10,000 still starts run with 50 DC upgrades
+- ✅ Permanent AT upgrades increase earning rate, allowing more purchases
+- ✅ Software Upgrades increase multipliers, allowing more purchases
+- ✅ Natural progression curve: early game tight, late game can max everything
+- ✅ Follows proven "The Tower" incremental game model
 
 ### 2. Permanent Upgrades (AT Cost)
 
@@ -299,12 +305,13 @@ Tier 3 (30-level labs): 2,000-5,000 AT base
 - **IMPLEMENTED: Fragments removed, AT-only system active**
 
 ### 2. **DC Becomes Worthless Late Game** ✅ **FIXED**
-- ~~DC costs are flat (100-800 DC)~~ → Now scales with sqrt(wave)
-- **IMPLEMENTED: Wave-based cost scaling for all in-run upgrades**
-- Square root scaling ensures meaningful costs throughout progression
-- ✅ Wave 1-2000 maintains balanced cost-to-earning ratio
-- ✅ Early game: tight economy (50 DC cost vs ~30 DC/wave)
-- ✅ Late game: can afford maxing upgrades (2,236 DC cost vs earning rate)
+- ~~DC costs are flat (100-800 DC)~~ → Now scales per-purchase (1.15^purchases)
+- **IMPLEMENTED: Per-purchase exponential cost scaling like "The Tower"**
+- Each upgrade costs 15% more every time you buy it in a run
+- ✅ New player: Costs stay low (50-200 DC for first few purchases)
+- ✅ Late-game player: Can afford many purchases due to permanent bonuses (30-50+ purchases)
+- ✅ Wave-independent: Late-game players at wave 10,000 still start runs with 50 DC cost
+- ✅ Natural progression: More permanent upgrades → more purchases per run → maxing feasible
 
 ### 3. **AT Permanent Upgrades Too Cheap**
 - Linear scaling (base + increment*level)
@@ -431,9 +438,9 @@ Damage (5,000 * 1.15^L):
 
 1. ✅ **CRITICAL: Remove Fragments from Labs** - COMPLETED
 2. ✅ **HIGH: Rebalance Lab AT Costs** - COMPLETED
-3. ✅ **HIGH: Implement Wave-Based DC Cost Scaling** - COMPLETED
+3. ✅ **HIGH: Implement Per-Purchase DC Cost Scaling** - COMPLETED (The Tower model)
 4. **MEDIUM: Make Permanent Upgrades Exponential** (long-term economy) - TODO
-5. **LOW: Add DC Sinks** (quality of life) - NOT NEEDED (wave scaling addresses this)
+5. ~~**LOW: Add DC Sinks**~~ - NOT NEEDED (per-purchase scaling addresses this)
 
 ---
 
