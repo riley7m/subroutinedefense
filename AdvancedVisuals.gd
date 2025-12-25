@@ -43,6 +43,12 @@ func add_pulsing_light(parent: Node2D, color: Color, base_energy: float = 1.0, p
 	tween.tween_property(light, "energy", base_energy * 1.5, pulse_speed / 2.0)
 	tween.tween_property(light, "energy", base_energy * 0.7, pulse_speed / 2.0)
 
+	# Auto-cleanup tween when node is removed
+	light.tree_exiting.connect(func():
+		if is_instance_valid(tween):
+			tween.kill()
+	)
+
 	return light
 
 # ============================================================================
@@ -248,6 +254,12 @@ func create_status_icon(effect_type: String, parent: Node2D) -> Node2D:
 		var angle = (i * TAU) / 36
 		var target_pos = Vector2(cos(angle), sin(angle)) * radius
 		tween.tween_property(container, "position", target_pos, orbit_speed / 36.0)
+
+	# Auto-cleanup tween when node is removed
+	container.tree_exiting.connect(func():
+		if is_instance_valid(tween):
+			tween.kill()
+	)
 
 	return container
 

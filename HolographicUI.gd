@@ -4,6 +4,7 @@ extends CanvasLayer
 
 var scan_lines: Array = []
 var target_reticles: Array = []
+var active_tweens: Array = []
 
 func _ready() -> void:
 	# Create corner brackets
@@ -62,6 +63,7 @@ func _draw_bracket(pos: Vector2, size: int, thickness: int, rotation: float) -> 
 	tween.set_loops()
 	tween.tween_property(bracket, "modulate:a", 0.4, 2.0)
 	tween.tween_property(bracket, "modulate:a", 0.8, 2.0)
+	active_tweens.append(tween)
 
 # ============================================================================
 # SCANNING LINE
@@ -81,6 +83,7 @@ func _create_scan_line() -> void:
 	tween.set_loops()
 	tween.tween_property(scan_line, "position:y", 1080, 4.0)
 	tween.tween_property(scan_line, "position:y", 0, 4.0)
+	active_tweens.append(tween)
 
 # ============================================================================
 # DATA STREAM OVERLAY
@@ -115,6 +118,7 @@ func _create_data_stream() -> void:
 	tween.tween_property(stream_container, "modulate:a", 0.2, 0.5)
 	tween.tween_property(stream_container, "modulate:a", 0.5, 0.3)
 	tween.tween_property(stream_container, "modulate:a", 0.3, 0.2)
+	active_tweens.append(tween)
 
 # ============================================================================
 # TARGET RETICLE (for enemy highlighting)
@@ -148,11 +152,13 @@ func create_target_reticle(target_position: Vector2) -> Control:
 	var tween = reticle.create_tween()
 	tween.set_loops()
 	tween.tween_property(outer, "rotation_degrees", 360, 2.0)
+	active_tweens.append(tween)
 
 	# Fade in
 	reticle.modulate.a = 0.0
 	var fade_tween = reticle.create_tween()
 	fade_tween.tween_property(reticle, "modulate:a", 1.0, 0.3)
+	# Note: fade_tween is not looping, so it doesn't need tracking
 
 	return reticle
 
@@ -176,3 +182,10 @@ func _create_reticle_ring(radius: float, color: Color) -> Control:
 		ring.add_child(arc)
 
 	return ring
+
+func _exit_tree() -> void:
+	# Kill all infinite loop tweens to prevent memory leaks
+	for tween in active_tweens:
+		if is_instance_valid(tween):
+			tween.kill()
+	active_tweens.clear()

@@ -2,6 +2,8 @@ extends Node2D
 
 ## BackgroundLayers - Creates parallax background with depth and environmental details
 
+var active_tweens: Array = []
+
 func _ready() -> void:
 	z_index = -200  # Render behind everything
 
@@ -39,6 +41,7 @@ func _create_starfield(parallax_speed: float, star_count: int, scale_range: Vect
 	tween.set_loops()
 	tween.tween_property(layer, "position:x", -50, 20.0 / parallax_speed)
 	tween.tween_property(layer, "position:x", 50, 20.0 / parallax_speed)
+	active_tweens.append(tween)
 
 func _create_star() -> Node2D:
 	var container = Node2D.new()
@@ -69,6 +72,7 @@ func _create_star() -> Node2D:
 	var pulse_duration = randf_range(2.0, 4.0)
 	tween.tween_property(glow, "scale", Vector2.ONE * 1.2, pulse_duration)
 	tween.tween_property(glow, "scale", Vector2.ONE, pulse_duration)
+	active_tweens.append(tween)
 
 	return container
 
@@ -101,6 +105,7 @@ func _create_network_nodes(parallax_speed: float, node_count: int, scale_range: 
 	tween.set_loops()
 	tween.tween_property(layer, "position:y", -30, 15.0 / parallax_speed)
 	tween.tween_property(layer, "position:y", 30, 15.0 / parallax_speed)
+	active_tweens.append(tween)
 
 func _create_network_node() -> Node2D:
 	var container = Node2D.new()
@@ -130,6 +135,7 @@ func _create_network_node() -> Node2D:
 	tween.set_loops()
 	tween.tween_property(container, "rotation_degrees", 360, randf_range(10.0, 20.0))
 	tween.tween_callback(func(): container.rotation_degrees = 0)
+	active_tweens.append(tween)
 
 	return container
 
@@ -174,6 +180,7 @@ func _create_data_fragments(parallax_speed: float, fragment_count: int, scale_ra
 	tween.tween_property(layer, "position:y", -40, 10.0 / parallax_speed)
 	tween.tween_property(layer, "position:x", -80, 10.0 / parallax_speed)
 	tween.tween_property(layer, "position:y", 40, 10.0 / parallax_speed)
+	active_tweens.append(tween)
 
 func _create_data_fragment() -> Node2D:
 	var container = Node2D.new()
@@ -218,11 +225,20 @@ func _create_data_fragment() -> Node2D:
 	else:
 		tween.tween_property(container, "rotation_degrees", -360, rotation_speed)
 	tween.tween_callback(func(): container.rotation_degrees = 0)
+	active_tweens.append(tween)
 
 	# Fade pulse
 	var fade_tween = container.create_tween()
 	fade_tween.set_loops()
 	fade_tween.tween_property(container, "modulate:a", 0.5, randf_range(1.0, 3.0))
 	fade_tween.tween_property(container, "modulate:a", 1.0, randf_range(1.0, 3.0))
+	active_tweens.append(fade_tween)
 
 	return container
+
+func _exit_tree() -> void:
+	# Kill all infinite loop tweens to prevent memory leaks
+	for tween in active_tweens:
+		if is_instance_valid(tween):
+			tween.kill()
+	active_tweens.clear()
