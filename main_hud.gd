@@ -8,6 +8,10 @@ var tower_hp: int = 1000
 var wave_timer: float = 0.0
 const WAVE_INTERVAL := 2.0
 
+# Cleanup tracking
+var active_drones: Array = []
+var refresh_timer: Timer = null
+
 const DRONE_FLAME_SCENE = preload("res://drone_flame.tscn")
 const DRONE_POISON_SCENE = preload("res://drone_poison.tscn")
 const DRONE_FROST_SCENE = preload("res://drone_frost.tscn")
@@ -193,18 +197,18 @@ func _ready() -> void:
 	
 	for drone_type in drone_scenes.keys():
 		var drone = drone_scenes[drone_type].instantiate()
-		
+		active_drones.append(drone)
 		add_child(drone)
-		
+
 	# Spawner hookup
 	spawner.set_main_hud(self)
 	spawner.start_wave(wave)
-	spawner.set_main_hud(self)
 	randomize()
 	RewardManager.load_permanent_upgrades()
 	update_all_perm_upgrade_ui()
+
 	# Refresh currency labels every 0.2s
-	var refresh_timer := Timer.new()
+	refresh_timer = Timer.new()
 	refresh_timer.wait_time = 0.2
 	refresh_timer.timeout.connect(update_labels)
 	refresh_timer.autostart = true
@@ -215,6 +219,24 @@ func _ready() -> void:
 
 	# Apply cyber theme to all UI elements
 	UIStyler.apply_theme_to_node(self)
+
+func _exit_tree() -> void:
+	# Clean up refresh timer
+	if refresh_timer and is_instance_valid(refresh_timer):
+		refresh_timer.stop()
+		if refresh_timer.timeout.is_connected(Callable(self, "update_labels")):
+			refresh_timer.timeout.disconnect(Callable(self, "update_labels"))
+		refresh_timer.queue_free()
+
+	# Disconnect signal from RewardManager
+	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "update_all_perm_upgrade_ui")):
+		RewardManager.archive_tokens_changed.disconnect(Callable(self, "update_all_perm_upgrade_ui"))
+
+	# Clean up drones
+	for drone in active_drones:
+		if is_instance_valid(drone):
+			drone.queue_free()
+	active_drones.clear()
 
 func _process(delta: float) -> void:
 	wave_timer += delta

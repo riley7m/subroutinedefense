@@ -83,11 +83,14 @@ func spawn_enemy() -> void:
 	var screen_size = get_viewport().get_visible_rect().size
 	var margin = SPAWN_MARGIN
 	var max_x = screen_size.x - margin
+
 	# Ensure min < max to avoid randf_range crash
-	if margin >= max_x:
-		margin = 0
-		max_x = screen_size.x
-	var spawn_x = randf_range(margin, max_x)
+	var spawn_x: float
+	if margin >= max_x or max_x <= margin:
+		# Screen too small or invalid, use safe center position
+		spawn_x = screen_size.x / 2.0 if screen_size.x > 0 else 960.0
+	else:
+		spawn_x = randf_range(margin, max_x)
 	var spawn_y = SPAWN_Y_OFFSET  # Off-screen above
 	enemy.position = Vector2(spawn_x, spawn_y)
 
