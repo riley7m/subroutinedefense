@@ -8,7 +8,9 @@ var drone_level: int = 1
 
 func _ready() -> void:
 	fire_timer.wait_time = fire_interval
-	fire_timer.timeout.connect(_on_fire_timer_timeout)
+	var err = fire_timer.timeout.connect(_on_fire_timer_timeout)
+	if err != OK:
+		push_error("Failed to connect fire_timer.timeout signal: " + str(err))
 	fire_timer.one_shot = false
 	fire_timer.start()
 
@@ -82,3 +84,10 @@ func apply_upgrade(level: int) -> void:
 func _create_drone_visual() -> void:
 	# Create visual based on drone type
 	VisualFactory.create_drone_visual(drone_type, self)
+
+func _exit_tree() -> void:
+	# Clean up timer when drone is removed
+	if fire_timer and is_instance_valid(fire_timer):
+		fire_timer.stop()
+		if fire_timer.timeout.is_connected(Callable(self, "_on_fire_timer_timeout")):
+			fire_timer.timeout.disconnect(Callable(self, "_on_fire_timer_timeout"))

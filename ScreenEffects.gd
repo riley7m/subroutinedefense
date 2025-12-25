@@ -104,6 +104,15 @@ func wave_transition(wave_number: int, parent: Node = null) -> void:
 	if parent == null:
 		return
 
+	# Safety: Remove existing transitions to prevent overlap
+	var existing_transition = parent.get_node_or_null("WaveTransition")
+	if existing_transition:
+		existing_transition.queue_free()
+
+	var existing_portal = parent.get_node_or_null("PortalWarp")
+	if existing_portal:
+		existing_portal.queue_free()
+
 	# Portal warp effect
 	_create_portal_effect(parent)
 
@@ -193,6 +202,15 @@ func boss_wave_transition(wave_number: int, parent: Node = null) -> void:
 
 	if parent == null:
 		return
+
+	# Safety: Remove existing boss transitions to prevent overlap
+	var existing_transition = parent.get_node_or_null("BossWaveTransition")
+	if existing_transition:
+		existing_transition.queue_free()
+
+	var existing_portal = parent.get_node_or_null("PortalWarp")
+	if existing_portal:
+		existing_portal.queue_free()
 
 	# Screen shake for dramatic effect
 	screen_shake(15.0, 0.5)

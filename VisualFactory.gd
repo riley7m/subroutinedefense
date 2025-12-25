@@ -441,6 +441,21 @@ func _create_default_effect(container: Node2D) -> void:
 func remove_status_effect_overlay(effect_type: String, parent: Node2D) -> void:
 	var overlay = parent.get_node_or_null("StatusEffect_" + effect_type)
 	if overlay:
+		# Kill all running tweens to prevent leaks
+		for child in overlay.get_children():
+			# Stop tweens on overlay children
+			var child_tweens = child.get_tree().get_processed_tweens() if child.get_tree() else []
+			for tween in child_tweens:
+				if tween.is_valid():
+					tween.kill()
+
+		# Stop tweens on the overlay itself
+		if overlay.get_tree():
+			var overlay_tweens = overlay.get_tree().get_processed_tweens()
+			for tween in overlay_tweens:
+				if tween.is_valid():
+					tween.kill()
+
 		overlay.queue_free()
 
 # ============================================================================

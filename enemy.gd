@@ -90,14 +90,24 @@ func _ready() -> void:
 	damage_to_tower = base_damage
 	move_speed = base_speed
 
-	if not $AttackZone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
-		$AttackZone.body_entered.connect(Callable(self, "_on_attack_zone_body_entered"))
+	# Verify AttackZone exists before connecting signals
+	if not has_node("AttackZone"):
+		push_error("Enemy missing AttackZone node!")
+		return
 
-	if not $AttackZone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
-		$AttackZone.body_exited.connect(Callable(self, "_on_attack_zone_body_exited"))
+	var attack_zone = $AttackZone
+	if not attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+		var err = attack_zone.body_entered.connect(Callable(self, "_on_attack_zone_body_entered"))
+		if err != OK:
+			push_error("Failed to connect AttackZone.body_entered signal: " + str(err))
 
-	$AttackZone.monitoring = true
-	$AttackZone.monitorable = true
+	if not attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+		var err = attack_zone.body_exited.connect(Callable(self, "_on_attack_zone_body_exited"))
+		if err != OK:
+			push_error("Failed to connect AttackZone.body_exited signal: " + str(err))
+
+	attack_zone.monitoring = true
+	attack_zone.monitorable = true
 
 	# Create visual representation
 	VisualFactory.create_enemy_visual(enemy_type, self)
@@ -351,6 +361,20 @@ func die():
 	# Clean up trail
 	if trail and is_instance_valid(trail):
 		trail.queue_free()
+
+	# Disconnect attack zone signals to prevent leaks
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			attack_zone.body_entered.disconnect(Callable(self, "_on_attack_zone_body_entered"))
+		if attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			attack_zone.body_exited.disconnect(Callable(self, "_on_attack_zone_body_exited"))
+
+	# Remove all status effect overlays and their tweens
+	VisualFactory.remove_status_effect_overlay("burn", self)
+	VisualFactory.remove_status_effect_overlay("poison", self)
+	VisualFactory.remove_status_effect_overlay("slow", self)
+	VisualFactory.remove_status_effect_overlay("stun", self)
 
 	# Existing death logic (play animation, remove from scene, etc.)
 	RewardManager.reward_enemy(enemy_type, wave_number)

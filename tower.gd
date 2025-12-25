@@ -28,13 +28,17 @@ func _ready() -> void:
 	# Init timers
 	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)  # Guard against division by zero
 	fire_timer.wait_time = 1.0 / fire_rate
-	fire_timer.timeout.connect(_on_fire_timer_timeout)
+	var err = fire_timer.timeout.connect(_on_fire_timer_timeout)
+	if err != OK:
+		push_error("Failed to connect fire_timer.timeout signal: " + str(err))
 	fire_timer.one_shot = false
 	add_child(fire_timer)
 	fire_timer.start()
 
 	shield_regen_timer.wait_time = 1.0
-	shield_regen_timer.timeout.connect(_on_shield_regen_tick)
+	err = shield_regen_timer.timeout.connect(_on_shield_regen_tick)
+	if err != OK:
+		push_error("Failed to connect shield_regen_timer.timeout signal: " + str(err))
 	shield_regen_timer.one_shot = false
 	add_child(shield_regen_timer)
 	shield_regen_timer.start()
@@ -160,6 +164,7 @@ func take_damage(amount: int) -> void:
 
 		# Check for death
 		if tower_hp <= 0 and death_screen:
+			_cleanup_before_death()
 			ScreenEffects.death_transition()
 			death_screen.show_death()
 
@@ -262,4 +267,16 @@ func update_visual_tier() -> void:
 				tower_light.color = Color(0.2, 0.8, 1.0, 1.0)
 				tower_light.energy = 1.5
 				tower_light.texture_scale = 2.0
+
+func _cleanup_before_death() -> void:
+	# Stop and clean up timers to prevent leaks
+	if fire_timer and is_instance_valid(fire_timer):
+		fire_timer.stop()
+		if fire_timer.timeout.is_connected(Callable(self, "_on_fire_timer_timeout")):
+			fire_timer.timeout.disconnect(Callable(self, "_on_fire_timer_timeout"))
+
+	if shield_regen_timer and is_instance_valid(shield_regen_timer):
+		shield_regen_timer.stop()
+		if shield_regen_timer.timeout.is_connected(Callable(self, "_on_shield_regen_tick")):
+			shield_regen_timer.timeout.disconnect(Callable(self, "_on_shield_regen_tick"))
 
