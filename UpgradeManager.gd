@@ -40,7 +40,6 @@ var boss_bonus_level: int = 0
 var lucky_drops_level: int = 0
 var ricochet_chance_level: int = 0
 var ricochet_max_targets_level: int = 0
-var elite_enemy_chance_level: int = 0
 
 # --- PURCHASE COUNT TRACKING (for cost scaling) ---
 var damage_purchases: int = 0
@@ -65,7 +64,6 @@ var boss_bonus_purchases: int = 0
 var lucky_drops_purchases: int = 0
 var ricochet_chance_purchases: int = 0
 var ricochet_max_targets_purchases: int = 0
-var elite_enemy_chance_purchases: int = 0
 
 # --- UPGRADE CONSTANTS (In-Run) - BASE COSTS ---
 # Base costs scale exponentially with each purchase (like The Tower)
@@ -120,9 +118,6 @@ const RICOCHET_CHANCE_PER_LEVEL := 1.0  # +1% ricochet chance
 const RICOCHET_CHANCE_MAX := 50.0  # Max 50% ricochet chance
 const RICOCHET_MAX_TARGETS_BASE_COST := 400
 const RICOCHET_MAX_TARGETS_PER_LEVEL := 1  # +1 max ricochet target
-const ELITE_ENEMY_CHANCE_BASE_COST := 225
-const ELITE_ENEMY_CHANCE_PER_LEVEL := 0.5  # +0.5% elite enemy chance
-const ELITE_ENEMY_CHANCE_MAX := 20.0  # Max 20% elite enemy chance
 
 # --- PER-PURCHASE COST SCALING (like The Tower) ---
 # Cost increases exponentially with each purchase, not with wave number
@@ -187,9 +182,6 @@ func get_ricochet_chance_upgrade_cost() -> int:
 
 func get_ricochet_max_targets_upgrade_cost() -> int:
 	return get_purchase_scaled_cost(RICOCHET_MAX_TARGETS_BASE_COST, ricochet_max_targets_purchases)
-
-func get_elite_enemy_chance_upgrade_cost() -> int:
-	return get_purchase_scaled_cost(ELITE_ENEMY_CHANCE_BASE_COST, elite_enemy_chance_purchases)
 
 var multi_target_level: int = 0
 const MULTI_TARGET_BASE_COST := 1000
@@ -279,9 +271,6 @@ func get_ricochet_chance() -> float:
 
 func get_ricochet_max_targets() -> int:
 	return ricochet_max_targets_level * RICOCHET_MAX_TARGETS_PER_LEVEL + RewardManager.perm_ricochet_max_targets
-
-func get_elite_enemy_chance() -> float:
-	return min(elite_enemy_chance_level * ELITE_ENEMY_CHANCE_PER_LEVEL + RewardManager.perm_elite_enemy_chance, ELITE_ENEMY_CHANCE_MAX)
 
 # --- DRONE PERMANENT LEVEL GETTERS ---
 func get_perm_drone_flame_level() -> int:
@@ -570,25 +559,6 @@ func upgrade_ricochet_max_targets(is_free := false):
 		print("❌ Not enough DC to upgrade Ricochet Max Targets.")
 		return false
 
-func upgrade_elite_enemy_chance(is_free := false):
-	if elite_enemy_chance_level * ELITE_ENEMY_CHANCE_PER_LEVEL >= ELITE_ENEMY_CHANCE_MAX:
-		print("✅ Elite Enemy Chance already at max.")
-		return false
-	if is_free:
-		elite_enemy_chance_level += 1
-		print("⭐ Elite Enemy Chance upgraded for FREE! Level:", elite_enemy_chance_level)
-		return true
-	var cost = get_elite_enemy_chance_upgrade_cost()
-	if RewardManager.data_credits >= cost:
-		RewardManager.data_credits -= cost
-		elite_enemy_chance_purchases += 1
-		elite_enemy_chance_level += 1
-		print("⭐ Elite Enemy Chance upgraded! Level:", elite_enemy_chance_level)
-		return true
-	else:
-		print("❌ Not enough DC to upgrade Elite Enemy Chance.")
-		return false
-
 # --- PERMANENT UPGRADE FUNCTIONS (with bool returns for Buy X support) ---
 
 # Returns the cost for a given perm upgrade at a specific future level
@@ -869,18 +839,6 @@ func upgrade_perm_ricochet_max_targets() -> bool:
 	print("🏅 Permanent Ricochet Max Targets +1. Now:", RewardManager.perm_ricochet_max_targets)
 	return true
 
-func upgrade_perm_elite_enemy_chance() -> bool:
-	var cost = get_perm_cost(11000, 700, int(RewardManager.perm_elite_enemy_chance * 2))
-	if RewardManager.archive_tokens < cost:
-		print("❌ Not enough AT for permanent elite enemy chance.")
-		return false
-	RewardManager.archive_tokens -= cost
-	RewardManager.perm_elite_enemy_chance += 0.5
-	RewardManager.save_permanent_upgrades()
-	print("🏅 Permanent Elite Enemy Chance +0.5%. Now:", RewardManager.perm_elite_enemy_chance)
-	return true
-
-
 func upgrade_perm_drone_flame():
 	var cost = get_perm_drone_upgrade_cost(RewardManager.perm_drone_flame_level)
 	if RewardManager.fragments < cost:
@@ -1110,7 +1068,6 @@ func reset_run_upgrades():
 	lucky_drops_level = 0
 	ricochet_chance_level = 0
 	ricochet_max_targets_level = 0
-	elite_enemy_chance_level = 0
 	# Multi Target
 	multi_target_unlocked = false
 	multi_target_level = 0
@@ -1137,4 +1094,3 @@ func reset_run_upgrades():
 	lucky_drops_purchases = 0
 	ricochet_chance_purchases = 0
 	ricochet_max_targets_purchases = 0
-	elite_enemy_chance_purchases = 0

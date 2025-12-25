@@ -30,7 +30,6 @@ var lab_levels: Dictionary = {
 	"overshield_enhancement": 0,
 	"boss_targeting": 0,
 	"loot_optimization": 0,
-	"elite_spawning": 0,
 	"lab_acceleration": 0,
 }
 
@@ -299,18 +298,6 @@ func _initialize_labs() -> void:
 			"tier": 2,
 		},
 
-		"elite_spawning": {
-			"name": "Elite Spawning",
-			"description": "Increase elite enemy spawn rate",
-			"max_level": 40,
-			"base_duration": 18000,  # 5 hours
-			"duration_scaling": 1.09,
-			"base_cost_at": 1800,
-			"cost_scaling": 1.14,
-			"bonus_per_level": {"elite_enemy_chance_perm": 0.5},  # +0.5% elite chance per level
-			"tier": 2,
-		},
-
 		"lab_acceleration": {
 			"name": "Lab Acceleration",
 			"description": "Reduce lab completion time",
@@ -505,8 +492,6 @@ func _apply_level_bonuses(lab: Dictionary) -> void:
 				RewardManager.perm_boss_bonus += value
 			"lucky_drops_perm":
 				RewardManager.perm_lucky_drops += value
-			"elite_enemy_chance_perm":
-				RewardManager.perm_elite_enemy_chance += value
 			"lab_speed_perm":
 				pass  # Lab speed is stored differently - reduces lab duration
 
