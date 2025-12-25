@@ -1,0 +1,459 @@
+extends Node
+
+# Software Upgrade System - Ranked/Leveled Labs
+# Each lab has multiple levels (30-100) with incremental bonuses
+
+# Active upgrade slots
+const MAX_SLOTS = 2
+var active_upgrades: Array = [null, null]  # Each entry is a Dictionary with upgrade data
+
+# Current levels for each lab (0 = not started)
+var lab_levels: Dictionary = {
+	"damage_processing": 0,
+	"fire_rate_optimization": 0,
+	"critical_analysis": 0,
+	"damage_amplification": 0,
+	"shield_matrix": 0,
+	"damage_mitigation": 0,
+	"shield_regeneration": 0,
+	"resource_optimization": 0,
+	"archive_efficiency": 0,
+	"wave_analysis": 0,
+	"probability_matrix": 0,
+	"multi_target_systems": 0,
+}
+
+# Lab definitions
+var labs: Dictionary = {}
+
+signal upgrade_completed(lab_id: String, new_level: int)
+signal upgrade_started(lab_id: String, slot_index: int)
+signal upgrades_updated
+
+func _ready() -> void:
+	_initialize_labs()
+	load_upgrade_state()
+
+func _initialize_labs() -> void:
+	labs = {
+		"damage_processing": {
+			"name": "Damage Processing",
+			"description": "Optimize projectile damage algorithms",
+			"max_level": 100,
+			"base_duration": 3600,  # 1 hour for level 1
+			"duration_scaling": 1.05,  # 5% longer each level
+			"base_cost_fragments": 50,
+			"base_cost_at": 0,
+			"cost_scaling": 1.08,  # 8% more expensive each level
+			"at_cost_starts_at_level": 20,  # AT cost starts at level 20
+			"bonus_per_level": {"projectile_damage_perm": 10},
+			"tier": 1,
+		},
+
+		"fire_rate_optimization": {
+			"name": "Fire Rate Optimization",
+			"description": "Increase projectile firing speed",
+			"max_level": 100,
+			"base_duration": 3600,
+			"duration_scaling": 1.05,
+			"base_cost_fragments": 50,
+			"base_cost_at": 0,
+			"cost_scaling": 1.08,
+			"at_cost_starts_at_level": 20,
+			"bonus_per_level": {"fire_rate_perm": 0.01},
+			"tier": 1,
+		},
+
+		"critical_analysis": {
+			"name": "Critical Analysis",
+			"description": "Enhance critical hit probability",
+			"max_level": 100,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_fragments": 100,
+			"base_cost_at": 0,
+			"cost_scaling": 1.10,
+			"at_cost_starts_at_level": 15,
+			"bonus_per_level": {"crit_chance_perm": 0.5},  # 0.5% per level
+			"tier": 1,
+		},
+
+		"damage_amplification": {
+			"name": "Damage Amplification",
+			"description": "Boost critical hit damage",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_fragments": 200,
+			"base_cost_at": 50,
+			"cost_scaling": 1.12,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"crit_damage_perm": 0.02},  # 2% per level
+			"tier": 2,
+		},
+
+		"shield_matrix": {
+			"name": "Shield Matrix",
+			"description": "Fortify shield integrity",
+			"max_level": 100,
+			"base_duration": 3600,
+			"duration_scaling": 1.05,
+			"base_cost_fragments": 50,
+			"base_cost_at": 0,
+			"cost_scaling": 1.08,
+			"at_cost_starts_at_level": 20,
+			"bonus_per_level": {"shield_integrity_perm": 20},
+			"tier": 1,
+		},
+
+		"damage_mitigation": {
+			"name": "Damage Mitigation",
+			"description": "Reduce incoming damage",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_fragments": 200,
+			"base_cost_at": 50,
+			"cost_scaling": 1.12,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"damage_reduction_perm": 0.005},  # 0.5% per level
+			"tier": 2,
+		},
+
+		"shield_regeneration": {
+			"name": "Shield Regeneration",
+			"description": "Accelerate shield recovery",
+			"max_level": 76,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_fragments": 100,
+			"base_cost_at": 0,
+			"cost_scaling": 1.09,
+			"at_cost_starts_at_level": 25,
+			"bonus_per_level": {"shield_regen_perm": 0.5},
+			"tier": 1,
+		},
+
+		"resource_optimization": {
+			"name": "Resource Optimization",
+			"description": "Boost data credit income",
+			"max_level": 50,
+			"base_duration": 10800,  # 3 hours
+			"duration_scaling": 1.08,
+			"base_cost_fragments": 150,
+			"base_cost_at": 100,
+			"cost_scaling": 1.15,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"data_credit_multiplier": 0.01},  # 1% per level
+			"tier": 2,
+		},
+
+		"archive_efficiency": {
+			"name": "Archive Efficiency",
+			"description": "Increase archive token income",
+			"max_level": 50,
+			"base_duration": 10800,  # 3 hours
+			"duration_scaling": 1.08,
+			"base_cost_fragments": 150,
+			"base_cost_at": 100,
+			"cost_scaling": 1.15,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"archive_token_multiplier": 0.01},  # 1% per level
+			"tier": 2,
+		},
+
+		"wave_analysis": {
+			"name": "Wave Analysis",
+			"description": "Predict and skip waves",
+			"max_level": 30,
+			"base_duration": 21600,  # 6 hours
+			"duration_scaling": 1.10,
+			"base_cost_fragments": 500,
+			"base_cost_at": 200,
+			"cost_scaling": 1.18,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"wave_skip_chance_perm": 0.5},  # 0.5% per level
+			"tier": 3,
+		},
+
+		"probability_matrix": {
+			"name": "Probability Matrix",
+			"description": "Free upgrade chance",
+			"max_level": 30,
+			"base_duration": 21600,  # 6 hours
+			"duration_scaling": 1.10,
+			"base_cost_fragments": 500,
+			"base_cost_at": 200,
+			"cost_scaling": 1.18,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"free_upgrade_chance_perm": 0.5},  # 0.5% per level
+			"tier": 3,
+		},
+
+		"multi_target_systems": {
+			"name": "Multi-Target Systems",
+			"description": "Enhance multi-target capabilities",
+			"max_level": 30,
+			"base_duration": 28800,  # 8 hours
+			"duration_scaling": 1.12,
+			"base_cost_fragments": 1000,
+			"base_cost_at": 500,
+			"cost_scaling": 1.20,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"multi_target_bonus": 0.1},  # 0.1 per level
+			"tier": 3,
+		},
+	}
+
+func get_level(lab_id: String) -> int:
+	return lab_levels.get(lab_id, 0)
+
+func get_max_level(lab_id: String) -> int:
+	if not labs.has(lab_id):
+		return 0
+	return labs[lab_id]["max_level"]
+
+func is_maxed(lab_id: String) -> bool:
+	return get_level(lab_id) >= get_max_level(lab_id)
+
+func get_duration_for_level(lab_id: String, level: int) -> int:
+	if not labs.has(lab_id):
+		return 0
+
+	var lab = labs[lab_id]
+	var base = lab["base_duration"]
+	var scaling = lab["duration_scaling"]
+
+	# Duration = base * (scaling ^ (level - 1))
+	return int(base * pow(scaling, level - 1))
+
+func get_cost_for_level(lab_id: String, level: int) -> Dictionary:
+	if not labs.has(lab_id):
+		return {"fragments": 0, "archive_tokens": 0}
+
+	var lab = labs[lab_id]
+	var base_frag = lab["base_cost_fragments"]
+	var base_at = lab["base_cost_at"]
+	var scaling = lab["cost_scaling"]
+	var at_starts = lab["at_cost_starts_at_level"]
+
+	var frag_cost = int(base_frag * pow(scaling, level - 1))
+	var at_cost = 0
+
+	if level >= at_starts:
+		at_cost = int(base_at * pow(scaling, level - at_starts))
+
+	return {
+		"fragments": frag_cost,
+		"archive_tokens": at_cost
+	}
+
+func can_start_upgrade(lab_id: String) -> bool:
+	# Check if lab exists
+	if not labs.has(lab_id):
+		return false
+
+	# Check if maxed
+	if is_maxed(lab_id):
+		return false
+
+	# Check if already in progress
+	for slot in active_upgrades:
+		if slot != null and slot["id"] == lab_id:
+			return false
+
+	# Check cost for next level
+	var next_level = get_level(lab_id) + 1
+	var cost = get_cost_for_level(lab_id, next_level)
+
+	if cost["fragments"] > RewardManager.fragments:
+		return false
+	if cost["archive_tokens"] > RewardManager.archive_tokens:
+		return false
+
+	return true
+
+func start_upgrade(lab_id: String, slot_index: int) -> bool:
+	if slot_index < 0 or slot_index >= MAX_SLOTS:
+		return false
+
+	if active_upgrades[slot_index] != null:
+		return false
+
+	if not can_start_upgrade(lab_id):
+		return false
+
+	var lab = labs[lab_id]
+	var next_level = get_level(lab_id) + 1
+	var cost = get_cost_for_level(lab_id, next_level)
+	var duration = get_duration_for_level(lab_id, next_level)
+
+	# Deduct cost
+	RewardManager.fragments -= cost["fragments"]
+	RewardManager.archive_tokens -= cost["archive_tokens"]
+
+	# Start upgrade
+	active_upgrades[slot_index] = {
+		"id": lab_id,
+		"start_time": Time.get_unix_time_from_system(),
+		"duration": duration,
+		"target_level": next_level,
+	}
+
+	emit_signal("upgrade_started", lab_id, slot_index)
+	emit_signal("upgrades_updated")
+	save_upgrade_state()
+
+	print("🔬 Started %s level %d (slot %d)" % [lab["name"], next_level, slot_index])
+	return true
+
+func update_upgrades() -> void:
+	var now = Time.get_unix_time_from_system()
+	var any_completed = false
+
+	for i in range(MAX_SLOTS):
+		var slot = active_upgrades[i]
+		if slot == null:
+			continue
+
+		var elapsed = now - slot["start_time"]
+		if elapsed >= slot["duration"]:
+			_complete_upgrade(i)
+			any_completed = true
+
+	if any_completed:
+		emit_signal("upgrades_updated")
+
+func _complete_upgrade(slot_index: int) -> void:
+	var slot = active_upgrades[slot_index]
+	if slot == null:
+		return
+
+	var lab_id = slot["id"]
+	var new_level = slot["target_level"]
+	var lab = labs[lab_id]
+
+	# Set new level
+	lab_levels[lab_id] = new_level
+
+	# Apply bonuses
+	_apply_level_bonuses(lab)
+
+	# Clear slot
+	active_upgrades[slot_index] = null
+
+	emit_signal("upgrade_completed", lab_id, new_level)
+	save_upgrade_state()
+
+	print("✅ Completed %s level %d" % [lab["name"], new_level])
+
+func _apply_level_bonuses(lab: Dictionary) -> void:
+	var bonuses = lab.get("bonus_per_level", {})
+
+	for bonus_key in bonuses.keys():
+		var value = bonuses[bonus_key]
+
+		match bonus_key:
+			"projectile_damage_perm":
+				RewardManager.perm_projectile_damage += value
+			"fire_rate_perm":
+				RewardManager.perm_projectile_fire_rate += value
+			"crit_chance_perm":
+				RewardManager.perm_crit_chance += value
+			"crit_damage_perm":
+				RewardManager.perm_crit_damage += value
+			"shield_integrity_perm":
+				RewardManager.perm_shield_integrity += value
+			"damage_reduction_perm":
+				RewardManager.perm_damage_reduction += value
+			"shield_regen_perm":
+				RewardManager.perm_shield_regen += value
+			"data_credit_multiplier":
+				RewardManager.perm_data_credit_multiplier += value
+			"archive_token_multiplier":
+				RewardManager.perm_archive_token_multiplier += value
+			"wave_skip_chance_perm":
+				RewardManager.perm_wave_skip_chance += value
+			"free_upgrade_chance_perm":
+				RewardManager.perm_free_upgrade_chance += value
+			"multi_target_bonus":
+				pass  # Not currently stored in RewardManager
+
+func get_upgrade_progress(slot_index: int) -> float:
+	if slot_index < 0 or slot_index >= MAX_SLOTS:
+		return 0.0
+
+	var slot = active_upgrades[slot_index]
+	if slot == null:
+		return 0.0
+
+	var now = Time.get_unix_time_from_system()
+	var elapsed = now - slot["start_time"]
+	return clamp(float(elapsed) / float(slot["duration"]), 0.0, 1.0)
+
+func get_upgrade_time_remaining(slot_index: int) -> int:
+	if slot_index < 0 or slot_index >= MAX_SLOTS:
+		return 0
+
+	var slot = active_upgrades[slot_index]
+	if slot == null:
+		return 0
+
+	var now = Time.get_unix_time_from_system()
+	var elapsed = now - slot["start_time"]
+	return max(0, slot["duration"] - elapsed)
+
+func get_total_bonus(lab_id: String) -> Dictionary:
+	var level = get_level(lab_id)
+	if level == 0 or not labs.has(lab_id):
+		return {}
+
+	var lab = labs[lab_id]
+	var bonus_per = lab.get("bonus_per_level", {})
+	var result = {}
+
+	for key in bonus_per.keys():
+		result[key] = bonus_per[key] * level
+
+	return result
+
+# === SAVE/LOAD ===
+func save_upgrade_state() -> void:
+	var data = {
+		"active_upgrades": active_upgrades,
+		"lab_levels": lab_levels,
+	}
+
+	var file = FileAccess.open("user://software_upgrades.save", FileAccess.WRITE)
+	if file == null:
+		push_error("Failed to save software upgrades: " + str(FileAccess.get_open_error()))
+		return
+
+	file.store_var(data)
+	file.close()
+	print("💾 Software upgrades saved")
+
+func load_upgrade_state() -> void:
+	if not FileAccess.file_exists("user://software_upgrades.save"):
+		print("No software upgrade save found")
+		return
+
+	var file = FileAccess.open("user://software_upgrades.save", FileAccess.READ)
+	if file == null:
+		push_error("Failed to load software upgrades: " + str(FileAccess.get_open_error()))
+		return
+
+	var data = file.get_var()
+	file.close()
+
+	if typeof(data) != TYPE_DICTIONARY:
+		push_error("Software upgrade save corrupted")
+		return
+
+	active_upgrades = data.get("active_upgrades", [null, null])
+	lab_levels = data.get("lab_levels", {})
+
+	print("🔄 Software upgrades loaded")
+
+	# Update any completed upgrades that finished while offline
+	update_upgrades()

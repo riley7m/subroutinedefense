@@ -67,7 +67,9 @@ func get_projectile_damage() -> int:
 	var level = projectile_damage_level
 	var base = 100 + (floor(5 * pow(level, 1.12) + 5))
 	var milestones = floor(level / 100)
-	var multiplier = pow(1.5, milestones)
+	# Cap milestones at 500 to prevent overflow (pow(1.5, 500) ≈ 10^88)
+	# Beyond this, only base scaling continues to grow
+	var multiplier = pow(1.5, min(milestones, 500))
 	return int(base * multiplier) + RewardManager.perm_projectile_damage
 
 func get_projectile_fire_rate() -> float:
@@ -146,7 +148,7 @@ func upgrade_fire_rate(is_free := false):
 func upgrade_crit_chance(is_free := false):
 	if get_crit_chance() >= CRIT_CHANCE_CAP:
 		print("✅ Crit Chance already at max.")
-		return
+		return false
 	if is_free:
 		crit_chance += 1
 		print("🎯 Crit Chance upgraded for FREE to", get_crit_chance(), "%")
@@ -247,7 +249,7 @@ func upgrade_archive_token_multiplier(is_free := false):
 func upgrade_wave_skip_chance(is_free := false):
 	if get_wave_skip_chance() >= WAVE_SKIP_MAX_CHANCE:
 		print("✅ Wave Skip Chance already at max.")
-		return
+		return false
 	if is_free:
 		wave_skip_chance_level += 1
 		print("⏩ Wave Skip Chance upgraded for FREE to", get_wave_skip_chance(), "%")
@@ -264,7 +266,7 @@ func upgrade_wave_skip_chance(is_free := false):
 func upgrade_free_upgrade_chance(is_free := false):
 	if get_free_upgrade_chance() >= FREE_UPGRADE_MAX_CHANCE:
 		print("✅ Free Upgrade Chance already at max.")
-		return
+		return false
 	if is_free:
 		free_upgrade_chance_level += 1
 		print("🎲 Free Upgrade Chance increased for FREE to", get_free_upgrade_chance(), "%")
@@ -292,7 +294,7 @@ func get_perm_upgrade_cost_for_level(key: String, level: int) -> int:
 		"crit_damage":
 			return get_perm_cost(9000, 500, int(level * 20))
 		"shield_integrity":
-			return get_perm_cost(7000, 300, int(level / 10))
+			return get_perm_cost(7000, 300, int(level * 5))  # Fixed: was dividing by 10
 		"shield_regen":
 			return get_perm_cost(8500, 400, int(level * 4))
 		"damage_reduction":

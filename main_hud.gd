@@ -8,6 +8,10 @@ var tower_hp: int = 1000
 var wave_timer: float = 0.0
 const WAVE_INTERVAL := 2.0
 
+# Cleanup tracking
+var active_drones: Array = []
+var refresh_timer: Timer = null
+
 const DRONE_FLAME_SCENE = preload("res://drone_flame.tscn")
 const DRONE_POISON_SCENE = preload("res://drone_poison.tscn")
 const DRONE_FROST_SCENE = preload("res://drone_frost.tscn")
@@ -62,6 +66,9 @@ const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
 
 @onready var perm_panel: Control = $PermUpgradesPanel
 @onready var perm_panel_toggle_button: Button = $PermPanelToggleButton
+
+var software_upgrade_panel: Control = null
+var software_upgrade_button: Button = null
 
 
 var drone_scenes = {
@@ -119,11 +126,53 @@ var current_speed_index := 0
 
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
 
-@onready var death_screen = get_tree().current_scene.get_node("DeathScreen")
+@onready var death_screen = null  # Will be set in _ready()
+@onready var spawner: Node = $Spawner
+@onready var tower: Node = $tower
 
 
 
 func _ready() -> void:
+	# Safely get death screen reference
+	var current = get_tree().current_scene
+	if current:
+		death_screen = current.get_node_or_null("DeathScreen")
+
+	# Add offline progress popup (highest z-index)
+	var offline_popup = preload("res://offline_progress_popup.gd").new()
+	add_child(offline_popup)
+
+	# Add Software Upgrade panel and toggle button
+	software_upgrade_panel = preload("res://software_upgrade_ui.gd").new()
+	software_upgrade_panel.visible = false
+	add_child(software_upgrade_panel)
+
+	software_upgrade_button = Button.new()
+	software_upgrade_button.text = "🔬 Software"
+	software_upgrade_button.position = Vector2(10, 900)
+	software_upgrade_button.custom_minimum_size = Vector2(150, 40)
+	software_upgrade_button.pressed.connect(_on_software_upgrade_button_pressed)
+	add_child(software_upgrade_button)
+
+	# Add matrix code rain (furthest back)
+	var matrix_rain = preload("res://MatrixCodeRain.gd").new()
+	add_child(matrix_rain)
+	move_child(matrix_rain, 0)
+
+	# Add background layers (parallax depth)
+	var bg_layers = preload("res://BackgroundLayers.gd").new()
+	add_child(bg_layers)
+	move_child(bg_layers, 1)  # Render after matrix
+
+	# Add background effects (grid + CRT + bloom + chromatic aberration)
+	var bg_effects = preload("res://BackgroundEffects.gd").new()
+	add_child(bg_effects)
+	move_child(bg_effects, 2)  # Render after layers
+
+	# Add holographic UI overlays
+	var holo_ui = preload("res://HolographicUI.gd").new()
+	add_child(holo_ui)
+
 	# Connect upgrade and toggle buttons
 	offense_button.pressed.connect(_on_offense_button_pressed)
 	damage_upgrade.pressed.connect(_on_damage_upgrade_pressed)
@@ -167,20 +216,21 @@ func _ready() -> void:
 	
 	for drone_type in drone_scenes.keys():
 		var drone = drone_scenes[drone_type].instantiate()
-		
+		active_drones.append(drone)
 		add_child(drone)
-		
+
 	# Spawner hookup
-	var hud = get_node(".")
-	var spawner = get_node("Spawner")
 	spawner.set_main_hud(self)
 	spawner.start_wave(wave)
-	spawner.set_main_hud(hud)
 	randomize()
 	RewardManager.load_permanent_upgrades()
 	update_all_perm_upgrade_ui()
+
+	# Start tracking this run's performance
+	RewardManager.start_run_tracking(wave)
+
 	# Refresh currency labels every 0.2s
-	var refresh_timer := Timer.new()
+	refresh_timer = Timer.new()
 	refresh_timer.wait_time = 0.2
 	refresh_timer.timeout.connect(update_labels)
 	refresh_timer.autostart = true
@@ -189,21 +239,39 @@ func _ready() -> void:
 	update_labels()
 	update_damage_label()
 
+	# Apply cyber theme to all UI elements
+	UIStyler.apply_theme_to_node(self)
+
+func _exit_tree() -> void:
+	# Clean up refresh timer
+	if refresh_timer and is_instance_valid(refresh_timer):
+		refresh_timer.stop()
+		if refresh_timer.timeout.is_connected(Callable(self, "update_labels")):
+			refresh_timer.timeout.disconnect(Callable(self, "update_labels"))
+		refresh_timer.queue_free()
+
+	# Disconnect signal from RewardManager
+	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "update_all_perm_upgrade_ui")):
+		RewardManager.archive_tokens_changed.disconnect(Callable(self, "update_all_perm_upgrade_ui"))
+
+	# Clean up drones
+	for drone in active_drones:
+		if is_instance_valid(drone):
+			drone.queue_free()
+	active_drones.clear()
+
 func _process(delta: float) -> void:
 	wave_timer += delta
-	var spawner = get_node("Spawner")
-	if spawner and spawner.wave_spawning:
+	if spawner.wave_spawning:
 		return
 	if wave_timer >= WAVE_INTERVAL:
 		wave_timer = 0.0
-		if spawner and spawner.has_method("start_wave"):
-			spawner.start_wave(spawner.current_wave + 1)  # always request next wave
-			UpgradeManager.maybe_grant_free_upgrade()
-			update_labels()
+		UpgradeManager.maybe_grant_free_upgrade()  # Grant before wave starts
+		spawner.start_wave(spawner.current_wave + 1)  # always request next wave
+		update_labels()
 
 
 func update_labels() -> void:
-	var spawner = get_node("Spawner")
 	wave_label.text = "Wave: %d" % spawner.current_wave
 	at_label.text = "AT: %d" % RewardManager.archive_tokens
 	dc_label.text = "DC: %d" % RewardManager.data_credits
@@ -242,6 +310,8 @@ func _on_damage_upgrade_pressed() -> void:
 			else:
 				print("Bought upgrade %d" % (i+1))
 	update_damage_label()
+	if tower and is_instance_valid(tower):
+		tower.update_visual_tier()  # Update tower visuals after damage upgrade
 
 
 func _on_fire_rate_upgrade_pressed() -> void:
@@ -253,7 +323,9 @@ func _on_fire_rate_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_fire_rate():
 				break
-	get_node("tower").refresh_fire_rate()
+	if tower and is_instance_valid(tower):
+		tower.refresh_fire_rate()
+		tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
 	update_labels()
 
 func _on_crit_chance_upgrade_pressed() -> void:
@@ -306,9 +378,16 @@ func update_multi_target_ui():
 		upgrade_multi_target_button.visible = true
 		var lvl = UpgradeManager.multi_target_level
 		var targets = lvl + 1
-		var next_cost = UpgradeManager.get_multi_target_cost_for_level(lvl + 1) if lvl < UpgradeManager.MULTI_TARGET_MAX_LEVEL else "-"
-		upgrade_multi_target_button.text = "Upgrade Multi Target (%s DC)" % str(next_cost)
-		upgrade_multi_target_button.disabled = (lvl >= UpgradeManager.MULTI_TARGET_MAX_LEVEL or RewardManager.data_credits < int(next_cost))
+
+		# Handle max level separately to avoid type mismatch
+		if lvl >= UpgradeManager.MULTI_TARGET_MAX_LEVEL:
+			upgrade_multi_target_button.text = "Max Level Reached"
+			upgrade_multi_target_button.disabled = true
+		else:
+			var next_cost = UpgradeManager.get_multi_target_cost_for_level(lvl + 1)
+			upgrade_multi_target_button.text = "Upgrade Multi Target (%d DC)" % next_cost
+			upgrade_multi_target_button.disabled = RewardManager.data_credits < next_cost
+
 		multi_target_label.text = "Multi Target: %d" % targets
 
 
@@ -329,7 +408,7 @@ func _on_shield_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_shield_integrity():
 				break
-	get_node("tower").refresh_shield_stats()
+	tower.refresh_shield_stats()
 	update_labels()
 
 func _on_damage_reduction_upgrade_pressed() -> void:
@@ -352,7 +431,7 @@ func _on_shield_regen_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_shield_regen():
 				break
-	get_node("tower").refresh_shield_stats()
+	tower.refresh_shield_stats()
 	update_labels()
 
 # --- Economy Panel Logic ---
@@ -485,13 +564,28 @@ func get_perm_max_affordable(key: String) -> Array:
 	var level = UpgradeManager.get_perm_level(key)
 	var total_cost = 0
 	var max_count = 0
-	while true:
+	var safety_counter = 0
+	const MAX_ITERATIONS = 10000  # Safety limit to prevent infinite loops
+
+	while safety_counter < MAX_ITERATIONS:
 		var this_cost = UpgradeManager.get_perm_upgrade_cost_for_level(key, level + max_count)
+
+		# Guard against zero/negative costs which would cause infinite loop
+		if this_cost <= 0:
+			push_warning("get_perm_max_affordable: Invalid cost %d for level %d" % [this_cost, level + max_count])
+			break
+
 		if at >= total_cost + this_cost:
 			total_cost += this_cost
 			max_count += 1
 		else:
 			break
+
+		safety_counter += 1
+
+	if safety_counter >= MAX_ITERATIONS:
+		push_error("get_perm_max_affordable: Hit safety limit! Possible infinite loop prevented.")
+
 	return [max_count, total_cost]
 	
 func _on_perm_panel_toggle_button_pressed():
@@ -502,10 +596,26 @@ func _on_perm_panel_toggle_button_pressed():
 		offense_panel.visible = false
 		defense_panel.visible = false
 		economy_panel.visible = false
+		if software_upgrade_panel:
+			software_upgrade_panel.visible = false
 	else:
 		perm_panel_toggle_button.text = "Show Upgrades"
+
+func _on_software_upgrade_button_pressed():
+	if software_upgrade_panel:
+		software_upgrade_panel.visible = not software_upgrade_panel.visible
+		if software_upgrade_panel.visible:
+			# Hide other panels
+			offense_panel.visible = false
+			defense_panel.visible = false
+			economy_panel.visible = false
+			perm_panel.visible = false
 		
 func _on_quit_button_pressed():
+	# Record run performance before quitting
+	if Engine.has_singleton("RewardManager") and spawner:
+		RewardManager.record_run_performance(spawner.current_wave)
+
 	# 1. Reset in-run upgrades
 	if Engine.has_singleton("UpgradeManager"):
 		UpgradeManager.reset_run_upgrades()
@@ -514,29 +624,25 @@ func _on_quit_button_pressed():
 	# 2. Save permanent upgrades and reset currencies
 	if Engine.has_singleton("RewardManager"):
 		RewardManager.save_permanent_upgrades()
-		RewardManager.data_credits = 100000
+		RewardManager.reset_run_currency()
 
 	# 3. Reset wave and clear enemies
-	var spawner = get_tree().current_scene.get_node("Spawner")
-	if spawner:
-		if spawner.has_method("reset_wave_timers"):
-			spawner.reset_wave_timers()
-		spawner.wave_spawning = false
-		spawner.current_wave = 1
-		spawner.enemies_to_spawn = 0
-		spawner.spawned_enemies = 0
-		# Remove any enemy nodes
-		for e in spawner.get_children():
-			if e.is_in_group("enemies"):
-				e.queue_free()
+	if spawner.has_method("reset_wave_timers"):
+		spawner.reset_wave_timers()
+	spawner.wave_spawning = false
+	spawner.current_wave = 1
+	spawner.enemies_to_spawn = 0
+	spawner.spawned_enemies = 0
+	# Remove any enemy nodes
+	for e in spawner.get_children():
+		if is_instance_valid(e) and e.is_in_group("enemies"):
+			e.queue_free()
 
 	# 4. Reset the tower
-	var tower = get_tree().current_scene.get_node("tower")
-	if tower:
-		tower.tower_hp = 1000
-		tower.refresh_shield_stats()
-		tower.current_shield = tower.max_shield
-		tower.update_bars()
+	tower.tower_hp = 1000
+	tower.refresh_shield_stats()
+	tower.current_shield = tower.max_shield
+	tower.update_bars()
 
 	# 5. Hide all upgrade panels
 	if has_node("OffensePanel"):

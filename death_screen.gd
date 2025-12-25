@@ -5,6 +5,11 @@ extends CanvasLayer
 @onready var restart_button = $RestartButton
 
 func show_death():
+	# Record run performance before showing death screen
+	var spawner = get_tree().current_scene.get_node_or_null("Spawner")
+	if spawner and RewardManager:
+		RewardManager.record_run_performance(spawner.current_wave)
+
 	visible = true
 	get_tree().paused = true
 	print("=== RUN STATS ON DEATH ===")
@@ -12,7 +17,7 @@ func show_death():
 	print("DC Earned: ", RunStats.data_credits_earned)
 	print("Damage Dealt: ", RunStats.damage_dealt)
 	print("Damage Taken: ", RunStats.damage_taken)
-	print("==========================")	
+	print("==========================")
 
 func _on_restart_button_pressed():
 	print("Restart button pressed!")
@@ -38,7 +43,7 @@ func _on_restart_button_pressed():
 		economy_panel.visible = false
 
 	# Reset currencies
-	RewardManager.data_credits = 100000
+	RewardManager.reset_run_currency()
 	RewardManager.save_permanent_upgrades()
 
 	# Reset in-run upgrades and state
@@ -51,13 +56,15 @@ func _on_restart_button_pressed():
 			enemy.queue_free()
 
 	# Reset wave counters in spawner
-	var spawner = get_tree().current_scene.get_node("Spawner")
+	var spawner = get_tree().current_scene.get_node_or_null("Spawner")
 	if spawner and spawner.has_method("reset"):
 		spawner.reset()
 		spawner.start_wave(1)
+		# Start tracking new run
+		RewardManager.start_run_tracking(1)
 
 	# Reset the tower
-	var tower = get_tree().current_scene.get_node("tower")
+	var tower = get_tree().current_scene.get_node_or_null("tower")
 	if tower:
 		tower.tower_hp = 1000
 		tower.refresh_shield_stats()

@@ -5,6 +5,21 @@ var data_credits: int = 100000
 var archive_tokens: int = 100000
 var fragments: int = 0  # For drone upgrades
 
+# --- Offline Progress ---
+var last_play_time: int = 0  # Unix timestamp
+var offline_progress_ready: bool = false
+var offline_waves: int = 0
+var offline_dc: int = 0
+var offline_at: int = 0
+var offline_duration: float = 0.0
+
+# --- Run Performance Tracking ---
+var run_history: Array = []  # Array of {at_earned: int, duration: float, timestamp: int, at_per_hour: float}
+var current_run_start_time: int = 0
+var current_run_at_start: int = 0
+const MAX_RUN_HISTORY = 100  # Keep last 100 runs
+const WEEK_IN_SECONDS = 604800  # 7 days
+
 # --- Permanent Upgrades (all are managed here now) ---
 var perm_projectile_damage: int = 0
 var perm_projectile_fire_rate: float = 0.0
@@ -32,11 +47,19 @@ var perm_multi_target_unlocked: bool = false
 @export var at_multiplier: float = 1.0
 
 signal archive_tokens_changed
+signal offline_progress_calculated(waves: int, dc: int, at: int, duration: float)
 
-@onready var UpgradeManager = get_node("UpgradeManager")
+var UpgradeManager = null
 
 func _ready() -> void:
-	get_tree().connect("tree_exiting", Callable(self, "save_permanent_upgrades"))
+	# Safely get UpgradeManager
+	UpgradeManager = get_node_or_null("UpgradeManager")
+	if not UpgradeManager:
+		push_error("UpgradeManager not found as child of RewardManager")
+
+	# Connect to tree exit signal only if not already connected
+	if not get_tree().tree_exiting.is_connected(Callable(self, "save_permanent_upgrades")):
+		get_tree().connect("tree_exiting", Callable(self, "save_permanent_upgrades"))
 
 
 # === Reward Functions ===
@@ -97,8 +120,8 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	#print("🪙 DC from", enemy_type, "→", scaled_dc, "→ Total:", data_credits)
 
 func get_wave_at_reward(wave_number: int) -> int:
-	var base = floor(0.25 * pow(wave_number, 1.15))
-	return int(base * at_multiplier)
+	# Apply multiplier BEFORE floor to maintain canonical formula precision
+	return int(floor(0.25 * pow(wave_number, 1.15) * at_multiplier))
 
 func add_wave_at(wave_number: int) -> void:
 	var reward = get_wave_at_reward(wave_number)
@@ -124,8 +147,183 @@ func reset_rewards() -> void:
 	fragments = 0
 	print("🔄 Rewards reset")
 
+func reset_run_currency() -> void:
+	# Reset in-run currency to starting values (preserves permanent upgrades)
+	data_credits = 100000
+	print("🔄 In-run currency reset to starting values")
+
+# === RUN PERFORMANCE TRACKING ===
+func start_run_tracking(starting_wave: int = 1) -> void:
+	current_run_start_time = Time.get_unix_time_from_system()
+	current_run_at_start = archive_tokens
+	print("📊 Started tracking run (starting AT: %d)" % current_run_at_start)
+
+func record_run_performance(final_wave: int = 1) -> void:
+	if current_run_start_time == 0:
+		return  # No run was tracked
+
+	var now = Time.get_unix_time_from_system()
+	var duration = now - current_run_start_time
+
+	# Must have played for at least 30 seconds to count
+	if duration < 30:
+		return
+
+	# Calculate AT earned during this run
+	var at_earned = archive_tokens - current_run_at_start
+	if at_earned < 1:
+		return  # Must earn at least 1 AT
+
+	# Calculate AT per hour
+	var duration_hours = float(duration) / 3600.0
+	var at_per_hour = float(at_earned) / duration_hours
+
+	var run_data = {
+		"at_earned": at_earned,
+		"duration": duration,
+		"timestamp": now,
+		"at_per_hour": at_per_hour,
+	}
+
+	run_history.append(run_data)
+
+	# Trim to max history
+	if run_history.size() > MAX_RUN_HISTORY:
+		run_history.remove_at(0)
+
+	# Clean up old runs (older than 1 week)
+	_clean_old_runs()
+
+	print("📊 Recorded run: %d AT in %d seconds (%.1f AT/hour)" % [at_earned, duration, at_per_hour])
+
+	# Reset tracking
+	current_run_start_time = 0
+	current_run_at_start = 0
+
+func _clean_old_runs() -> void:
+	var now = Time.get_unix_time_from_system()
+	var cutoff = now - WEEK_IN_SECONDS
+
+	# Remove runs older than 1 week
+	var i = 0
+	while i < run_history.size():
+		if run_history[i]["timestamp"] < cutoff:
+			run_history.remove_at(i)
+		else:
+			i += 1
+
+func get_best_run_last_week() -> Dictionary:
+	_clean_old_runs()
+
+	if run_history.is_empty():
+		# No runs recorded, return default (100 AT/hour baseline)
+		return {
+			"at_earned": 100,
+			"duration": 3600,
+			"at_per_hour": 100.0,
+			"timestamp": 0
+		}
+
+	# Find run with highest AT per hour
+	var best_run = run_history[0]
+	for run in run_history:
+		if run["at_per_hour"] > best_run["at_per_hour"]:
+			best_run = run
+
+	return best_run
+
+# === OFFLINE PROGRESS CALCULATION ===
+func calculate_offline_progress(watched_ad: bool = false) -> void:
+	if last_play_time == 0:
+		last_play_time = Time.get_unix_time_from_system()
+		return  # First time playing
+
+	var now = Time.get_unix_time_from_system()
+	var seconds_away = now - last_play_time
+
+	# Update timestamp for next session
+	last_play_time = now
+
+	# Cap at 24 hours (86400 seconds)
+	seconds_away = min(seconds_away, 86400)
+
+	# Ignore absences less than 1 minute
+	if seconds_away < 60:
+		return
+
+	# Calculate efficiency: 25% base, 50% if watched ad
+	var efficiency = 0.25
+	if watched_ad:
+		efficiency = 0.50
+
+	# Simulate offline progress
+	var results = _simulate_offline_waves(seconds_away, efficiency)
+
+	offline_waves = results["waves"]
+	offline_dc = results["dc"]
+	offline_at = results["at"]
+	offline_duration = seconds_away
+	offline_progress_ready = true
+
+	# Emit signal so UI can show popup
+	emit_signal("offline_progress_calculated", offline_waves, offline_dc, offline_at, seconds_away)
+
+func _simulate_offline_waves(seconds: float, efficiency: float) -> Dictionary:
+	# Get best run from last week
+	var best_run = get_best_run_last_week()
+	var best_at_per_hour = best_run["at_per_hour"]
+
+	# Calculate AT based on best run performance
+	# efficiency parameter is 0.25 (25% base) or 0.50 (50% with ad)
+	var hours_away = seconds / 3600.0
+	var at_per_hour_offline = best_at_per_hour * efficiency
+	var at_earned = int(floor(hours_away * at_per_hour_offline))
+
+	# Cap to prevent absurd numbers
+	at_earned = min(at_earned, 1000000)
+	at_earned = max(at_earned, 0)
+
+	# Calculate DC proportionally (roughly 10x AT based on typical rewards)
+	var dc_earned = at_earned * 10
+
+	# Estimate waves cleared for display (roughly 1 AT per 0.2 waves)
+	var waves_cleared = int(at_earned * 0.2)
+
+	print("📊 Offline calc: Best run %.1f AT/h, offline %.1f AT/h (%.0f%%), %d AT in %.2f hours" % [
+		best_at_per_hour,
+		at_per_hour_offline,
+		efficiency * 100,
+		at_earned,
+		hours_away
+	])
+
+	return {
+		"waves": waves_cleared,
+		"dc": dc_earned,
+		"at": at_earned
+	}
+
+func apply_offline_rewards() -> void:
+	if not offline_progress_ready:
+		return
+
+	data_credits += offline_dc
+	archive_tokens += offline_at
+
+	offline_progress_ready = false
+	offline_waves = 0
+	offline_dc = 0
+	offline_at = 0
+	offline_duration = 0.0
+
+	emit_signal("archive_tokens_changed")
+	print("🌙 Offline rewards applied: %d DC, %d AT" % [offline_dc, offline_at])
+
 # === PERSISTENCE: Save/Load All Permanent Upgrades and Currency ===
 func save_permanent_upgrades():
+	# Update last play time on save
+	last_play_time = Time.get_unix_time_from_system()
+
 	var data = {
 		"perm_projectile_damage": perm_projectile_damage,
 		"perm_projectile_fire_rate": perm_projectile_fire_rate,
@@ -145,8 +343,13 @@ func save_permanent_upgrades():
 		"perm_multi_target_unlocked": perm_multi_target_unlocked,
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
+		"last_play_time": last_play_time,
+		"run_history": run_history,
 	}
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.WRITE)
+	if file == null:
+		push_error("Failed to open save file for writing: " + str(FileAccess.get_open_error()))
+		return
 	file.store_var(data)
 	file.close()
 	print("💾 Permanent upgrades saved.")
@@ -155,25 +358,46 @@ func load_permanent_upgrades():
 	if not FileAccess.file_exists("user://perm_upgrades.save"):
 		print("No permanent upgrades save found.")
 		return
+
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.READ)
+	if file == null:
+		push_error("Failed to open save file for reading: " + str(FileAccess.get_open_error()))
+		return
+
 	var data = file.get_var()
 	file.close()
-	perm_projectile_damage = data.get("perm_projectile_damage", 0)
-	perm_projectile_fire_rate = data.get("perm_projectile_fire_rate", 0.0)
-	perm_crit_chance = data.get("perm_crit_chance", 0)
-	perm_crit_damage = data.get("perm_crit_damage", 0.0)
-	perm_shield_integrity = data.get("perm_shield_integrity", 0)
-	perm_damage_reduction = data.get("perm_damage_reduction", 0.0)
-	perm_shield_regen = data.get("perm_shield_regen", 0.0)
-	perm_data_credit_multiplier = data.get("perm_data_credit_multiplier", 0.0)
-	perm_archive_token_multiplier = data.get("perm_archive_token_multiplier", 0.0)
-	perm_wave_skip_chance = data.get("perm_wave_skip_chance", 0.0)
-	perm_free_upgrade_chance = data.get("perm_free_upgrade_chance", 0.0)
+
+	# Validate data is a dictionary
+	if typeof(data) != TYPE_DICTIONARY:
+		push_error("Save file corrupted: Invalid data type")
+		return
+
+	# Load with validation (clamp to reasonable ranges)
+	perm_projectile_damage = clamp(data.get("perm_projectile_damage", 0), 0, 100000)
+	perm_projectile_fire_rate = clamp(data.get("perm_projectile_fire_rate", 0.0), 0.0, 1000.0)
+	perm_crit_chance = clamp(data.get("perm_crit_chance", 0), 0, 100000)
+	perm_crit_damage = clamp(data.get("perm_crit_damage", 0.0), 0.0, 1000.0)
+	perm_shield_integrity = clamp(data.get("perm_shield_integrity", 0), 0, 100000)
+	perm_damage_reduction = clamp(data.get("perm_damage_reduction", 0.0), 0.0, 1000.0)
+	perm_shield_regen = clamp(data.get("perm_shield_regen", 0.0), 0.0, 1000.0)
+	perm_data_credit_multiplier = clamp(data.get("perm_data_credit_multiplier", 0.0), 0.0, 1000.0)
+	perm_archive_token_multiplier = clamp(data.get("perm_archive_token_multiplier", 0.0), 0.0, 1000.0)
+	perm_wave_skip_chance = clamp(data.get("perm_wave_skip_chance", 0.0), 0.0, 100.0)
+	perm_free_upgrade_chance = clamp(data.get("perm_free_upgrade_chance", 0.0), 0.0, 100.0)
 	perm_multi_target_unlocked = data.get("perm_multi_target_unlocked", false)
-	perm_drone_flame_level = data.get("perm_drone_flame_level", 0)
-	perm_drone_frost_level = data.get("perm_drone_frost_level", 0)
-	perm_drone_poison_level = data.get("perm_drone_poison_level", 0)
-	perm_drone_shock_level = data.get("perm_drone_shock_level", 0)
-	archive_tokens = data.get("archive_tokens", 0)
-	fragments = data.get("fragments", 0)
+	perm_drone_flame_level = clamp(data.get("perm_drone_flame_level", 0), 0, 10000)
+	perm_drone_frost_level = clamp(data.get("perm_drone_frost_level", 0), 0, 10000)
+	perm_drone_poison_level = clamp(data.get("perm_drone_poison_level", 0), 0, 10000)
+	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
+	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
+	fragments = clamp(data.get("fragments", 0), 0, 999999999)
+	last_play_time = data.get("last_play_time", 0)
+	run_history = data.get("run_history", [])
+
 	print("🔄 Permanent upgrades loaded.")
+
+	# Clean up old runs on load
+	_clean_old_runs()
+
+	# Calculate offline progress (without ad by default - UI will handle ad option)
+	calculate_offline_progress(false)

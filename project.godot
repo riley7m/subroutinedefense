@@ -16,9 +16,13 @@ config/features=PackedStringArray("4.4", "Mobile")
 
 [autoload]
 
+VisualFactory="*res://VisualFactory.gd"
+ParticleEffects="*res://ParticleEffects.gd"
+UIStyler="*res://UIStyler.gd"
 RewardManager="*res://RewardManager.gd"
 UpgradeManager="*res://UpgradeManager.gd"
 RunStats="*res://RunStats.gd"
+SoftwareUpgradeManager="*res://SoftwareUpgradeManager.gd"
 
 [display]
 

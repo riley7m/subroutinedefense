@@ -1,5 +1,9 @@
 extends Node2D
 
+# Spawn Configuration Constants
+const SPAWN_MARGIN: int = 60
+const SPAWN_Y_OFFSET: float = -150.0
+
 @export var enemy_scenes: Array[PackedScene] = [
 	preload("res://enemy_breacher.tscn"),
 	preload("res://enemy_slicer.tscn"),
@@ -31,6 +35,9 @@ func _process(delta: float) -> void:
 			enemies_to_spawn -= 1
 		if enemies_to_spawn <= 0:
 			wave_spawning = false
+			# Award Archive Tokens for completing the wave
+			RewardManager.add_wave_at(current_wave)
+			print("📦 Wave", current_wave, "completed! AT reward granted.")
 
 func start_wave(wave_number: int) -> int:
 	print("Called start_wave with wave number: ", wave_number)
@@ -45,8 +52,12 @@ func start_wave(wave_number: int) -> int:
 	wave_spawning = true
 	enemy_spawn_timer = 0.0
 
+	# Show wave transition
 	if current_wave % 10 == 0:
 		spawn_boss(current_wave)
+		ScreenEffects.boss_wave_transition(current_wave)
+	else:
+		ScreenEffects.wave_transition(current_wave)
 
 	print("🟦 Starting wave", current_wave, "→ Spawning", enemies_to_spawn, "enemies")
 	return current_wave  # ← return the actual started wave
@@ -70,9 +81,17 @@ func spawn_enemy() -> void:
 
 	# Spawn within horizontal bounds
 	var screen_size = get_viewport().get_visible_rect().size
-	var margin = 120
-	var spawn_x = randf_range(margin, screen_size.x - margin - 450)
-	var spawn_y = -150.0  # Off-screen above
+	var margin = SPAWN_MARGIN
+	var max_x = screen_size.x - margin
+
+	# Ensure min < max to avoid randf_range crash
+	var spawn_x: float
+	if margin >= max_x or max_x <= margin:
+		# Screen too small or invalid, use safe center position
+		spawn_x = screen_size.x / 2.0 if screen_size.x > 0 else 960.0
+	else:
+		spawn_x = randf_range(margin, max_x)
+	var spawn_y = SPAWN_Y_OFFSET  # Off-screen above
 	enemy.position = Vector2(spawn_x, spawn_y)
 
 func spawn_boss(wave_number: int) -> void:
