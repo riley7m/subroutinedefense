@@ -245,6 +245,44 @@ func get_wave_skip_chance() -> float:
 func get_free_upgrade_chance() -> float:
 	return min(free_upgrade_chance_level * FREE_UPGRADE_CHANCE_PER_LEVEL + RewardManager.perm_free_upgrade_chance, FREE_UPGRADE_MAX_CHANCE)
 
+# --- BATCH 1 UPGRADE GETTERS ---
+func get_piercing() -> int:
+	return piercing_level * PIERCING_PER_LEVEL + RewardManager.perm_piercing
+
+func get_overkill_damage() -> float:
+	return overkill_damage_level * OVERKILL_PER_LEVEL + RewardManager.perm_overkill_damage
+
+func get_projectile_speed() -> float:
+	return 1.0 + (projectile_speed_level * PROJECTILE_SPEED_PER_LEVEL) + RewardManager.perm_projectile_speed
+
+func get_block_chance() -> float:
+	return min(block_chance_level * BLOCK_CHANCE_PER_LEVEL + RewardManager.perm_block_chance, BLOCK_CHANCE_MAX)
+
+func get_block_amount() -> int:
+	return block_amount_level * BLOCK_AMOUNT_PER_LEVEL + RewardManager.perm_block_amount
+
+func get_boss_resistance() -> float:
+	return min(boss_resistance_level * BOSS_RESISTANCE_PER_LEVEL + RewardManager.perm_boss_resistance, BOSS_RESISTANCE_MAX)
+
+# --- BATCH 2 UPGRADE GETTERS ---
+func get_overshield() -> int:
+	return overshield_level * OVERSHIELD_PER_LEVEL + RewardManager.perm_overshield
+
+func get_boss_bonus() -> float:
+	return 1.0 + (boss_bonus_level * BOSS_BONUS_PER_LEVEL) + RewardManager.perm_boss_bonus
+
+func get_lucky_drops() -> float:
+	return min(lucky_drops_level * LUCKY_DROPS_PER_LEVEL + RewardManager.perm_lucky_drops, LUCKY_DROPS_MAX)
+
+func get_ricochet_chance() -> float:
+	return min(ricochet_chance_level * RICOCHET_CHANCE_PER_LEVEL + RewardManager.perm_ricochet_chance, RICOCHET_CHANCE_MAX)
+
+func get_ricochet_max_targets() -> int:
+	return ricochet_max_targets_level * RICOCHET_MAX_TARGETS_PER_LEVEL + RewardManager.perm_ricochet_max_targets
+
+func get_elite_enemy_chance() -> float:
+	return min(elite_enemy_chance_level * ELITE_ENEMY_CHANCE_PER_LEVEL + RewardManager.perm_elite_enemy_chance, ELITE_ENEMY_CHANCE_MAX)
+
 # --- DRONE PERMANENT LEVEL GETTERS ---
 func get_perm_drone_flame_level() -> int:
 	return RewardManager.perm_drone_flame_level

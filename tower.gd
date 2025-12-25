@@ -15,6 +15,7 @@ var target: Node2D = null
 var tower_hp: int = 1000
 var max_shield: int
 var current_shield: int = 0
+var current_overshield: int = 0  # Extra shield layer from upgrades
 var shield_regen_rate: float
 var shield_initialized: bool = false
 
@@ -77,9 +78,13 @@ func refresh_shield_stats():
 	# On first initialization, set shield to max; otherwise cap at new max
 	if not shield_initialized:
 		current_shield = max_shield
+		current_overshield = UpgradeManager.get_overshield()
 		shield_initialized = true
 	else:
 		current_shield = min(current_shield, max_shield)
+		# Update overshield based on upgrades
+		var max_overshield = UpgradeManager.get_overshield()
+		current_overshield = min(current_overshield, max_overshield)
 
 	update_bars()
 	update_visual_tier()
@@ -135,18 +140,41 @@ func fire_projectile() -> void:
 		var direction = (enemy.global_position - global_position).normalized()
 		ParticleEffects.create_muzzle_flash(global_position, direction, current)
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, attacker: Node2D = null) -> void:
+	var damage = amount
+
+	# Check for block chance
+	var block_chance = UpgradeManager.get_block_chance()
+	if block_chance > 0 and randf() * 100.0 < block_chance:
+		var block_amount = UpgradeManager.get_block_amount()
+		damage = max(0, damage - block_amount)
+		if damage == 0:
+			#print("🛡️ Blocked all damage!")
+			return
+
+	# Apply boss resistance if attacker is a boss
+	if attacker and attacker.has_method("is_boss") and attacker.is_boss():
+		var boss_resistance = UpgradeManager.get_boss_resistance()
+		damage = int(damage * (1.0 - (boss_resistance / 100.0)))
+
 	# Apply damage reduction
 	var reduction = UpgradeManager.get_damage_reduction_level()
-	var reduced_amount = int(amount * (1.0 - (reduction / 100.0)))
+	var reduced_amount = int(damage * (1.0 - (reduction / 100.0)))
 
 	RunStats.damage_taken += reduced_amount
 
 	# Screen shake when hit
 	ScreenEffects.screen_shake(3.0, 0.2)
 
-	# Apply to shield first
-	if current_shield > 0:
+	# Apply to overshield first
+	if current_overshield > 0:
+		var blocked = min(current_overshield, reduced_amount)
+		current_overshield -= blocked
+		reduced_amount -= blocked
+		#print("⚡ Overshield blocked", blocked, "Remaining:", current_overshield)
+
+	# Then apply to shield
+	if current_shield > 0 and reduced_amount > 0:
 		var blocked = min(current_shield, reduced_amount)
 		var shield_broke = (current_shield - blocked) <= 0 and current_shield > 0
 		current_shield -= blocked

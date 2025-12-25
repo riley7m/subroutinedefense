@@ -80,6 +80,19 @@ func spawn_enemy() -> void:
 	enemy.tower = tower_ref
 	enemy.tower_position = tower_ref.global_position
 
+	# Check for elite enemy spawn
+	var elite_chance = UpgradeManager.get_elite_enemy_chance()
+	if elite_chance > 0 and randf() * 100.0 < elite_chance:
+		# Make this enemy elite (2x HP, 1.5x damage, 1.2x speed)
+		if enemy.has_method("set"):
+			enemy.set("hp", int(enemy.get("hp") * 2.0))
+			enemy.set("base_hp", int(enemy.get("base_hp") * 2.0))
+			enemy.set("damage_to_tower", int(enemy.get("damage_to_tower") * 1.5))
+			enemy.set("move_speed", enemy.get("move_speed") * 1.2)
+			# Mark as elite for visual effects (could add glow, etc.)
+			enemy.set("is_elite", true)
+			#print("⭐ Elite enemy spawned!")
+
 	# Spawn within horizontal bounds
 	var screen_size = get_viewport().get_visible_rect().size
 	var margin = SPAWN_MARGIN

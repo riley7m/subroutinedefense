@@ -120,6 +120,13 @@ func get_archive_token_multiplier() -> float:
 func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 	var base_at = get_at_reward_for_enemy(enemy_type)
 	var scaled_at = int(base_at * (1.0 + wave_number * 0.02) * get_archive_token_multiplier())
+
+	# Apply lucky drops bonus
+	var lucky_chance = UpgradeManager.get_lucky_drops()
+	if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
+		scaled_at = int(scaled_at * 1.5)  # 50% bonus on lucky drop
+		#print("🍀 Lucky drop! Bonus AT!")
+
 	archive_tokens += scaled_at
 	RunStats.archive_tokens_earned += scaled_at
 	emit_signal("archive_tokens_changed")
@@ -128,6 +135,13 @@ func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	var base_dc = get_dc_reward_for_enemy(enemy_type)
 	var scaled_dc = int(base_dc * (1.0 + wave_number * 0.02) * get_data_credit_multiplier())
+
+	# Apply lucky drops bonus
+	var lucky_chance = UpgradeManager.get_lucky_drops()
+	if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
+		scaled_dc = int(scaled_dc * 1.5)  # 50% bonus on lucky drop
+		#print("🍀 Lucky drop! Bonus DC!")
+
 	data_credits += scaled_dc
 	RunStats.data_credits_earned += scaled_dc
 	#print("🪙 DC from", enemy_type, "→", scaled_dc, "→ Total:", data_credits)

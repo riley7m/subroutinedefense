@@ -213,7 +213,18 @@ func _physics_process(delta: float) -> void:
 		time_since_last_attack = 0.0
 
 		if tower and tower.has_method("take_damage"):
-			tower.take_damage(damage_to_tower)
+			# Pass enemy reference for boss resistance check
+			var method_info = tower.get_method_list()
+			var supports_enemy_ref = false
+			for method in method_info:
+				if method.name == "take_damage":
+					supports_enemy_ref = method.args.size() >= 2
+					break
+
+			if supports_enemy_ref:
+				tower.take_damage(damage_to_tower, self)
+			else:
+				tower.take_damage(damage_to_tower)
 			#print("🔥 Called take_damage on tower!")
 		else:
 			print("❌ tower.take_damage() failed — tower is:", tower)
@@ -528,3 +539,9 @@ func apply_stun(level: int) -> void:
 
 func get_current_hp() -> int:
 	return hp
+
+func get_health() -> int:
+	return hp
+
+func is_boss() -> bool:
+	return enemy_type == "override"
