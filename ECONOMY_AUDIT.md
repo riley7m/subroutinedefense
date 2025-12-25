@@ -161,43 +161,50 @@ Wave 500: ~550 AT (enemies) + 915 AT (wave) = ~1,465 AT
 
 ## 💸 Spending Systems Analysis
 
-### 1. In-Run Upgrades (DC Cost)
+### 1. In-Run Upgrades (DC Cost) ✅ **FIXED - Wave-Based Scaling**
+
+**Wave-Based Cost Formula:** All upgrades now scale using `base_cost * sqrt(current_wave)`
 
 **Offense:**
 ```
-Damage:       100 DC (flat cost, unlimited levels)
-Fire Rate:    100 DC (flat cost, unlimited levels)
-Crit Chance:  200 DC (flat cost, capped at 60%)
-Crit Damage:  250 DC (flat cost, unlimited levels)
-Multi-Target: 1,000 DC base * (2.5^level) [EXPONENTIAL]
-  Level 1: 1,000 DC
-  Level 2: 2,500 DC
-  Level 3: 6,250 DC
-  Level 4: 15,625 DC
-  Level 5: 39,063 DC
-  Level 9: 3,814,697 DC [MAX]
+Damage:       50 DC base * sqrt(wave) (unlimited levels)
+Fire Rate:    50 DC base * sqrt(wave) (unlimited levels)
+Crit Chance: 100 DC base * sqrt(wave) (capped at 60%)
+Crit Damage: 125 DC base * sqrt(wave) (unlimited levels)
+Multi-Target: 1,000 DC base * (2.5^level) [EXPONENTIAL - unchanged]
 ```
 
 **Defense:**
 ```
-Shield:         100 DC (flat cost)
-Dam Reduction:  150 DC (flat cost)
-Shield Regen:   200 DC (flat cost)
+Shield:        50 DC base * sqrt(wave)
+Dam Reduction: 75 DC base * sqrt(wave)
+Shield Regen: 100 DC base * sqrt(wave)
 ```
 
 **Economy:**
 ```
-DC Multiplier:  120 DC (flat cost)
-AT Multiplier:  140 DC (flat cost)
-Wave Skip:      800 DC (flat cost, capped at 25%)
-Free Upgrade:   500 DC (flat cost, capped at 50%)
+DC Multiplier:  60 DC base * sqrt(wave)
+AT Multiplier:  70 DC base * sqrt(wave)
+Wave Skip:     400 DC base * sqrt(wave) (capped at 25%)
+Free Upgrade:  250 DC base * sqrt(wave) (capped at 50%)
+```
+
+**Cost Progression Example (Damage Upgrade, 50 DC base):**
+```
+Wave 1:    50 DC   (1.0x)
+Wave 10:   158 DC  (3.2x)
+Wave 100:  500 DC  (10x)
+Wave 500: 1,118 DC (22.4x)
+Wave 2000: 2,236 DC (44.7x)
 ```
 
 **Analysis:**
-- Most upgrades have FLAT costs → infinite scaling
-- Only Multi-Target and Wave Skip have caps
-- DC earning grows exponentially, costs stay flat
-- **Problem: Late game DC becomes worthless**
+- ✅ Wave 1: ~50 DC cost, earning ~30 DC/wave → 1-2 upgrades per wave
+- ✅ Wave 100: ~500 DC cost, earning ~800+ DC/wave → 1-2 upgrades per wave
+- ✅ Wave 2000: ~2,236 DC cost → endgame players can fully max all upgrades
+- ✅ Square root scaling prevents exponential explosion while maintaining progression
+- ✅ Early game: tight economy, meaningful choices
+- ✅ Late game: can afford multiple upgrades, progressing toward maxing out
 
 ### 2. Permanent Upgrades (AT Cost)
 
@@ -291,11 +298,13 @@ Tier 3 (30-level labs): 2,000-5,000 AT base
 - ~~Players literally cannot progress labs~~
 - **IMPLEMENTED: Fragments removed, AT-only system active**
 
-### 2. **DC Becomes Worthless Late Game**
-- DC costs are flat (100-800 DC)
-- DC earning grows exponentially (1000+ DC per wave at wave 500)
-- Players will have millions of DC with nothing to spend on
-- **FIX: Add DC sinks or exponential costs**
+### 2. **DC Becomes Worthless Late Game** ✅ **FIXED**
+- ~~DC costs are flat (100-800 DC)~~ → Now scales with sqrt(wave)
+- **IMPLEMENTED: Wave-based cost scaling for all in-run upgrades**
+- Square root scaling ensures meaningful costs throughout progression
+- ✅ Wave 1-2000 maintains balanced cost-to-earning ratio
+- ✅ Early game: tight economy (50 DC cost vs ~30 DC/wave)
+- ✅ Late game: can afford maxing upgrades (2,236 DC cost vs earning rate)
 
 ### 3. **AT Permanent Upgrades Too Cheap**
 - Linear scaling (base + increment*level)
@@ -422,8 +431,9 @@ Damage (5,000 * 1.15^L):
 
 1. ✅ **CRITICAL: Remove Fragments from Labs** - COMPLETED
 2. ✅ **HIGH: Rebalance Lab AT Costs** - COMPLETED
-3. **MEDIUM: Make Permanent Upgrades Exponential** (long-term economy) - TODO
-4. **LOW: Add DC Sinks** (quality of life) - TODO
+3. ✅ **HIGH: Implement Wave-Based DC Cost Scaling** - COMPLETED
+4. **MEDIUM: Make Permanent Upgrades Exponential** (long-term economy) - TODO
+5. **LOW: Add DC Sinks** (quality of life) - NOT NEEDED (wave scaling addresses this)
 
 ---
 

@@ -26,28 +26,80 @@ var archive_token_multiplier_level: int = 0
 var wave_skip_chance_level: int = 0
 var free_upgrade_chance_level: int = 1
 
-# --- UPGRADE CONSTANTS (In-Run) ---
-const DAMAGE_UPGRADE_COST := 100
+# --- UPGRADE CONSTANTS (In-Run) - BASE COSTS ---
+# These are base costs that scale with wave number
+const DAMAGE_UPGRADE_BASE_COST := 50
 const FIRE_RATE_PER_UPGRADE := 0.25
-const FIRE_RATE_UPGRADE_COST := 100
-const CRIT_CHANCE_UPGRADE_COST := 200
+const FIRE_RATE_UPGRADE_BASE_COST := 50
+const CRIT_CHANCE_UPGRADE_BASE_COST := 100
 const CRIT_DAMAGE_PER_LEVEL := 0.05
-const CRIT_DAMAGE_UPGRADE_COST := 250
+const CRIT_DAMAGE_UPGRADE_BASE_COST := 125
 const SHIELD_PER_LEVEL := 10
-const SHIELD_UPGRADE_COST := 100
-const DAMAGE_REDUCTION_UPGRADE_COST := 150
-const SHIELD_REGEN_UPGRADE_COST := 200
+const SHIELD_UPGRADE_BASE_COST := 50
+const DAMAGE_REDUCTION_UPGRADE_BASE_COST := 75
+const SHIELD_REGEN_UPGRADE_BASE_COST := 100
 const SHIELD_REGEN_PER_LEVEL := 0.25
-const DATA_MULTIPLIER_UPGRADE_COST := 120
+const DATA_MULTIPLIER_UPGRADE_BASE_COST := 60
 const DATA_MULTIPLIER_PER_LEVEL := 0.05
-const ARCHIVE_MULTIPLIER_UPGRADE_COST := 140
+const ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST := 70
 const ARCHIVE_MULTIPLIER_PER_LEVEL := 0.05
-const WAVE_SKIP_UPGRADE_COST := 800
+const WAVE_SKIP_UPGRADE_BASE_COST := 400
 const WAVE_SKIP_CHANCE_PER_LEVEL := 1.0
 const WAVE_SKIP_MAX_CHANCE := 25.0
-const FREE_UPGRADE_COST := 500
+const FREE_UPGRADE_BASE_COST := 250
 const FREE_UPGRADE_CHANCE_PER_LEVEL := 1.0
 const FREE_UPGRADE_MAX_CHANCE := 50.0
+
+# --- WAVE-BASED COST SCALING ---
+# Scales costs so new players afford ~1 upgrade/wave, endgame players can max by wave 2000
+# Example progression for Damage Upgrade (base 50 DC):
+#   Wave 1: 50 DC
+#   Wave 10: 158 DC (~3.2x)
+#   Wave 100: 500 DC (~10x)
+#   Wave 500: 1,118 DC (~22x)
+#   Wave 2000: 2,236 DC (~45x)
+func get_wave_scaled_cost(base_cost: int) -> int:
+	var wave = RunStats.current_wave
+	# Use square root scaling to prevent cost explosion
+	# Wave 1: 1x base cost
+	# Wave 100: ~10x base cost
+	# Wave 2000: ~45x base cost
+	var wave_factor = sqrt(max(wave, 1))
+	return int(base_cost * wave_factor)
+
+# --- WAVE-SCALED COST GETTERS ---
+func get_damage_upgrade_cost() -> int:
+	return get_wave_scaled_cost(DAMAGE_UPGRADE_BASE_COST)
+
+func get_fire_rate_upgrade_cost() -> int:
+	return get_wave_scaled_cost(FIRE_RATE_UPGRADE_BASE_COST)
+
+func get_crit_chance_upgrade_cost() -> int:
+	return get_wave_scaled_cost(CRIT_CHANCE_UPGRADE_BASE_COST)
+
+func get_crit_damage_upgrade_cost() -> int:
+	return get_wave_scaled_cost(CRIT_DAMAGE_UPGRADE_BASE_COST)
+
+func get_shield_upgrade_cost() -> int:
+	return get_wave_scaled_cost(SHIELD_UPGRADE_BASE_COST)
+
+func get_damage_reduction_upgrade_cost() -> int:
+	return get_wave_scaled_cost(DAMAGE_REDUCTION_UPGRADE_BASE_COST)
+
+func get_shield_regen_upgrade_cost() -> int:
+	return get_wave_scaled_cost(SHIELD_REGEN_UPGRADE_BASE_COST)
+
+func get_data_multiplier_upgrade_cost() -> int:
+	return get_wave_scaled_cost(DATA_MULTIPLIER_UPGRADE_BASE_COST)
+
+func get_archive_multiplier_upgrade_cost() -> int:
+	return get_wave_scaled_cost(ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST)
+
+func get_wave_skip_upgrade_cost() -> int:
+	return get_wave_scaled_cost(WAVE_SKIP_UPGRADE_BASE_COST)
+
+func get_free_upgrade_cost() -> int:
+	return get_wave_scaled_cost(FREE_UPGRADE_BASE_COST)
 var multi_target_level: int = 0
 const MULTI_TARGET_BASE_COST := 1000
 const MULTI_TARGET_MAX_LEVEL := 9   # (max 10 targets total)
@@ -122,8 +174,9 @@ func upgrade_projectile_damage(is_free := false):
 		projectile_damage_level += 1
 		print("🆙 Projectile Damage upgraded for FREE! Level:", projectile_damage_level)
 		return true
-	if RewardManager.data_credits >= DAMAGE_UPGRADE_COST:
-		RewardManager.data_credits -= DAMAGE_UPGRADE_COST
+	var cost = get_damage_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		projectile_damage_level += 1
 		print("🆙 Projectile Damage upgraded! Level:", projectile_damage_level)
 		return true
@@ -136,8 +189,9 @@ func upgrade_fire_rate(is_free := false):
 		projectile_fire_rate_level += 1
 		print("⚙️ Fire Rate upgraded for FREE! Level:", get_projectile_fire_rate())
 		return true
-	if RewardManager.data_credits >= FIRE_RATE_UPGRADE_COST:
-		RewardManager.data_credits -= FIRE_RATE_UPGRADE_COST
+	var cost = get_fire_rate_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		projectile_fire_rate_level += 1
 		print("⚙️ Fire Rate upgraded to:", get_projectile_fire_rate())
 		return true
@@ -153,8 +207,9 @@ func upgrade_crit_chance(is_free := false):
 		crit_chance += 1
 		print("🎯 Crit Chance upgraded for FREE to", get_crit_chance(), "%")
 		return true
-	if RewardManager.data_credits >= CRIT_CHANCE_UPGRADE_COST:
-		RewardManager.data_credits -= CRIT_CHANCE_UPGRADE_COST
+	var cost = get_crit_chance_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		crit_chance += 1
 		print("🎯 Crit Chance upgraded to", get_crit_chance(), "%")
 		return true
@@ -167,8 +222,9 @@ func upgrade_crit_damage(is_free := false):
 		crit_damage_level += 1
 		print("⚡ Crit Damage upgraded for FREE to:", get_crit_damage_multiplier(), "x")
 		return true
-	if RewardManager.data_credits >= CRIT_DAMAGE_UPGRADE_COST:
-		RewardManager.data_credits -= CRIT_DAMAGE_UPGRADE_COST
+	var cost = get_crit_damage_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		crit_damage_level += 1
 		print("⚡ Crit Damage upgraded to:", get_crit_damage_multiplier(), "x")
 		return true
@@ -181,8 +237,9 @@ func upgrade_shield_integrity(is_free := false):
 		shield_integrity_level += 1
 		print("🛡️ Shield Integrity upgraded for FREE to", get_shield_capacity())
 		return true
-	if RewardManager.data_credits >= SHIELD_UPGRADE_COST:
-		RewardManager.data_credits -= SHIELD_UPGRADE_COST
+	var cost = get_shield_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		shield_integrity_level += 1
 		print("🛡️ Shield Integrity upgraded to", get_shield_capacity())
 		return true
@@ -195,8 +252,9 @@ func upgrade_damage_reduction(is_free := false):
 		damage_reduction_level += 1
 		print("🛡️ Damage Reduction upgraded for FREE to", get_damage_reduction_level(), "%")
 		return true
-	if RewardManager.data_credits >= DAMAGE_REDUCTION_UPGRADE_COST:
-		RewardManager.data_credits -= DAMAGE_REDUCTION_UPGRADE_COST
+	var cost = get_damage_reduction_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		damage_reduction_level += 1
 		print("🛡️ Damage Reduction upgraded to", get_damage_reduction_level(), "%")
 		return true
@@ -209,8 +267,9 @@ func upgrade_shield_regen(is_free := false):
 		shield_regen_level += 1
 		print("🌀 Shield Regen upgraded for FREE to", get_shield_regen_rate(), "% per sec")
 		return true
-	if RewardManager.data_credits >= SHIELD_REGEN_UPGRADE_COST:
-		RewardManager.data_credits -= SHIELD_REGEN_UPGRADE_COST
+	var cost = get_shield_regen_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		shield_regen_level += 1
 		print("🌀 Shield Regen upgraded to", get_shield_regen_rate(), "% per sec")
 		return true
@@ -223,8 +282,9 @@ func upgrade_data_credit_multiplier(is_free := false):
 		data_credit_multiplier_level += 1
 		print("💰 Data Credit Multiplier upgraded for FREE to x", get_data_credit_multiplier())
 		return true
-	if RewardManager.data_credits >= DATA_MULTIPLIER_UPGRADE_COST:
-		RewardManager.data_credits -= DATA_MULTIPLIER_UPGRADE_COST
+	var cost = get_data_multiplier_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		data_credit_multiplier_level += 1
 		print("💰 Data Credit Multiplier upgraded to x", get_data_credit_multiplier())
 		return true
@@ -237,8 +297,9 @@ func upgrade_archive_token_multiplier(is_free := false):
 		archive_token_multiplier_level += 1
 		print("📦 Archive Token Multiplier upgraded for FREE to x", get_archive_token_multiplier())
 		return true
-	if RewardManager.data_credits >= ARCHIVE_MULTIPLIER_UPGRADE_COST:
-		RewardManager.data_credits -= ARCHIVE_MULTIPLIER_UPGRADE_COST
+	var cost = get_archive_multiplier_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		archive_token_multiplier_level += 1
 		print("📦 Archive Token Multiplier upgraded to x", get_archive_token_multiplier())
 		return true
@@ -254,8 +315,9 @@ func upgrade_wave_skip_chance(is_free := false):
 		wave_skip_chance_level += 1
 		print("⏩ Wave Skip Chance upgraded for FREE to", get_wave_skip_chance(), "%")
 		return true
-	if RewardManager.data_credits >= WAVE_SKIP_UPGRADE_COST:
-		RewardManager.data_credits -= WAVE_SKIP_UPGRADE_COST
+	var cost = get_wave_skip_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		wave_skip_chance_level += 1
 		print("⏩ Wave Skip Chance upgraded to", get_wave_skip_chance(), "%")
 		return true
@@ -271,8 +333,9 @@ func upgrade_free_upgrade_chance(is_free := false):
 		free_upgrade_chance_level += 1
 		print("🎲 Free Upgrade Chance increased for FREE to", get_free_upgrade_chance(), "%")
 		return true
-	if RewardManager.data_credits >= FREE_UPGRADE_COST:
-		RewardManager.data_credits -= FREE_UPGRADE_COST
+	var cost = get_free_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
 		free_upgrade_chance_level += 1
 		print("🎲 Free Upgrade Chance increased to", get_free_upgrade_chance(), "%")
 		return true
