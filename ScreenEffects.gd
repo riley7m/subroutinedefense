@@ -104,6 +104,9 @@ func wave_transition(wave_number: int, parent: Node = null) -> void:
 	if parent == null:
 		return
 
+	# Portal warp effect
+	_create_portal_effect(parent)
+
 	# Create transition overlay
 	var overlay = Control.new()
 	overlay.name = "WaveTransition"
@@ -134,6 +137,9 @@ func wave_transition(wave_number: int, parent: Node = null) -> void:
 	# Animation sequence
 	var tween = overlay.create_tween()
 
+	# Delay for portal effect
+	tween.tween_interval(0.4)
+
 	# Fade in background
 	tween.tween_property(bg, "color:a", 0.7, 0.2)
 	# Fade in text
@@ -152,6 +158,30 @@ func wave_transition(wave_number: int, parent: Node = null) -> void:
 
 	# Cleanup
 	tween.tween_callback(overlay.queue_free)
+
+func _create_portal_effect(parent: Node) -> void:
+	# Create portal overlay with shader
+	var portal_rect = ColorRect.new()
+	portal_rect.name = "PortalWarp"
+	portal_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	portal_rect.z_index = 499
+	portal_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var portal_material = ShaderMaterial.new()
+	var portal_shader = load("res://portal_warp.gdshader")
+	portal_material.shader = portal_shader
+	portal_material.set_shader_parameter("progress", 0.0)
+	portal_material.set_shader_parameter("center", Vector2(0.5, 0.5))
+	portal_material.set_shader_parameter("warp_strength", 0.15)
+
+	portal_rect.material = portal_material
+
+	parent.add_child(portal_rect)
+
+	# Animate portal expansion
+	var tween = portal_rect.create_tween()
+	tween.tween_method(func(val): portal_material.set_shader_parameter("progress", val), 0.0, 1.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(portal_rect.queue_free)
 
 # ============================================================================
 # BOSS WAVE TRANSITION (Enhanced)

@@ -281,6 +281,9 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 	if is_dead:
 		return
 
+	# Hit flash effect
+	_trigger_hit_flash(is_critical)
+
 	# Spawn floating damage number
 	var damage_label = Label.new()
 	damage_label.text = str(amount)
@@ -311,6 +314,22 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 	if hp <= 0:
 		is_dead = true
 		die()
+
+func _trigger_hit_flash(is_critical: bool = false) -> void:
+	# Find visual container for flash effect
+	var visual_container = get_node_or_null("VisualContainer")
+	if not visual_container:
+		return
+
+	# Flash white for hit feedback
+	var flash_color = Color(3.0, 3.0, 3.0, 1.0) if is_critical else Color(2.0, 2.0, 2.0, 1.0)
+	var flash_duration = 0.15 if is_critical else 0.08
+
+	visual_container.modulate = flash_color
+
+	# Animate back to normal
+	var tween = create_tween()
+	tween.tween_property(visual_container, "modulate", Color(1.0, 1.0, 1.0, 1.0), flash_duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		
 
 func die():
@@ -335,7 +354,60 @@ func die():
 		# Normal enemy explosion
 		ParticleEffects.create_enemy_explosion(global_position, enemy_type, get_parent())
 
-	queue_free()
+	# Death dissolve effect
+	_trigger_death_dissolve()
+
+func _trigger_death_dissolve() -> void:
+	# Find visual container
+	var visual_container = get_node_or_null("VisualContainer")
+	if not visual_container:
+		queue_free()
+		return
+
+	# Dissolve animation
+	var tween = create_tween()
+	tween.set_parallel(true)
+
+	# Fade out and scale down
+	tween.tween_property(visual_container, "modulate:a", 0.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(visual_container, "scale", Vector2(1.3, 1.3), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+
+	# Spawn dissolve particles
+	_spawn_dissolve_particles()
+
+	# Cleanup after animation
+	tween.tween_callback(queue_free).set_delay(0.4)
+
+func _spawn_dissolve_particles() -> void:
+	# Create small particle burst for dissolve effect
+	for i in range(8):
+		var particle_rect = ColorRect.new()
+		particle_rect.size = Vector2(4, 4)
+		particle_rect.position = global_position
+		particle_rect.z_index = 50
+
+		# Color based on enemy type
+		match enemy_type:
+			"override":
+				particle_rect.color = Color(1.0, 0.0, 1.0, 1.0)
+			"sentinel":
+				particle_rect.color = Color(1.0, 0.5, 0.0, 1.0)
+			_:
+				particle_rect.color = Color(1.0, 0.2, 0.2, 1.0)
+
+		get_parent().add_child(particle_rect)
+
+		# Random direction
+		var angle = (i / 8.0) * TAU
+		var velocity = Vector2(cos(angle), sin(angle)) * randf_range(30, 60)
+
+		# Animate particle
+		var tween = particle_rect.create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(particle_rect, "position", particle_rect.position + velocity, 0.5)
+		tween.tween_property(particle_rect, "modulate:a", 0.0, 0.5)
+		tween.tween_property(particle_rect, "scale", Vector2(0.1, 0.1), 0.5)
+		tween.tween_callback(particle_rect.queue_free)
 	
 func apply_wave_scaling():
 	hp = base_hp + int(wave_number * HP_PER_WAVE)

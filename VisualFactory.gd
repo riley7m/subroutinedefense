@@ -293,31 +293,150 @@ func create_status_effect_overlay(effect_type: String, parent: Node2D) -> Node2D
 	var container = Node2D.new()
 	container.name = "StatusEffect_" + effect_type
 
-	var color: Color
 	match effect_type:
 		"burn":
-			color = Color(1.0, 0.3, 0.1, 0.7)
+			_create_burn_effect(container)
 		"poison":
-			color = Color(0.6, 0.1, 0.9, 0.7)
+			_create_poison_effect(container)
 		"slow":
-			color = Color(0.2, 0.6, 1.0, 0.7)
+			_create_slow_effect(container)
 		"stun":
-			color = Color(1.0, 1.0, 0.3, 0.7)
+			_create_stun_effect(container)
 		_:
-			color = Color(1.0, 1.0, 1.0, 0.5)
+			_create_default_effect(container)
 
-	# Create pulsing ring around enemy
-	var ring = _create_ring(25, 20, color)
+	parent.add_child(container)
+	return container
+
+func _create_burn_effect(container: Node2D) -> void:
+	# Pulsing orange/red ring
+	var ring = _create_ring(25, 20, Color(1.0, 0.3, 0.1, 0.7))
 	container.add_child(ring)
 
-	# Animate the ring
+	# Add flame particles
+	for i in range(6):
+		var flame = ColorRect.new()
+		flame.size = Vector2(4, 6)
+		flame.color = Color(1.0, 0.5, 0.0, 0.8)
+		var angle = (i / 6.0) * TAU
+		flame.position = Vector2(cos(angle), sin(angle)) * 20
+		container.add_child(flame)
+
+		# Animate flames upward
+		var tween = flame.create_tween()
+		tween.set_loops()
+		tween.tween_property(flame, "position:y", flame.position.y - 10, 0.5)
+		tween.tween_property(flame, "modulate:a", 0.0, 0.2)
+		tween.tween_callback(func():
+			flame.position.y += 10
+			flame.modulate.a = 0.8
+		)
+
+	# Pulse ring
+	var ring_tween = container.create_tween()
+	ring_tween.set_loops()
+	ring_tween.tween_property(ring, "scale", Vector2(1.15, 1.15), 0.4)
+	ring_tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.4)
+
+func _create_poison_effect(container: Node2D) -> void:
+	# Purple pulsing ring
+	var ring = _create_ring(25, 20, Color(0.6, 0.1, 0.9, 0.7))
+	container.add_child(ring)
+
+	# Add bubbling poison particles
+	for i in range(8):
+		var bubble = _create_circle(3, Color(0.5, 0.0, 0.8, 0.6))
+		var angle = (i / 8.0) * TAU
+		bubble.position = Vector2(cos(angle), sin(angle)) * 15
+		container.add_child(bubble)
+
+		# Float upward and fade
+		var tween = bubble.create_tween()
+		tween.set_loops()
+		var delay = i * 0.1
+		tween.tween_interval(delay)
+		tween.tween_property(bubble, "position:y", bubble.position.y - 15, 0.8)
+		tween.parallel().tween_property(bubble, "modulate:a", 0.0, 0.8)
+		tween.tween_callback(func():
+			bubble.position.y += 15
+			bubble.modulate.a = 0.6
+		)
+
+	# Pulse ring
+	var ring_tween = container.create_tween()
+	ring_tween.set_loops()
+	ring_tween.tween_property(ring, "scale", Vector2(1.2, 1.2), 0.6)
+	ring_tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.6)
+
+func _create_slow_effect(container: Node2D) -> void:
+	# Ice blue rings
+	var ring1 = _create_ring(30, 25, Color(0.2, 0.6, 1.0, 0.5))
+	var ring2 = _create_ring(22, 18, Color(0.4, 0.8, 1.0, 0.6))
+	container.add_child(ring1)
+	container.add_child(ring2)
+
+	# Add frost particles
+	for i in range(12):
+		var frost = _create_polygon_shape(
+			PackedVector2Array([Vector2(-2, -3), Vector2(2, -3), Vector2(0, 3)]),
+			Color(0.6, 0.9, 1.0, 0.7)
+		)
+		var angle = (i / 12.0) * TAU
+		frost.position = Vector2(cos(angle), sin(angle)) * 22
+		frost.rotation = angle
+		container.add_child(frost)
+
+		# Rotate slowly
+		var tween = frost.create_tween()
+		tween.set_loops()
+		tween.tween_property(frost, "rotation", frost.rotation + TAU, 3.0)
+
+	# Pulse rings
+	var tween1 = container.create_tween()
+	tween1.set_loops()
+	tween1.tween_property(ring1, "scale", Vector2(1.1, 1.1), 0.8)
+	tween1.tween_property(ring1, "scale", Vector2(1.0, 1.0), 0.8)
+
+	var tween2 = container.create_tween()
+	tween2.set_loops()
+	tween2.tween_property(ring2, "scale", Vector2(0.9, 0.9), 0.6)
+	tween2.tween_property(ring2, "scale", Vector2(1.0, 1.0), 0.6)
+
+func _create_stun_effect(container: Node2D) -> void:
+	# Yellow/white electric ring
+	var ring = _create_ring(25, 20, Color(1.0, 1.0, 0.3, 0.8))
+	container.add_child(ring)
+
+	# Add electric sparks
+	for i in range(8):
+		var spark = ColorRect.new()
+		spark.size = Vector2(6, 2)
+		spark.color = Color(1.0, 1.0, 0.5, 1.0)
+		var angle = (i / 8.0) * TAU
+		spark.position = Vector2(cos(angle), sin(angle)) * 25
+		spark.rotation = angle
+		container.add_child(spark)
+
+		# Flicker effect
+		var tween = spark.create_tween()
+		tween.set_loops()
+		tween.tween_property(spark, "modulate:a", 0.2, 0.1)
+		tween.tween_property(spark, "modulate:a", 1.0, 0.1)
+
+	# Fast pulse for electric effect
+	var ring_tween = container.create_tween()
+	ring_tween.set_loops()
+	ring_tween.tween_property(ring, "scale", Vector2(1.3, 1.3), 0.2)
+	ring_tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.2)
+
+func _create_default_effect(container: Node2D) -> void:
+	var ring = _create_ring(25, 20, Color(1.0, 1.0, 1.0, 0.5))
+	container.add_child(ring)
+
 	var tween = container.create_tween()
 	tween.set_loops()
 	tween.tween_property(ring, "scale", Vector2(1.2, 1.2), 0.5)
 	tween.tween_property(ring, "scale", Vector2(1.0, 1.0), 0.5)
-
-	parent.add_child(container)
-	return container
 
 func remove_status_effect_overlay(effect_type: String, parent: Node2D) -> void:
 	var overlay = parent.get_node_or_null("StatusEffect_" + effect_type)

@@ -44,6 +44,7 @@ func _ready() -> void:
 
 	# Add Light2D for tower glow
 	var light = Light2D.new()
+	light.name = "TowerLight"
 	light.enabled = true
 	light.texture = preload("res://icon.svg")  # Using default texture
 	light.texture_scale = 2.0
@@ -72,6 +73,7 @@ func refresh_shield_stats():
 		current_shield = min(current_shield, max_shield)
 
 	update_bars()
+	update_visual_tier()
 
 func get_closest_enemy() -> Node2D:
 	var closest: Node2D = null
@@ -127,9 +129,14 @@ func take_damage(amount: int) -> void:
 	# Apply to shield first
 	if current_shield > 0:
 		var blocked = min(current_shield, reduced_amount)
+		var shield_broke = (current_shield - blocked) <= 0 and current_shield > 0
 		current_shield -= blocked
 		reduced_amount -= blocked
 		#print("🛡️ Shield blocked", blocked, "Remaining:", current_shield)
+
+		# Shield break flash
+		if shield_broke:
+			_trigger_shield_break_flash()
 
 	# Apply remaining damage to HP
 	if reduced_amount > 0:
@@ -153,11 +160,86 @@ func _on_shield_regen_tick() -> void:
 	
 
 func update_bars() -> void:
-	# Health
-	health_bar.max_value = 100  # If you have a fixed max HP, use that number instead
-	health_bar.value = tower_hp
+	# Health - smooth animation
+	health_bar.max_value = 1000
+	var tween = create_tween()
+	tween.tween_property(health_bar, "value", tower_hp, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
-	# Shield
+	# Shield - smooth animation
 	shield_bar.max_value = max_shield
-	shield_bar.value = current_shield
-	
+	var shield_tween = create_tween()
+	shield_tween.tween_property(shield_bar, "value", current_shield, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+func _trigger_shield_break_flash() -> void:
+	# Create white flash overlay
+	var flash = ColorRect.new()
+	flash.color = Color(1.0, 1.0, 1.0, 0.6)
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash.z_index = 1000
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	get_tree().current_scene.add_child(flash)
+
+	# Fade out quickly
+	var tween = flash.create_tween()
+	tween.tween_property(flash, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(flash.queue_free)
+
+	# Extra screen shake for emphasis
+	ScreenEffects.screen_shake(8.0, 0.25)
+
+func update_visual_tier() -> void:
+	# Calculate total upgrade level based on key stats
+	var damage_level = UpgradeManager.get_projectile_damage()
+	var fire_rate = UpgradeManager.get_projectile_fire_rate()
+	var shield_capacity = max_shield
+
+	# Calculate tier (0-4) based on total power
+	var total_power = damage_level + (fire_rate * 10) + (shield_capacity / 10)
+	var tier = 0
+
+	if total_power > 200:
+		tier = 4  # Elite tier
+	elif total_power > 120:
+		tier = 3  # Advanced tier
+	elif total_power > 60:
+		tier = 2  # Upgraded tier
+	elif total_power > 20:
+		tier = 1  # Enhanced tier
+	else:
+		tier = 0  # Basic tier
+
+	# Update visual based on tier
+	var visual_container = get_node_or_null("VisualContainer")
+	var tower_light = get_node_or_null("TowerLight")
+
+	if visual_container:
+		# Scale increases with tier
+		var target_scale = Vector2(1.0 + tier * 0.15, 1.0 + tier * 0.15)
+		var tween = create_tween()
+		tween.tween_property(visual_container, "scale", target_scale, 0.5).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+	if tower_light:
+		# Light gets brighter and more colorful with upgrades
+		match tier:
+			4:  # Elite - Purple/pink
+				tower_light.color = Color(0.8, 0.3, 1.0, 1.0)
+				tower_light.energy = 2.5
+				tower_light.texture_scale = 3.5
+			3:  # Advanced - Bright cyan
+				tower_light.color = Color(0.3, 1.0, 1.0, 1.0)
+				tower_light.energy = 2.2
+				tower_light.texture_scale = 3.0
+			2:  # Upgraded - Cyan-green
+				tower_light.color = Color(0.2, 0.9, 0.7, 1.0)
+				tower_light.energy = 1.9
+				tower_light.texture_scale = 2.5
+			1:  # Enhanced - Light cyan
+				tower_light.color = Color(0.2, 0.8, 1.0, 1.0)
+				tower_light.energy = 1.6
+				tower_light.texture_scale = 2.2
+			_:  # Basic
+				tower_light.color = Color(0.2, 0.8, 1.0, 1.0)
+				tower_light.energy = 1.5
+				tower_light.texture_scale = 2.0
+
