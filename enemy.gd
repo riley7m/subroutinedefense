@@ -331,7 +331,10 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 	tween.tween_property(damage_label, "global_position:y", global_position.y - 50, 1.0)
 	tween.tween_property(damage_label, "global_position:x", global_position.x + randf_range(-20, 20), 1.0)
 	tween.tween_property(damage_label, "modulate:a", 0.0, 0.5).set_delay(0.5)
-	tween.tween_callback(damage_label.queue_free).set_delay(1.0)
+	tween.tween_callback(func():
+		if is_instance_valid(damage_label):
+			damage_label.queue_free()
+	).set_delay(1.0)
 
 	hp -= amount
 	if hp <= 0:
@@ -413,7 +416,10 @@ func _trigger_death_dissolve() -> void:
 	_spawn_dissolve_particles()
 
 	# Cleanup after animation
-	tween.tween_callback(queue_free).set_delay(0.4)
+	tween.tween_callback(func():
+		if is_instance_valid(self):
+			queue_free()
+	).set_delay(0.4)
 
 func _spawn_dissolve_particles() -> void:
 	# Null safety check for parent
@@ -449,7 +455,10 @@ func _spawn_dissolve_particles() -> void:
 		tween.tween_property(particle_rect, "position", particle_rect.position + velocity, 0.5)
 		tween.tween_property(particle_rect, "modulate:a", 0.0, 0.5)
 		tween.tween_property(particle_rect, "scale", Vector2(0.1, 0.1), 0.5)
-		tween.tween_callback(particle_rect.queue_free)
+		tween.tween_callback(func():
+			if is_instance_valid(particle_rect):
+				particle_rect.queue_free()
+		)
 	
 func apply_wave_scaling():
 	hp = base_hp + int(wave_number * HP_PER_WAVE)

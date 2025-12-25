@@ -208,7 +208,10 @@ func _trigger_shield_break_flash() -> void:
 	# Fade out quickly
 	var tween = flash.create_tween()
 	tween.tween_property(flash, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-	tween.tween_callback(flash.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(flash):
+			flash.queue_free()
+	)
 
 	# Extra screen shake for emphasis
 	ScreenEffects.screen_shake(8.0, 0.25)
