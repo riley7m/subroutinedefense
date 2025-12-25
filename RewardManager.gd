@@ -41,6 +41,13 @@ var perm_archive_token_multiplier: float = 0.0
 var perm_wave_skip_chance: float = 0.0
 var perm_free_upgrade_chance: float = 0.0
 
+var perm_overshield: int = 0
+var perm_boss_bonus: float = 0.0
+var perm_lucky_drops: float = 0.0
+var perm_ricochet_chance: float = 0.0
+var perm_ricochet_max_targets: int = 0
+var perm_elite_enemy_chance: float = 0.0
+
 var perm_drone_flame_level: int = 0
 var perm_drone_frost_level: int = 0
 var perm_drone_poison_level: int = 0
@@ -348,6 +355,12 @@ func save_permanent_upgrades():
 		"perm_archive_token_multiplier": perm_archive_token_multiplier,
 		"perm_wave_skip_chance": perm_wave_skip_chance,
 		"perm_free_upgrade_chance": perm_free_upgrade_chance,
+		"perm_overshield": perm_overshield,
+		"perm_boss_bonus": perm_boss_bonus,
+		"perm_lucky_drops": perm_lucky_drops,
+		"perm_ricochet_chance": perm_ricochet_chance,
+		"perm_ricochet_max_targets": perm_ricochet_max_targets,
+		"perm_elite_enemy_chance": perm_elite_enemy_chance,
 		"perm_drone_flame_level": perm_drone_flame_level,
 		"perm_drone_frost_level": perm_drone_frost_level,
 		"perm_drone_poison_level": perm_drone_poison_level,
@@ -402,6 +415,12 @@ func load_permanent_upgrades():
 	perm_archive_token_multiplier = clamp(data.get("perm_archive_token_multiplier", 0.0), 0.0, 1000.0)
 	perm_wave_skip_chance = clamp(data.get("perm_wave_skip_chance", 0.0), 0.0, 100.0)
 	perm_free_upgrade_chance = clamp(data.get("perm_free_upgrade_chance", 0.0), 0.0, 100.0)
+	perm_overshield = clamp(data.get("perm_overshield", 0), 0, 100000)
+	perm_boss_bonus = clamp(data.get("perm_boss_bonus", 0.0), 0.0, 1000.0)
+	perm_lucky_drops = clamp(data.get("perm_lucky_drops", 0.0), 0.0, 100.0)
+	perm_ricochet_chance = clamp(data.get("perm_ricochet_chance", 0.0), 0.0, 100.0)
+	perm_ricochet_max_targets = clamp(data.get("perm_ricochet_max_targets", 0), 0, 100)
+	perm_elite_enemy_chance = clamp(data.get("perm_elite_enemy_chance", 0.0), 0.0, 100.0)
 	perm_multi_target_unlocked = data.get("perm_multi_target_unlocked", false)
 	perm_drone_flame_level = clamp(data.get("perm_drone_flame_level", 0), 0, 10000)
 	perm_drone_frost_level = clamp(data.get("perm_drone_frost_level", 0), 0, 10000)

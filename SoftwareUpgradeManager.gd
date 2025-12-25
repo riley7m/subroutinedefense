@@ -21,6 +21,17 @@ var lab_levels: Dictionary = {
 	"wave_analysis": 0,
 	"probability_matrix": 0,
 	"multi_target_systems": 0,
+	"piercing_enhancement": 0,
+	"overkill_processing": 0,
+	"projectile_acceleration": 0,
+	"block_systems": 0,
+	"block_amplification": 0,
+	"boss_resistance_training": 0,
+	"overshield_enhancement": 0,
+	"boss_targeting": 0,
+	"loot_optimization": 0,
+	"elite_spawning": 0,
+	"lab_acceleration": 0,
 }
 
 # Lab definitions
@@ -177,6 +188,138 @@ func _initialize_labs() -> void:
 			"base_cost_at": 5000,
 			"cost_scaling": 1.20,
 			"bonus_per_level": {"multi_target_bonus": 0.1},  # 0.1 per level
+			"tier": 3,
+		},
+
+		"piercing_enhancement": {
+			"name": "Piercing Enhancement",
+			"description": "Enable projectiles to pierce multiple enemies",
+			"max_level": 100,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_at": 700,
+			"cost_scaling": 1.09,
+			"bonus_per_level": {"piercing_perm": 1},  # +1 pierce per level
+			"tier": 1,
+		},
+
+		"overkill_processing": {
+			"name": "Overkill Processing",
+			"description": "Spread excess damage to nearby enemies",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_at": 1000,
+			"cost_scaling": 1.12,
+			"bonus_per_level": {"overkill_damage_perm": 0.05},  # +5% overkill per level
+			"tier": 2,
+		},
+
+		"projectile_acceleration": {
+			"name": "Projectile Acceleration",
+			"description": "Increase projectile travel speed",
+			"max_level": 100,
+			"base_duration": 3600,  # 1 hour
+			"duration_scaling": 1.05,
+			"base_cost_at": 400,
+			"cost_scaling": 1.07,
+			"bonus_per_level": {"projectile_speed_perm": 0.1},  # +10% speed per level
+			"tier": 1,
+		},
+
+		"block_systems": {
+			"name": "Block Systems",
+			"description": "Add chance to completely block incoming damage",
+			"max_level": 75,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_at": 700,
+			"cost_scaling": 1.09,
+			"bonus_per_level": {"block_chance_perm": 1.0},  # +1% block chance per level
+			"tier": 1,
+		},
+
+		"block_amplification": {
+			"name": "Block Amplification",
+			"description": "Increase amount of damage blocked per successful block",
+			"max_level": 100,
+			"base_duration": 5400,  # 1.5 hours
+			"duration_scaling": 1.055,
+			"base_cost_at": 500,
+			"cost_scaling": 1.08,
+			"bonus_per_level": {"block_amount_perm": 5},  # +5 damage blocked per level
+			"tier": 1,
+		},
+
+		"boss_resistance_training": {
+			"name": "Boss Resistance Training",
+			"description": "Reduce damage taken from boss enemies",
+			"max_level": 50,
+			"base_duration": 18000,  # 5 hours
+			"duration_scaling": 1.08,
+			"base_cost_at": 1500,
+			"cost_scaling": 1.14,
+			"bonus_per_level": {"boss_resistance_perm": 1.0},  # +1% boss resistance per level
+			"tier": 2,
+		},
+
+		"overshield_enhancement": {
+			"name": "Overshield Enhancement",
+			"description": "Add extra shield layer beyond base shield",
+			"max_level": 100,
+			"base_duration": 3600,  # 1 hour
+			"duration_scaling": 1.05,
+			"base_cost_at": 500,
+			"cost_scaling": 1.08,
+			"bonus_per_level": {"overshield_perm": 15},  # +15 overshield per level
+			"tier": 1,
+		},
+
+		"boss_targeting": {
+			"name": "Boss Targeting",
+			"description": "Optimize damage output against bosses",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_at": 1000,
+			"cost_scaling": 1.12,
+			"bonus_per_level": {"boss_bonus_perm": 0.05},  # +5% boss damage per level
+			"tier": 2,
+		},
+
+		"loot_optimization": {
+			"name": "Loot Optimization",
+			"description": "Increase chance for extra rewards",
+			"max_level": 50,
+			"base_duration": 10800,  # 3 hours
+			"duration_scaling": 1.08,
+			"base_cost_at": 1200,
+			"cost_scaling": 1.15,
+			"bonus_per_level": {"lucky_drops_perm": 0.5},  # +0.5% lucky drops per level
+			"tier": 2,
+		},
+
+		"elite_spawning": {
+			"name": "Elite Spawning",
+			"description": "Increase elite enemy spawn rate",
+			"max_level": 40,
+			"base_duration": 18000,  # 5 hours
+			"duration_scaling": 1.09,
+			"base_cost_at": 1800,
+			"cost_scaling": 1.14,
+			"bonus_per_level": {"elite_enemy_chance_perm": 0.5},  # +0.5% elite chance per level
+			"tier": 2,
+		},
+
+		"lab_acceleration": {
+			"name": "Lab Acceleration",
+			"description": "Reduce lab completion time",
+			"max_level": 50,
+			"base_duration": 21600,  # 6 hours
+			"duration_scaling": 1.10,
+			"base_cost_at": 2000,
+			"cost_scaling": 1.16,
+			"bonus_per_level": {"lab_speed_perm": 1.0},  # +1% lab speed per level
 			"tier": 3,
 		},
 	}
@@ -344,6 +487,28 @@ func _apply_level_bonuses(lab: Dictionary) -> void:
 				RewardManager.perm_free_upgrade_chance += value
 			"multi_target_bonus":
 				pass  # Not currently stored in RewardManager
+			"piercing_perm":
+				RewardManager.perm_piercing += value
+			"overkill_damage_perm":
+				RewardManager.perm_overkill_damage += value
+			"projectile_speed_perm":
+				RewardManager.perm_projectile_speed += value
+			"block_chance_perm":
+				RewardManager.perm_block_chance += value
+			"block_amount_perm":
+				RewardManager.perm_block_amount += value
+			"boss_resistance_perm":
+				RewardManager.perm_boss_resistance += value
+			"overshield_perm":
+				RewardManager.perm_overshield += value
+			"boss_bonus_perm":
+				RewardManager.perm_boss_bonus += value
+			"lucky_drops_perm":
+				RewardManager.perm_lucky_drops += value
+			"elite_enemy_chance_perm":
+				RewardManager.perm_elite_enemy_chance += value
+			"lab_speed_perm":
+				pass  # Lab speed is stored differently - reduces lab duration
 
 func get_upgrade_progress(slot_index: int) -> float:
 	if slot_index < 0 or slot_index >= MAX_SLOTS:

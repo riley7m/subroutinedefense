@@ -26,13 +26,21 @@ var archive_token_multiplier_level: int = 0
 var wave_skip_chance_level: int = 0
 var free_upgrade_chance_level: int = 1
 
-# New upgrades
+# New upgrades (batch 1)
 var piercing_level: int = 0
 var overkill_damage_level: int = 0
 var projectile_speed_level: int = 0
 var block_chance_level: int = 0
 var block_amount_level: int = 0
 var boss_resistance_level: int = 0
+
+# New upgrades (batch 2)
+var overshield_level: int = 0
+var boss_bonus_level: int = 0
+var lucky_drops_level: int = 0
+var ricochet_chance_level: int = 0
+var ricochet_max_targets_level: int = 0
+var elite_enemy_chance_level: int = 0
 
 # --- PURCHASE COUNT TRACKING (for cost scaling) ---
 var damage_purchases: int = 0
@@ -52,6 +60,12 @@ var projectile_speed_purchases: int = 0
 var block_chance_purchases: int = 0
 var block_amount_purchases: int = 0
 var boss_resistance_purchases: int = 0
+var overshield_purchases: int = 0
+var boss_bonus_purchases: int = 0
+var lucky_drops_purchases: int = 0
+var ricochet_chance_purchases: int = 0
+var ricochet_max_targets_purchases: int = 0
+var elite_enemy_chance_purchases: int = 0
 
 # --- UPGRADE CONSTANTS (In-Run) - BASE COSTS ---
 # Base costs scale exponentially with each purchase (like The Tower)
@@ -92,6 +106,23 @@ const BLOCK_AMOUNT_PER_LEVEL := 5  # +5 damage blocked
 const BOSS_RESISTANCE_BASE_COST := 250
 const BOSS_RESISTANCE_PER_LEVEL := 1.0  # +1% damage reduction vs bosses
 const BOSS_RESISTANCE_MAX := 50.0  # Max 50% damage reduction
+
+# Batch 2 upgrade constants
+const OVERSHIELD_BASE_COST := 125
+const OVERSHIELD_PER_LEVEL := 15  # +15 overshield per level
+const BOSS_BONUS_BASE_COST := 200
+const BOSS_BONUS_PER_LEVEL := 0.05  # +5% damage vs bosses
+const LUCKY_DROPS_BASE_COST := 175
+const LUCKY_DROPS_PER_LEVEL := 0.5  # +0.5% extra reward chance
+const LUCKY_DROPS_MAX := 25.0  # Max 25% lucky drop chance
+const RICOCHET_CHANCE_BASE_COST := 300
+const RICOCHET_CHANCE_PER_LEVEL := 1.0  # +1% ricochet chance
+const RICOCHET_CHANCE_MAX := 50.0  # Max 50% ricochet chance
+const RICOCHET_MAX_TARGETS_BASE_COST := 400
+const RICOCHET_MAX_TARGETS_PER_LEVEL := 1  # +1 max ricochet target
+const ELITE_ENEMY_CHANCE_BASE_COST := 225
+const ELITE_ENEMY_CHANCE_PER_LEVEL := 0.5  # +0.5% elite enemy chance
+const ELITE_ENEMY_CHANCE_MAX := 20.0  # Max 20% elite enemy chance
 
 # --- PER-PURCHASE COST SCALING (like The Tower) ---
 # Cost increases exponentially with each purchase, not with wave number
@@ -140,6 +171,26 @@ func get_wave_skip_upgrade_cost() -> int:
 
 func get_free_upgrade_cost() -> int:
 	return get_purchase_scaled_cost(FREE_UPGRADE_BASE_COST, free_upgrade_purchases)
+
+# Batch 2 cost getters
+func get_overshield_upgrade_cost() -> int:
+	return get_purchase_scaled_cost(OVERSHIELD_BASE_COST, overshield_purchases)
+
+func get_boss_bonus_upgrade_cost() -> int:
+	return get_purchase_scaled_cost(BOSS_BONUS_BASE_COST, boss_bonus_purchases)
+
+func get_lucky_drops_upgrade_cost() -> int:
+	return get_purchase_scaled_cost(LUCKY_DROPS_BASE_COST, lucky_drops_purchases)
+
+func get_ricochet_chance_upgrade_cost() -> int:
+	return get_purchase_scaled_cost(RICOCHET_CHANCE_BASE_COST, ricochet_chance_purchases)
+
+func get_ricochet_max_targets_upgrade_cost() -> int:
+	return get_purchase_scaled_cost(RICOCHET_MAX_TARGETS_BASE_COST, ricochet_max_targets_purchases)
+
+func get_elite_enemy_chance_upgrade_cost() -> int:
+	return get_purchase_scaled_cost(ELITE_ENEMY_CHANCE_BASE_COST, elite_enemy_chance_purchases)
+
 var multi_target_level: int = 0
 const MULTI_TARGET_BASE_COST := 1000
 const MULTI_TARGET_MAX_LEVEL := 9   # (max 10 targets total)
@@ -394,6 +445,112 @@ func upgrade_free_upgrade_chance(is_free := false):
 		print("❌ Not enough DC to upgrade Free Upgrade Chance.")
 		return false
 
+# Batch 2 in-run upgrade functions
+func upgrade_overshield(is_free := false):
+	if is_free:
+		overshield_level += 1
+		print("🛡️ Overshield upgraded for FREE! Level:", overshield_level)
+		return true
+	var cost = get_overshield_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
+		overshield_purchases += 1
+		overshield_level += 1
+		print("🛡️ Overshield upgraded! Level:", overshield_level)
+		return true
+	else:
+		print("❌ Not enough DC to upgrade Overshield.")
+		return false
+
+func upgrade_boss_bonus(is_free := false):
+	if is_free:
+		boss_bonus_level += 1
+		print("👑 Boss Bonus upgraded for FREE! Level:", boss_bonus_level)
+		return true
+	var cost = get_boss_bonus_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
+		boss_bonus_purchases += 1
+		boss_bonus_level += 1
+		print("👑 Boss Bonus upgraded! Level:", boss_bonus_level)
+		return true
+	else:
+		print("❌ Not enough DC to upgrade Boss Bonus.")
+		return false
+
+func upgrade_lucky_drops(is_free := false):
+	if lucky_drops_level * LUCKY_DROPS_PER_LEVEL >= LUCKY_DROPS_MAX:
+		print("✅ Lucky Drops already at max.")
+		return false
+	if is_free:
+		lucky_drops_level += 1
+		print("🍀 Lucky Drops upgraded for FREE! Level:", lucky_drops_level)
+		return true
+	var cost = get_lucky_drops_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
+		lucky_drops_purchases += 1
+		lucky_drops_level += 1
+		print("🍀 Lucky Drops upgraded! Level:", lucky_drops_level)
+		return true
+	else:
+		print("❌ Not enough DC to upgrade Lucky Drops.")
+		return false
+
+func upgrade_ricochet_chance(is_free := false):
+	if ricochet_chance_level * RICOCHET_CHANCE_PER_LEVEL >= RICOCHET_CHANCE_MAX:
+		print("✅ Ricochet Chance already at max.")
+		return false
+	if is_free:
+		ricochet_chance_level += 1
+		print("🔁 Ricochet Chance upgraded for FREE! Level:", ricochet_chance_level)
+		return true
+	var cost = get_ricochet_chance_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
+		ricochet_chance_purchases += 1
+		ricochet_chance_level += 1
+		print("🔁 Ricochet Chance upgraded! Level:", ricochet_chance_level)
+		return true
+	else:
+		print("❌ Not enough DC to upgrade Ricochet Chance.")
+		return false
+
+func upgrade_ricochet_max_targets(is_free := false):
+	if is_free:
+		ricochet_max_targets_level += 1
+		print("🎯 Ricochet Max Targets upgraded for FREE! Level:", ricochet_max_targets_level)
+		return true
+	var cost = get_ricochet_max_targets_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
+		ricochet_max_targets_purchases += 1
+		ricochet_max_targets_level += 1
+		print("🎯 Ricochet Max Targets upgraded! Level:", ricochet_max_targets_level)
+		return true
+	else:
+		print("❌ Not enough DC to upgrade Ricochet Max Targets.")
+		return false
+
+func upgrade_elite_enemy_chance(is_free := false):
+	if elite_enemy_chance_level * ELITE_ENEMY_CHANCE_PER_LEVEL >= ELITE_ENEMY_CHANCE_MAX:
+		print("✅ Elite Enemy Chance already at max.")
+		return false
+	if is_free:
+		elite_enemy_chance_level += 1
+		print("⭐ Elite Enemy Chance upgraded for FREE! Level:", elite_enemy_chance_level)
+		return true
+	var cost = get_elite_enemy_chance_upgrade_cost()
+	if RewardManager.data_credits >= cost:
+		RewardManager.data_credits -= cost
+		elite_enemy_chance_purchases += 1
+		elite_enemy_chance_level += 1
+		print("⭐ Elite Enemy Chance upgraded! Level:", elite_enemy_chance_level)
+		return true
+	else:
+		print("❌ Not enough DC to upgrade Elite Enemy Chance.")
+		return false
+
 # --- PERMANENT UPGRADE FUNCTIONS (with bool returns for Buy X support) ---
 
 # Returns the cost for a given perm upgrade at a specific future level
@@ -618,6 +775,73 @@ func upgrade_perm_free_upgrade_chance() -> bool:
 	print("🏅 Permanent Free Upgrade Chance +1%. Now:", RewardManager.perm_free_upgrade_chance)
 	return true
 
+# Batch 2 permanent upgrade functions
+func upgrade_perm_overshield() -> bool:
+	var cost = get_perm_cost(6000, 300, int(RewardManager.perm_overshield / 15))
+	if RewardManager.archive_tokens < cost:
+		print("❌ Not enough AT for permanent overshield.")
+		return false
+	RewardManager.archive_tokens -= cost
+	RewardManager.perm_overshield += 15
+	RewardManager.save_permanent_upgrades()
+	print("🏅 Permanent Overshield +15. Now:", RewardManager.perm_overshield)
+	return true
+
+func upgrade_perm_boss_bonus() -> bool:
+	var cost = get_perm_cost(9000, 500, int(RewardManager.perm_boss_bonus * 20))
+	if RewardManager.archive_tokens < cost:
+		print("❌ Not enough AT for permanent boss bonus.")
+		return false
+	RewardManager.archive_tokens -= cost
+	RewardManager.perm_boss_bonus += 0.05
+	RewardManager.save_permanent_upgrades()
+	print("🏅 Permanent Boss Bonus +5%. Now:", RewardManager.perm_boss_bonus)
+	return true
+
+func upgrade_perm_lucky_drops() -> bool:
+	var cost = get_perm_cost(10000, 600, int(RewardManager.perm_lucky_drops * 2))
+	if RewardManager.archive_tokens < cost:
+		print("❌ Not enough AT for permanent lucky drops.")
+		return false
+	RewardManager.archive_tokens -= cost
+	RewardManager.perm_lucky_drops += 0.5
+	RewardManager.save_permanent_upgrades()
+	print("🏅 Permanent Lucky Drops +0.5%. Now:", RewardManager.perm_lucky_drops)
+	return true
+
+func upgrade_perm_ricochet_chance() -> bool:
+	var cost = get_perm_cost(12000, 750, int(RewardManager.perm_ricochet_chance))
+	if RewardManager.archive_tokens < cost:
+		print("❌ Not enough AT for permanent ricochet chance.")
+		return false
+	RewardManager.archive_tokens -= cost
+	RewardManager.perm_ricochet_chance += 1.0
+	RewardManager.save_permanent_upgrades()
+	print("🏅 Permanent Ricochet Chance +1%. Now:", RewardManager.perm_ricochet_chance)
+	return true
+
+func upgrade_perm_ricochet_max_targets() -> bool:
+	var cost = get_perm_cost(15000, 1000, RewardManager.perm_ricochet_max_targets)
+	if RewardManager.archive_tokens < cost:
+		print("❌ Not enough AT for permanent ricochet max targets.")
+		return false
+	RewardManager.archive_tokens -= cost
+	RewardManager.perm_ricochet_max_targets += 1
+	RewardManager.save_permanent_upgrades()
+	print("🏅 Permanent Ricochet Max Targets +1. Now:", RewardManager.perm_ricochet_max_targets)
+	return true
+
+func upgrade_perm_elite_enemy_chance() -> bool:
+	var cost = get_perm_cost(11000, 700, int(RewardManager.perm_elite_enemy_chance * 2))
+	if RewardManager.archive_tokens < cost:
+		print("❌ Not enough AT for permanent elite enemy chance.")
+		return false
+	RewardManager.archive_tokens -= cost
+	RewardManager.perm_elite_enemy_chance += 0.5
+	RewardManager.save_permanent_upgrades()
+	print("🏅 Permanent Elite Enemy Chance +0.5%. Now:", RewardManager.perm_elite_enemy_chance)
+	return true
+
 
 func upgrade_perm_drone_flame():
 	var cost = get_perm_drone_upgrade_cost(RewardManager.perm_drone_flame_level)
@@ -835,6 +1059,20 @@ func reset_run_upgrades():
 	archive_token_multiplier_level = 0
 	wave_skip_chance_level = 0
 	free_upgrade_chance_level = 50
+	# Batch 1 upgrades
+	piercing_level = 0
+	overkill_damage_level = 0
+	projectile_speed_level = 0
+	block_chance_level = 0
+	block_amount_level = 0
+	boss_resistance_level = 0
+	# Batch 2 upgrades
+	overshield_level = 0
+	boss_bonus_level = 0
+	lucky_drops_level = 0
+	ricochet_chance_level = 0
+	ricochet_max_targets_level = 0
+	elite_enemy_chance_level = 0
 	# Multi Target
 	multi_target_unlocked = false
 	multi_target_level = 0
@@ -850,3 +1088,15 @@ func reset_run_upgrades():
 	archive_multiplier_purchases = 0
 	wave_skip_purchases = 0
 	free_upgrade_purchases = 0
+	piercing_purchases = 0
+	overkill_purchases = 0
+	projectile_speed_purchases = 0
+	block_chance_purchases = 0
+	block_amount_purchases = 0
+	boss_resistance_purchases = 0
+	overshield_purchases = 0
+	boss_bonus_purchases = 0
+	lucky_drops_purchases = 0
+	ricochet_chance_purchases = 0
+	ricochet_max_targets_purchases = 0
+	elite_enemy_chance_purchases = 0
