@@ -126,15 +126,24 @@ var current_speed_index := 0
 
 
 func _ready() -> void:
+	# Add matrix code rain (furthest back)
+	var matrix_rain = preload("res://MatrixCodeRain.gd").new()
+	add_child(matrix_rain)
+	move_child(matrix_rain, 0)
+
 	# Add background layers (parallax depth)
 	var bg_layers = preload("res://BackgroundLayers.gd").new()
 	add_child(bg_layers)
-	move_child(bg_layers, 0)  # Render first (furthest back)
+	move_child(bg_layers, 1)  # Render after matrix
 
-	# Add background effects (grid + CRT shader)
+	# Add background effects (grid + CRT + bloom + chromatic aberration)
 	var bg_effects = preload("res://BackgroundEffects.gd").new()
 	add_child(bg_effects)
-	move_child(bg_effects, 1)  # Render after layers
+	move_child(bg_effects, 2)  # Render after layers
+
+	# Add holographic UI overlays
+	var holo_ui = preload("res://HolographicUI.gd").new()
+	add_child(holo_ui)
 
 	# Connect upgrade and toggle buttons
 	offense_button.pressed.connect(_on_offense_button_pressed)
