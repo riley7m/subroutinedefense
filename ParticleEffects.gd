@@ -8,6 +8,10 @@ extends Node
 # ============================================================================
 
 func create_enemy_explosion(position: Vector2, enemy_type: String, parent: Node) -> void:
+	# Null safety check
+	if not parent or not is_instance_valid(parent):
+		return
+
 	var particles = GPUParticles2D.new()
 	particles.position = position
 	particles.emitting = true
@@ -19,10 +23,8 @@ func create_enemy_explosion(position: Vector2, enemy_type: String, parent: Node)
 
 	parent.add_child(particles)
 
-	# Auto-cleanup after particles finish
-	await get_tree().create_timer(1.0).timeout
-	if is_instance_valid(particles):
-		particles.queue_free()
+	# Auto-cleanup using finished signal (more reliable than timer)
+	particles.finished.connect(particles.queue_free)
 
 func _create_explosion_material(enemy_type: String) -> ParticleProcessMaterial:
 	var material = ParticleProcessMaterial.new()
@@ -98,6 +100,10 @@ func _create_explosion_material(enemy_type: String) -> ParticleProcessMaterial:
 # ============================================================================
 
 func create_projectile_impact(position: Vector2, parent: Node) -> void:
+	# Null safety check
+	if not parent or not is_instance_valid(parent):
+		return
+
 	var particles = GPUParticles2D.new()
 	particles.position = position
 	particles.emitting = true
@@ -109,10 +115,8 @@ func create_projectile_impact(position: Vector2, parent: Node) -> void:
 
 	parent.add_child(particles)
 
-	# Auto-cleanup
-	await get_tree().create_timer(0.6).timeout
-	if is_instance_valid(particles):
-		particles.queue_free()
+	# Auto-cleanup using finished signal
+	particles.finished.connect(particles.queue_free)
 
 func _create_impact_material() -> ParticleProcessMaterial:
 	var material = ParticleProcessMaterial.new()
@@ -167,6 +171,10 @@ func _create_impact_material() -> ParticleProcessMaterial:
 # ============================================================================
 
 func create_muzzle_flash(position: Vector2, direction: Vector2, parent: Node) -> void:
+	# Null safety check
+	if not parent or not is_instance_valid(parent):
+		return
+
 	var particles = GPUParticles2D.new()
 	particles.position = position
 	particles.emitting = true
@@ -178,10 +186,8 @@ func create_muzzle_flash(position: Vector2, direction: Vector2, parent: Node) ->
 
 	parent.add_child(particles)
 
-	# Auto-cleanup
-	await get_tree().create_timer(0.3).timeout
-	if is_instance_valid(particles):
-		particles.queue_free()
+	# Auto-cleanup using finished signal
+	particles.finished.connect(particles.queue_free)
 
 func _create_muzzle_flash_material(direction: Vector2) -> ParticleProcessMaterial:
 	var material = ParticleProcessMaterial.new()
@@ -237,6 +243,10 @@ func _create_muzzle_flash_material(direction: Vector2) -> ParticleProcessMateria
 # ============================================================================
 
 func create_boss_explosion(position: Vector2, parent: Node) -> void:
+	# Null safety check
+	if not parent or not is_instance_valid(parent):
+		return
+
 	var particles = GPUParticles2D.new()
 	particles.position = position
 	particles.emitting = true
@@ -248,10 +258,8 @@ func create_boss_explosion(position: Vector2, parent: Node) -> void:
 
 	parent.add_child(particles)
 
-	# Auto-cleanup
-	await get_tree().create_timer(1.5).timeout
-	if is_instance_valid(particles):
-		particles.queue_free()
+	# Auto-cleanup using finished signal
+	particles.finished.connect(particles.queue_free)
 
 func _create_boss_explosion_material() -> ParticleProcessMaterial:
 	var material = ParticleProcessMaterial.new()
@@ -309,6 +317,10 @@ func _create_boss_explosion_material() -> ParticleProcessMaterial:
 # ============================================================================
 
 func create_wave_complete_effect(parent: Node) -> void:
+	# Null safety check
+	if not parent or not is_instance_valid(parent):
+		return
+
 	var particles = GPUParticles2D.new()
 	particles.position = Vector2(960, 540)  # Center of 1920x1080 screen
 	particles.emitting = true
@@ -320,10 +332,8 @@ func create_wave_complete_effect(parent: Node) -> void:
 
 	parent.add_child(particles)
 
-	# Auto-cleanup
-	await get_tree().create_timer(2.0).timeout
-	if is_instance_valid(particles):
-		particles.queue_free()
+	# Auto-cleanup using finished signal
+	particles.finished.connect(particles.queue_free)
 
 func _create_celebration_material() -> ParticleProcessMaterial:
 	var material = ParticleProcessMaterial.new()

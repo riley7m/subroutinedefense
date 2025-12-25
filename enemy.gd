@@ -156,7 +156,14 @@ func _ready() -> void:
 
 	trail.antialiased = true
 	trail.z_index = -1
-	get_parent().add_child(trail)
+
+	# Null safety check for parent
+	var parent = get_parent()
+	if parent and is_instance_valid(parent):
+		parent.add_child(trail)
+	else:
+		trail.queue_free()
+		trail = null
 
 	last_trail_pos = global_position
 
@@ -300,7 +307,13 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 	else:
 		damage_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))  # White for normal
 
-	get_parent().add_child(damage_label)
+	# Null safety check for parent
+	var parent = get_parent()
+	if parent and is_instance_valid(parent):
+		parent.add_child(damage_label)
+	else:
+		damage_label.queue_free()
+		return
 
 	# Animate the damage number
 	var tween = damage_label.create_tween()
@@ -379,6 +392,11 @@ func _trigger_death_dissolve() -> void:
 	tween.tween_callback(queue_free).set_delay(0.4)
 
 func _spawn_dissolve_particles() -> void:
+	# Null safety check for parent
+	var parent = get_parent()
+	if not parent or not is_instance_valid(parent):
+		return
+
 	# Create small particle burst for dissolve effect
 	for i in range(8):
 		var particle_rect = ColorRect.new()
@@ -395,7 +413,7 @@ func _spawn_dissolve_particles() -> void:
 			_:
 				particle_rect.color = Color(1.0, 0.2, 0.2, 1.0)
 
-		get_parent().add_child(particle_rect)
+		parent.add_child(particle_rect)
 
 		# Random direction
 		var angle = (i / 8.0) * TAU

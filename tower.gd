@@ -18,7 +18,7 @@ var current_shield: int = 0
 var shield_regen_rate: float
 var shield_initialized: bool = false
 
-@onready var death_screen = get_tree().current_scene.get_node("DeathScreen")
+@onready var death_screen = null  # Will be set in _ready()
 
 
 func _ready() -> void:
@@ -38,6 +38,11 @@ func _ready() -> void:
 	shield_regen_timer.one_shot = false
 	add_child(shield_regen_timer)
 	shield_regen_timer.start()
+
+	# Safely get death screen reference
+	var current = get_tree().current_scene
+	if current:
+		death_screen = current.get_node_or_null("DeathScreen")
 
 	# Create visual representation
 	VisualFactory.create_tower_visual(self)
@@ -104,17 +109,27 @@ func _on_fire_timer_timeout() -> void:
 		fire_projectile()
 
 func fire_projectile() -> void:
+	# Null safety checks
+	if not projectile_scene:
+		push_error("Tower: projectile_scene not assigned!")
+		return
+
+	var current = get_tree().current_scene
+	if not current:
+		push_error("Tower: current_scene is null!")
+		return
+
 	var num_targets = UpgradeManager.get_multi_target_level()
 	var enemies = get_nearest_enemies(num_targets)
 	for enemy in enemies:
 		var projectile = projectile_scene.instantiate()
 		projectile.global_position = global_position
 		projectile.target = enemy
-		get_tree().current_scene.add_child(projectile)
+		current.add_child(projectile)
 
 		# Create muzzle flash effect
 		var direction = (enemy.global_position - global_position).normalized()
-		ParticleEffects.create_muzzle_flash(global_position, direction, get_tree().current_scene)
+		ParticleEffects.create_muzzle_flash(global_position, direction, current)
 
 func take_damage(amount: int) -> void:
 	# Apply damage reduction
@@ -171,6 +186,11 @@ func update_bars() -> void:
 	shield_tween.tween_property(shield_bar, "value", current_shield, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 func _trigger_shield_break_flash() -> void:
+	# Null safety check
+	var current = get_tree().current_scene
+	if not current:
+		return
+
 	# Create white flash overlay
 	var flash = ColorRect.new()
 	flash.color = Color(1.0, 1.0, 1.0, 0.6)
@@ -178,7 +198,7 @@ func _trigger_shield_break_flash() -> void:
 	flash.z_index = 1000
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	get_tree().current_scene.add_child(flash)
+	current.add_child(flash)
 
 	# Fade out quickly
 	var tween = flash.create_tween()

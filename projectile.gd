@@ -44,7 +44,14 @@ func _ready() -> void:
 
 	trail.antialiased = true
 	trail.z_index = -1
-	get_parent().add_child(trail)
+
+	# Null safety check for parent
+	var parent = get_parent()
+	if parent and is_instance_valid(parent):
+		parent.add_child(trail)
+	else:
+		trail.queue_free()
+		trail = null
 
 	last_trail_pos = global_position
 
@@ -84,8 +91,10 @@ func _on_body_entered(body: Node2D) -> void:
 		# --- Record damage dealt before applying to enemy (for run stats)
 		RunStats.damage_dealt += dealt_dmg
 
-		# Create impact effect
-		ParticleEffects.create_projectile_impact(global_position, get_parent())
+		# Create impact effect (with null safety check)
+		var parent = get_parent()
+		if parent and is_instance_valid(parent):
+			ParticleEffects.create_projectile_impact(global_position, parent)
 
 		# Pass critical hit info to take_damage for damage number display
 		if body.has_method("take_damage"):

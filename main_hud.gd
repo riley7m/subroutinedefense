@@ -119,13 +119,18 @@ var current_speed_index := 0
 
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
 
-@onready var death_screen = get_tree().current_scene.get_node("DeathScreen")
+@onready var death_screen = null  # Will be set in _ready()
 @onready var spawner: Node = $Spawner
 @onready var tower: Node = $tower
 
 
 
 func _ready() -> void:
+	# Safely get death screen reference
+	var current = get_tree().current_scene
+	if current:
+		death_screen = current.get_node_or_null("DeathScreen")
+
 	# Add matrix code rain (furthest back)
 	var matrix_rain = preload("res://MatrixCodeRain.gd").new()
 	add_child(matrix_rain)
@@ -261,7 +266,8 @@ func _on_damage_upgrade_pressed() -> void:
 			else:
 				print("Bought upgrade %d" % (i+1))
 	update_damage_label()
-	tower.update_visual_tier()  # Update tower visuals after damage upgrade
+	if tower and is_instance_valid(tower):
+		tower.update_visual_tier()  # Update tower visuals after damage upgrade
 
 
 func _on_fire_rate_upgrade_pressed() -> void:
@@ -273,8 +279,9 @@ func _on_fire_rate_upgrade_pressed() -> void:
 		for i in range(amount):
 			if not UpgradeManager.upgrade_fire_rate():
 				break
-	tower.refresh_fire_rate()
-	tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
+	if tower and is_instance_valid(tower):
+		tower.refresh_fire_rate()
+		tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
 	update_labels()
 
 func _on_crit_chance_upgrade_pressed() -> void:
@@ -506,13 +513,28 @@ func get_perm_max_affordable(key: String) -> Array:
 	var level = UpgradeManager.get_perm_level(key)
 	var total_cost = 0
 	var max_count = 0
-	while true:
+	var safety_counter = 0
+	const MAX_ITERATIONS = 10000  # Safety limit to prevent infinite loops
+
+	while safety_counter < MAX_ITERATIONS:
 		var this_cost = UpgradeManager.get_perm_upgrade_cost_for_level(key, level + max_count)
+
+		# Guard against zero/negative costs which would cause infinite loop
+		if this_cost <= 0:
+			push_warning("get_perm_max_affordable: Invalid cost %d for level %d" % [this_cost, level + max_count])
+			break
+
 		if at >= total_cost + this_cost:
 			total_cost += this_cost
 			max_count += 1
 		else:
 			break
+
+		safety_counter += 1
+
+	if safety_counter >= MAX_ITERATIONS:
+		push_error("get_perm_max_affordable: Hit safety limit! Possible infinite loop prevented.")
+
 	return [max_count, total_cost]
 	
 func _on_perm_panel_toggle_button_pressed():
