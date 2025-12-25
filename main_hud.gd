@@ -12,6 +12,14 @@ const WAVE_INTERVAL := 2.0
 var active_drones: Array = []
 var refresh_timer: Timer = null
 
+# Drone purchase tracking (each can only be bought once)
+var purchased_drones: Dictionary = {
+	"flame": false,
+	"frost": false,
+	"poison": false,
+	"shock": false
+}
+
 const DRONE_FLAME_SCENE = preload("res://drone_flame.tscn")
 const DRONE_POISON_SCENE = preload("res://drone_poison.tscn")
 const DRONE_FROST_SCENE = preload("res://drone_frost.tscn")
@@ -213,31 +221,9 @@ func _ready() -> void:
 	defense_panel.visible = false
 	economy_panel.visible = false
 	perm_panel.visible = false
-	
-	# Spawn drones and apply permanent upgrades
-	var drone_index = 0
-	for drone_type in drone_scenes.keys():
-		var drone = drone_scenes[drone_type].instantiate()
-		active_drones.append(drone)
-		add_child(drone)
 
-		# Apply permanent upgrade levels
-		match drone_type:
-			"flame":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
-			"frost":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
-			"poison":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
-			"shock":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
-
-		# Position drones around the tower in a circular formation
-		var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
-		var radius = 80  # Distance from tower
-		var angle = (drone_index * TAU) / 4  # Divide circle by 4 drones
-		drone.global_position = tower_pos + Vector2(cos(angle), sin(angle)) * radius
-		drone_index += 1
+	# Drones will be spawned when purchased (not automatically)
+	# TODO: Create drone purchase UI
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
@@ -346,10 +332,7 @@ func _on_fire_rate_upgrade_pressed() -> void:
 	if tower and is_instance_valid(tower):
 		tower.refresh_fire_rate()
 		tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
-	# Also refresh fire rate for all drones
-	for drone in active_drones:
-		if is_instance_valid(drone) and drone.has_method("refresh_fire_rate"):
-			drone.refresh_fire_rate()
+	# Drones have independent fire rates based on their level, no need to refresh
 	update_labels()
 
 func _on_crit_chance_upgrade_pressed() -> void:
@@ -591,10 +574,7 @@ func refresh_all_drones() -> void:
 					drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
 				"shock":
 					drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
-
-		# Also refresh fire rate to match tower
-		if drone.has_method("refresh_fire_rate"):
-			drone.refresh_fire_rate()
+			# Fire rate automatically updates in apply_upgrade()
 
 func get_current_buy_amount() -> int:
 	var x = buy_x_options[current_buy_index]

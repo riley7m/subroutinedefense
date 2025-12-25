@@ -14,6 +14,8 @@ func pick_target() -> Node2D:
 			continue
 		if not "move_speed" in enemy:
 			continue
+		if not is_in_range(enemy):  # Only target enemies in horizontal range
+			continue
 		var speed = enemy.move_speed
 		if speed > max_speed:
 			max_speed = speed

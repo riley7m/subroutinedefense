@@ -3,11 +3,16 @@ extends Node2D
 @export var drone_type: String = "base"  # Override in child scripts
 var drone_level: int = 1
 
+# Drone-specific constants (NOT affected by tower upgrades)
+const BASE_FIRE_RATE: float = 1.0  # Base attacks per second
+const FIRE_RATE_PER_LEVEL: float = 0.1  # +0.1 attacks/sec per level
+const HORIZONTAL_RANGE: float = 200.0  # Horizontal distance from tower
+
 @onready var fire_timer: Timer = $FireTimer
 
 func _ready() -> void:
-	# Use tower's fire rate (drones fire at same rate as tower)
-	refresh_fire_rate()
+	# Drones have their own fire rate based on their level
+	_update_fire_rate()
 	var err = fire_timer.timeout.connect(_on_fire_timer_timeout)
 	if err != OK:
 		push_error("Failed to connect fire_timer.timeout signal: " + str(err))
@@ -17,10 +22,10 @@ func _ready() -> void:
 	# Create visual representation (child classes should set drone_type)
 	_create_drone_visual()
 
-func refresh_fire_rate() -> void:
-	# Drones use the same fire rate as the tower
-	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)
-	fire_timer.wait_time = 1.0 / fire_rate
+func _update_fire_rate() -> void:
+	# Drones use their own fire rate based on level (independent of tower)
+	var attacks_per_sec = BASE_FIRE_RATE + (drone_level * FIRE_RATE_PER_LEVEL)
+	fire_timer.wait_time = 1.0 / max(attacks_per_sec, 0.1)
 
 func _on_fire_timer_timeout() -> void:
 	var target = pick_target()
@@ -34,6 +39,16 @@ func pick_target() -> Node2D:
 	# Override in child classes for different targeting strategies
 	return pick_lowest_hp_enemy()
 
+# Helper: Check if enemy is within horizontal range of tower
+func is_in_range(enemy: Node2D) -> bool:
+	var tower = get_tree().get_first_node_in_group("Tower")
+	if not tower or not is_instance_valid(enemy):
+		return false
+
+	# Check horizontal distance only (ignore vertical)
+	var horizontal_dist = abs(tower.global_position.x - enemy.global_position.x)
+	return horizontal_dist <= HORIZONTAL_RANGE
+
 # Helper: Pick enemy with lowest HP (used by flame and poison drones)
 func pick_lowest_hp_enemy() -> Node2D:
 	var best: Node2D = null
@@ -42,6 +57,8 @@ func pick_lowest_hp_enemy() -> Node2D:
 		if not is_instance_valid(enemy):
 			continue
 		if not enemy.has_method("get_current_hp"):
+			continue
+		if not is_in_range(enemy):  # Only target enemies in horizontal range
 			continue
 		var hp = enemy.get_current_hp()
 		if hp < min_hp:
@@ -56,7 +73,7 @@ func fire_at(target: Node2D) -> void:
 
 func apply_upgrade(level: int) -> void:
 	drone_level = level
-	# Optional: Override for per-drone upgrade scaling
+	_update_fire_rate()  # Update fire rate when level changes
 
 func _create_drone_visual() -> void:
 	# Create visual based on drone type
