@@ -226,6 +226,9 @@ func _ready() -> void:
 	RewardManager.load_permanent_upgrades()
 	update_all_perm_upgrade_ui()
 
+	# Start tracking this run's performance
+	RewardManager.start_run_tracking(wave)
+
 	# Refresh currency labels every 0.2s
 	refresh_timer = Timer.new()
 	refresh_timer.wait_time = 0.2
@@ -609,6 +612,10 @@ func _on_software_upgrade_button_pressed():
 			perm_panel.visible = false
 		
 func _on_quit_button_pressed():
+	# Record run performance before quitting
+	if Engine.has_singleton("RewardManager") and spawner:
+		RewardManager.record_run_performance(spawner.current_wave)
+
 	# 1. Reset in-run upgrades
 	if Engine.has_singleton("UpgradeManager"):
 		UpgradeManager.reset_run_upgrades()

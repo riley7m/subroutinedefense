@@ -13,6 +13,13 @@ var offline_dc: int = 0
 var offline_at: int = 0
 var offline_duration: float = 0.0
 
+# --- Run Performance Tracking ---
+var run_history: Array = []  # Array of {waves: int, duration: float, timestamp: int, efficiency: float}
+var current_run_start_time: int = 0
+var current_run_start_wave: int = 1
+const MAX_RUN_HISTORY = 100  # Keep last 100 runs
+const WEEK_IN_SECONDS = 604800  # 7 days
+
 # --- Permanent Upgrades (all are managed here now) ---
 var perm_projectile_damage: int = 0
 var perm_projectile_fire_rate: float = 0.0
@@ -145,6 +152,84 @@ func reset_run_currency() -> void:
 	data_credits = 100000
 	print("🔄 In-run currency reset to starting values")
 
+# === RUN PERFORMANCE TRACKING ===
+func start_run_tracking(starting_wave: int = 1) -> void:
+	current_run_start_time = Time.get_unix_time_from_system()
+	current_run_start_wave = starting_wave
+	print("📊 Started tracking run from wave %d" % starting_wave)
+
+func record_run_performance(final_wave: int) -> void:
+	if current_run_start_time == 0:
+		return  # No run was tracked
+
+	var now = Time.get_unix_time_from_system()
+	var duration = now - current_run_start_time
+
+	# Must have played for at least 30 seconds to count
+	if duration < 30:
+		return
+
+	var waves_cleared = final_wave - current_run_start_wave
+	if waves_cleared < 1:
+		return
+
+	var efficiency = float(waves_cleared) / float(duration)  # waves per second
+
+	var run_data = {
+		"waves": waves_cleared,
+		"duration": duration,
+		"timestamp": now,
+		"efficiency": efficiency,
+		"final_wave": final_wave
+	}
+
+	run_history.append(run_data)
+
+	# Trim to max history
+	if run_history.size() > MAX_RUN_HISTORY:
+		run_history.remove_at(0)
+
+	# Clean up old runs (older than 1 week)
+	_clean_old_runs()
+
+	print("📊 Recorded run: %d waves in %d seconds (%.3f w/s)" % [waves_cleared, duration, efficiency])
+
+	# Reset tracking
+	current_run_start_time = 0
+	current_run_start_wave = 1
+
+func _clean_old_runs() -> void:
+	var now = Time.get_unix_time_from_system()
+	var cutoff = now - WEEK_IN_SECONDS
+
+	# Remove runs older than 1 week
+	var i = 0
+	while i < run_history.size():
+		if run_history[i]["timestamp"] < cutoff:
+			run_history.remove_at(i)
+		else:
+			i += 1
+
+func get_best_run_last_week() -> Dictionary:
+	_clean_old_runs()
+
+	if run_history.is_empty():
+		# No runs recorded, return default
+		return {
+			"waves": 10,
+			"duration": 100,
+			"efficiency": 0.1,
+			"final_wave": 10
+		}
+
+	# Find run with highest efficiency
+	var best_run = run_history[0]
+	for run in run_history:
+		if run["efficiency"] > best_run["efficiency"]:
+			best_run = run
+
+	return best_run
+
 # === OFFLINE PROGRESS CALCULATION ===
 func calculate_offline_progress(watched_ad: bool = false) -> void:
 	if last_play_time == 0:
@@ -182,56 +267,37 @@ func calculate_offline_progress(watched_ad: bool = false) -> void:
 	emit_signal("offline_progress_calculated", offline_waves, offline_dc, offline_at, seconds_away)
 
 func _simulate_offline_waves(seconds: float, efficiency: float) -> Dictionary:
-	# Constants tuned for balance
-	const AVG_WAVE_DURATION = 10.0  # seconds per wave
-	const BASE_DC_PER_WAVE = 50  # rough estimate
-	const BASE_AT_PER_WAVE = 5   # rough estimate
+	# Get best run from last week
+	var best_run = get_best_run_last_week()
+	var best_efficiency = best_run["efficiency"]  # waves per second
 
-	# Get player's current power from UpgradeManager
-	var damage_mult = 1.0
-	var fire_rate_mult = 1.0
-	var wave_skip_mult = 1.0
-
-	if UpgradeManager:
-		# Factor in permanent upgrades
-		wave_skip_mult = 1.0 + (UpgradeManager.get_wave_skip_chance() / 100.0)
-		# Damage and fire rate affect clear speed
-		var damage = UpgradeManager.get_projectile_damage()
-		var base_damage = 10.0  # baseline
-		damage_mult = max(1.0, damage / base_damage)
-
-		var fire_rate = UpgradeManager.get_fire_rate()
-		var base_fire_rate = 1.0
-		fire_rate_mult = max(1.0, fire_rate / base_fire_rate)
-
-	# Calculate effective power (damage * fire_rate)
-	var power_mult = sqrt(damage_mult * fire_rate_mult)  # sqrt to prevent runaway scaling
-
-	# Calculate waves cleared
-	var effective_time = seconds * efficiency
-	var clear_speed = AVG_WAVE_DURATION / power_mult
-	var waves_cleared = floor(effective_time / clear_speed)
-
-	# Apply wave skip chance (expected value, not RNG)
-	waves_cleared = floor(waves_cleared * wave_skip_mult)
-
-	# Add drone contribution (flat 5% per drone level)
-	var drone_mult = 1.0
-	drone_mult += perm_drone_flame_level * 0.05
-	drone_mult += perm_drone_frost_level * 0.05
-	drone_mult += perm_drone_poison_level * 0.05
-	drone_mult += perm_drone_shock_level * 0.05
-	waves_cleared = floor(waves_cleared * drone_mult)
+	# Calculate waves based on best run performance
+	# efficiency parameter is 0.25 (25% base) or 0.50 (50% with ad)
+	var waves_per_second_offline = best_efficiency * efficiency
+	var waves_cleared = floor(seconds * waves_per_second_offline)
 
 	# Cap to prevent absurd numbers
-	waves_cleared = min(waves_cleared, 1000)
+	waves_cleared = min(waves_cleared, 2000)
+	waves_cleared = max(waves_cleared, 0)
 
-	# Calculate rewards (simplified - average across waves)
+	# Calculate rewards based on waves cleared
+	# Use simplified average rewards
+	const BASE_DC_PER_WAVE = 50
+	const BASE_AT_PER_WAVE = 5
+
 	var dc_mult = get_data_credit_multiplier()
 	var at_mult = get_archive_token_multiplier()
 
 	var dc_earned = int(waves_cleared * BASE_DC_PER_WAVE * dc_mult)
 	var at_earned = int(waves_cleared * BASE_AT_PER_WAVE * at_mult)
+
+	print("📊 Offline calc: Best run %.3f w/s, offline %.3f w/s (%.0f%%), %d waves in %d seconds" % [
+		best_efficiency,
+		waves_per_second_offline,
+		efficiency * 100,
+		waves_cleared,
+		seconds
+	])
 
 	return {
 		"waves": int(waves_cleared),
@@ -280,6 +346,7 @@ func save_permanent_upgrades():
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
 		"last_play_time": last_play_time,
+		"run_history": run_history,
 	}
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.WRITE)
 	if file == null:
@@ -327,8 +394,12 @@ func load_permanent_upgrades():
 	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
 	fragments = clamp(data.get("fragments", 0), 0, 999999999)
 	last_play_time = data.get("last_play_time", 0)
+	run_history = data.get("run_history", [])
 
 	print("🔄 Permanent upgrades loaded.")
+
+	# Clean up old runs on load
+	_clean_old_runs()
 
 	# Calculate offline progress (without ad by default - UI will handle ad option)
 	calculate_offline_progress(false)
