@@ -3,7 +3,18 @@ extends Node
 # --- Currency ---
 var data_credits: int = 100000
 var archive_tokens: int = 100000
-var fragments: int = 0  # For drone upgrades
+var fragments: int = 0  # For drone upgrades (unused placeholder)
+
+# Premium Currency (purchased with $ or unlocked via features)
+var premium_currency: int = 0  # TODO: Replace with actual name when decided
+
+# --- Drone Ownership (purchased out-of-run with premium currency) ---
+var owned_drones: Dictionary = {
+	"flame": false,
+	"frost": false,
+	"poison": false,
+	"shock": false
+}
 
 # --- Offline Progress ---
 var last_play_time: int = 0  # Unix timestamp
@@ -177,6 +188,30 @@ func reset_run_currency() -> void:
 	# Reset in-run currency to starting values (preserves permanent upgrades)
 	data_credits = 100000
 	print("🔄 In-run currency reset to starting values")
+
+# === DRONE OWNERSHIP (OUT-OF-RUN PURCHASES) ===
+func owns_drone(drone_type: String) -> bool:
+	return owned_drones.get(drone_type, false)
+
+func purchase_drone_permanent(drone_type: String, cost: int) -> bool:
+	# Purchase a drone using premium currency (out-of-run)
+	if owns_drone(drone_type):
+		print("⚠️ Drone", drone_type, "already owned!")
+		return false
+
+	if premium_currency < cost:
+		print("⚠️ Not enough premium currency to purchase", drone_type, "drone")
+		return false
+
+	premium_currency -= cost
+	owned_drones[drone_type] = true
+	save_permanent_upgrades()  # Auto-save on purchase
+	print("✅ Permanently purchased", drone_type, "drone for", cost, "premium currency")
+	return true
+
+func get_drone_purchase_cost(drone_type: String) -> int:
+	# Cost to permanently purchase a drone (one-time ever)
+	return 1000  # TODO: Adjust cost or make variable per drone type
 
 # === RUN PERFORMANCE TRACKING ===
 func start_run_tracking(starting_wave: int = 1) -> void:
@@ -380,6 +415,8 @@ func save_permanent_upgrades():
 		"perm_multi_target_unlocked": perm_multi_target_unlocked,
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
+		"premium_currency": premium_currency,
+		"owned_drones": owned_drones,
 		"last_play_time": last_play_time,
 		"run_history": run_history,
 	}
@@ -439,6 +476,8 @@ func load_permanent_upgrades():
 	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
 	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
 	fragments = clamp(data.get("fragments", 0), 0, 999999999)
+	premium_currency = clamp(data.get("premium_currency", 0), 0, 999999999)
+	owned_drones = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
 	last_play_time = data.get("last_play_time", 0)
 	run_history = data.get("run_history", [])
 
