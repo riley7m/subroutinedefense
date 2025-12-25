@@ -356,9 +356,16 @@ func update_multi_target_ui():
 		upgrade_multi_target_button.visible = true
 		var lvl = UpgradeManager.multi_target_level
 		var targets = lvl + 1
-		var next_cost = UpgradeManager.get_multi_target_cost_for_level(lvl + 1) if lvl < UpgradeManager.MULTI_TARGET_MAX_LEVEL else "-"
-		upgrade_multi_target_button.text = "Upgrade Multi Target (%s DC)" % str(next_cost)
-		upgrade_multi_target_button.disabled = (lvl >= UpgradeManager.MULTI_TARGET_MAX_LEVEL or RewardManager.data_credits < int(next_cost))
+
+		# Handle max level separately to avoid type mismatch
+		if lvl >= UpgradeManager.MULTI_TARGET_MAX_LEVEL:
+			upgrade_multi_target_button.text = "Max Level Reached"
+			upgrade_multi_target_button.disabled = true
+		else:
+			var next_cost = UpgradeManager.get_multi_target_cost_for_level(lvl + 1)
+			upgrade_multi_target_button.text = "Upgrade Multi Target (%d DC)" % next_cost
+			upgrade_multi_target_button.disabled = RewardManager.data_credits < next_cost
+
 		multi_target_label.text = "Multi Target: %d" % targets
 
 

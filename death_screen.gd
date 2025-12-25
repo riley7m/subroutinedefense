@@ -51,13 +51,13 @@ func _on_restart_button_pressed():
 			enemy.queue_free()
 
 	# Reset wave counters in spawner
-	var spawner = get_tree().current_scene.get_node("Spawner")
+	var spawner = get_tree().current_scene.get_node_or_null("Spawner")
 	if spawner and spawner.has_method("reset"):
 		spawner.reset()
 		spawner.start_wave(1)
 
 	# Reset the tower
-	var tower = get_tree().current_scene.get_node("tower")
+	var tower = get_tree().current_scene.get_node_or_null("tower")
 	if tower:
 		tower.tower_hp = 1000
 		tower.refresh_shield_stats()

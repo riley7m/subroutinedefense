@@ -33,10 +33,17 @@ var perm_multi_target_unlocked: bool = false
 
 signal archive_tokens_changed
 
-@onready var UpgradeManager = get_node("UpgradeManager")
+var UpgradeManager = null
 
 func _ready() -> void:
-	get_tree().connect("tree_exiting", Callable(self, "save_permanent_upgrades"))
+	# Safely get UpgradeManager
+	UpgradeManager = get_node_or_null("UpgradeManager")
+	if not UpgradeManager:
+		push_error("UpgradeManager not found as child of RewardManager")
+
+	# Connect to tree exit signal only if not already connected
+	if not get_tree().tree_exiting.is_connected(Callable(self, "save_permanent_upgrades")):
+		get_tree().connect("tree_exiting", Callable(self, "save_permanent_upgrades"))
 
 
 # === Reward Functions ===
