@@ -261,6 +261,7 @@ func _on_damage_upgrade_pressed() -> void:
 			else:
 				print("Bought upgrade %d" % (i+1))
 	update_damage_label()
+	tower.update_visual_tier()  # Update tower visuals after damage upgrade
 
 
 func _on_fire_rate_upgrade_pressed() -> void:
@@ -273,6 +274,7 @@ func _on_fire_rate_upgrade_pressed() -> void:
 			if not UpgradeManager.upgrade_fire_rate():
 				break
 	tower.refresh_fire_rate()
+	tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
 	update_labels()
 
 func _on_crit_chance_upgrade_pressed() -> void:
