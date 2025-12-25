@@ -579,3 +579,14 @@ func add_pulse_animation(node: Node2D, scale_min: float = 0.9, scale_max: float 
 		if is_instance_valid(tween):
 			tween.kill()
 	)
+
+func add_spawn_animation(node: Node2D, duration: float = 0.3) -> void:
+	# Start invisible and small
+	node.modulate.a = 0.0
+	node.scale = Vector2(0.3, 0.3)
+
+	# Fade in and scale up
+	var tween = node.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(node, "modulate:a", 1.0, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "scale", Vector2(1.0, 1.0), duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

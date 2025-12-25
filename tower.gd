@@ -52,6 +52,9 @@ func _ready() -> void:
 	# Create visual representation (includes Light2D)
 	VisualFactory.create_tower_visual(self)
 
+	# Add spawn animation
+	VisualFactory.add_spawn_animation(self, 0.5)
+
 	# Shield init
 	refresh_shield_stats()
 
@@ -141,9 +144,14 @@ func take_damage(amount: int, attacker: Node2D = null) -> void:
 			return
 
 	# Apply boss resistance if attacker is a boss
+	var is_boss_attack = false
 	if attacker and attacker.has_method("is_boss") and attacker.is_boss():
+		is_boss_attack = true
 		var boss_resistance = UpgradeManager.get_boss_resistance()
 		damage = int(damage * (1.0 - (boss_resistance / 100.0)))
+
+		# Trigger impact distortion on boss hits
+		BackgroundEffects.trigger_impact_distortion(global_position, 5.0)
 
 	# Apply damage reduction
 	var reduction = UpgradeManager.get_damage_reduction_level()

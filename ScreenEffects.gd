@@ -7,6 +7,10 @@ var original_offset: Vector2 = Vector2.ZERO
 var shake_amount: float = 0.0
 var shake_decay: float = 0.0
 
+func _ready() -> void:
+	set_process(false)  # Disable processing until needed
+	_find_camera()  # Cache camera reference on startup
+
 # ============================================================================
 # SCREEN SHAKE
 # ============================================================================

@@ -110,7 +110,26 @@ func _ready() -> void:
 	attack_zone.monitorable = true
 
 	# Create visual representation
-	VisualFactory.create_enemy_visual(enemy_type, self)
+	var visual_container = VisualFactory.create_enemy_visual(enemy_type, self)
+
+	# Add spawn animation
+	VisualFactory.add_spawn_animation(self, 0.4)
+
+	# Add idle animations based on enemy type
+	if visual_container:
+		match enemy_type:
+			"override":  # Boss - slow rotation
+				VisualFactory.add_rotation_animation(visual_container, 0.3)
+			"sentinel":  # Tank - gentle pulse
+				VisualFactory.add_pulse_animation(visual_container, 0.95, 1.05, 1.5)
+			"slicer":  # Fast - quick rotation
+				VisualFactory.add_rotation_animation(visual_container, 2.0)
+			"signal_runner":  # Medium - moderate pulse
+				VisualFactory.add_pulse_animation(visual_container, 0.9, 1.1, 1.0)
+			"null_walker":  # Special - rotation + pulse combo
+				VisualFactory.add_rotation_animation(visual_container, 0.5)
+			_:  # Breacher - subtle pulse
+				VisualFactory.add_pulse_animation(visual_container, 0.95, 1.05, 0.8)
 
 	# Create trail effect using AdvancedVisuals (color matches enemy type)
 	var trail_color: Color
@@ -143,8 +162,9 @@ func _physics_process(delta: float) -> void:
 		if stun_timer >= stun_duration:
 			stun_active = false
 			stun_timer = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("stun", self)
+			AdvancedVisuals.remove_status_icon("stun", self)
 			#print(name, "stun ended")
 		return
 	# Move toward tower
@@ -194,8 +214,9 @@ func _physics_process(delta: float) -> void:
 			burn_tick_timer = 0.0
 			burn_duration = 0.0
 			burn_damage_per_tick = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("burn", self)
+			AdvancedVisuals.remove_status_icon("burn", self)
 			#print("🔥", name, "burn ended")
 		if hp <= 0 and not is_dead:
 			is_dead = true
@@ -215,8 +236,9 @@ func _physics_process(delta: float) -> void:
 			poison_tick_timer = 0.0
 			poison_duration = 0.0
 			poison_damage_per_tick = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("poison", self)
+			AdvancedVisuals.remove_status_icon("poison", self)
 			#print("🟣", name, "poison ended")
 		if hp <= 0 and not is_dead:
 			is_dead = true
@@ -228,8 +250,9 @@ func _physics_process(delta: float) -> void:
 			slow_active = false
 			slow_timer = 0.0
 			slow_percent = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("slow", self)
+			AdvancedVisuals.remove_status_icon("slow", self)
 			#print("🟦", name, "slow effect ended.")
 		else:
 			# Apply slow to current movement
@@ -416,8 +439,9 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) ->
 	burn_timer = 0.0
 	burn_tick_timer = 0.0
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("burn", self)
+	AdvancedVisuals.create_status_icon("burn", self)
 	#print("🔥", name, "burning for", burn_duration, "sec, burn tick:", burn_damage_per_tick, "every", burn_tick_interval, "s (capped at 10% max HP if exceeded)")
 
 func apply_poison(level: int) -> void:
@@ -433,8 +457,9 @@ func apply_poison(level: int) -> void:
 	poison_timer = 0.0
 	poison_tick_timer = 0.0
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("poison", self)
+	AdvancedVisuals.create_status_icon("poison", self)
 	#print("🟣", name, "poisoned for", poison_duration, "sec at", poison_damage_per_tick, "DPS (" + str(round(percent_per_sec * 100.0)) + "%/s)")
 
 func apply_slow(level: int) -> void:
@@ -444,8 +469,9 @@ func apply_slow(level: int) -> void:
 	slow_timer = 0.0
 	slow_active = true
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("slow", self)
+	AdvancedVisuals.create_status_icon("slow", self)
 	#print("❄️", name, "slowed by", int(slow_percent * 100), "% for", slow_duration, "seconds")
 
 func apply_stun(level: int) -> void:
@@ -454,8 +480,9 @@ func apply_stun(level: int) -> void:
 	stun_timer = 0.0
 	stun_active = true
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("stun", self)
+	AdvancedVisuals.create_status_icon("stun", self)
 	#print("⚡", name, "stunned for", stun_duration, "seconds!")
 
 func get_current_hp() -> int:

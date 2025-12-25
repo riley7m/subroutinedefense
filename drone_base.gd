@@ -57,6 +57,9 @@ func _create_drone_visual() -> void:
 	# Create visual based on drone type
 	VisualFactory.create_drone_visual(drone_type, self)
 
+	# Add spawn animation
+	VisualFactory.add_spawn_animation(self, 0.35)
+
 func _exit_tree() -> void:
 	# Clean up timer when drone is removed
 	if fire_timer and is_instance_valid(fire_timer):

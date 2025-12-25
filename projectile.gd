@@ -23,6 +23,9 @@ func _ready() -> void:
 	# Create visual representation
 	VisualFactory.create_projectile_visual(self)
 
+	# Add quick spawn animation
+	VisualFactory.add_spawn_animation(self, 0.15)
+
 	# Create trail effect using AdvancedVisuals
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):

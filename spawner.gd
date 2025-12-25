@@ -39,6 +39,11 @@ func _process(delta: float) -> void:
 			RewardManager.add_wave_at(current_wave)
 			print("📦 Wave", current_wave, "completed! AT reward granted.")
 
+			# Trigger wave complete celebration effect
+			var tower = get_tree().current_scene.get_node_or_null("tower")
+			if tower:
+				ParticleEffects.create_wave_complete_effect(tower.global_position)
+
 func start_wave(wave_number: int) -> int:
 	print("Called start_wave with wave number: ", wave_number)
 	var actual_wave = wave_number
