@@ -75,6 +75,12 @@ var stun_active: bool = false
 var stun_timer: float = 0.0
 var stun_duration: float = 0.0
 
+# Trail system
+var trail: Line2D
+const MAX_TRAIL_POINTS: int = 20
+const TRAIL_SPACING: float = 8.0
+var last_trail_pos: Vector2
+
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -96,6 +102,64 @@ func _ready() -> void:
 	# Create visual representation
 	VisualFactory.create_enemy_visual(enemy_type, self)
 
+	# Add Light2D for enemy glow (color varies by type)
+	var light = Light2D.new()
+	light.enabled = true
+	light.texture = preload("res://icon.svg")
+	light.texture_scale = 1.5
+
+	# Different colors for different enemy types
+	match enemy_type:
+		"override":  # Boss
+			light.color = Color(1.0, 0.0, 1.0, 1.0)  # Magenta
+			light.energy = 2.0
+			light.texture_scale = 3.0
+		"sentinel":
+			light.color = Color(1.0, 0.5, 0.0, 1.0)  # Orange
+			light.energy = 1.2
+		"slicer":
+			light.color = Color(1.0, 0.3, 0.3, 1.0)  # Red-orange
+			light.energy = 1.0
+		_:  # Default (breacher)
+			light.color = Color(1.0, 0.2, 0.2, 1.0)  # Red
+			light.energy = 1.0
+
+	light.blend_mode = Light2D.BLEND_MODE_ADD
+	light.shadow_enabled = false
+	add_child(light)
+
+	# Create trail effect
+	trail = Line2D.new()
+	trail.width = 4.0
+
+	# Trail color matches enemy type
+	var trail_color: Color
+	match enemy_type:
+		"override":  # Boss
+			trail_color = Color(1.0, 0.0, 1.0, 0.5)  # Magenta
+		"sentinel":
+			trail_color = Color(1.0, 0.5, 0.0, 0.5)  # Orange
+		"slicer":
+			trail_color = Color(1.0, 0.3, 0.3, 0.5)  # Red-orange
+		_:  # Breacher
+			trail_color = Color(1.0, 0.2, 0.2, 0.5)  # Red
+
+	# Create gradient for trail fade
+	var gradient = Gradient.new()
+	gradient.add_point(0.0, Color(trail_color.r, trail_color.g, trail_color.b, 0.0))
+	gradient.add_point(1.0, trail_color)
+	trail.gradient = gradient
+
+	trail.width_curve = Curve.new()
+	trail.width_curve.add_point(Vector2(0.0, 0.2))
+	trail.width_curve.add_point(Vector2(1.0, 1.0))
+
+	trail.antialiased = true
+	trail.z_index = -1
+	get_parent().add_child(trail)
+
+	last_trail_pos = global_position
+
 	#print("✅ AttackZone signals connected")
 	#print("New enemy spawned:", self.name)
 
@@ -115,6 +179,16 @@ func _physics_process(delta: float) -> void:
 	var direction = (tower_position - global_position).normalized()
 	velocity = direction * move_speed
 	move_and_slide()
+
+	# Update trail
+	if trail and is_instance_valid(trail):
+		if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
+			trail.add_point(global_position)
+			last_trail_pos = global_position
+
+			# Limit trail length
+			if trail.get_point_count() > MAX_TRAIL_POINTS:
+				trail.remove_point(0)
 
 	time_since_last_attack += delta
 	if in_range and time_since_last_attack >= attack_speed:
@@ -202,10 +276,37 @@ func _on_attack_zone_body_exited(body: Node) -> void:
 		#print("⚪ Enemy exited attack zone:", self.name)
 		in_range = false
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, is_critical: bool = false) -> void:
 	#print("🟥 Enemy takes damage")
 	if is_dead:
 		return
+
+	# Spawn floating damage number
+	var damage_label = Label.new()
+	damage_label.text = str(amount)
+	damage_label.global_position = global_position
+	damage_label.z_index = 100
+
+	# Style the label
+	damage_label.add_theme_font_size_override("font_size", 24 if not is_critical else 32)
+	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	damage_label.add_theme_constant_override("outline_size", 3)
+
+	if is_critical:
+		damage_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3))  # Yellow for crits
+	else:
+		damage_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))  # White for normal
+
+	get_parent().add_child(damage_label)
+
+	# Animate the damage number
+	var tween = damage_label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(damage_label, "global_position:y", global_position.y - 50, 1.0)
+	tween.tween_property(damage_label, "global_position:x", global_position.x + randf_range(-20, 20), 1.0)
+	tween.tween_property(damage_label, "modulate:a", 0.0, 0.5).set_delay(0.5)
+	tween.tween_callback(damage_label.queue_free).set_delay(1.0)
+
 	hp -= amount
 	if hp <= 0:
 		is_dead = true
@@ -214,6 +315,11 @@ func take_damage(amount: int) -> void:
 
 func die():
 	is_dead = true
+
+	# Clean up trail
+	if trail and is_instance_valid(trail):
+		trail.queue_free()
+
 	# Existing death logic (play animation, remove from scene, etc.)
 	RewardManager.reward_enemy(enemy_type, wave_number)
 	RewardManager.reward_enemy_at(enemy_type, wave_number)

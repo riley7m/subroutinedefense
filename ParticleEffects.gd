@@ -64,17 +64,29 @@ func _create_explosion_material(enemy_type: String) -> ParticleProcessMaterial:
 	material.damping_min = 50.0
 	material.damping_max = 100.0
 
-	# Scale
+	# Scale with curve for expansion
 	material.scale_min = 3.0
 	material.scale_max = 6.0
 
-	# Color
-	material.color = color
+	var scale_curve = Curve.new()
+	scale_curve.add_point(Vector2(0.0, 0.5))  # Start small
+	scale_curve.add_point(Vector2(0.3, 1.0))  # Expand quickly
+	scale_curve.add_point(Vector2(1.0, 0.3))  # Shrink at end
+	var scale_texture = CurveTexture.new()
+	scale_texture.curve = scale_curve
+	material.scale_curve = scale_texture
 
-	# Fade out over lifetime
+	# Multi-color gradient with emissive HDR colors
 	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(color.r, color.g, color.b, 1.0))
-	gradient.add_point(1.0, Color(color.r, color.g, color.b, 0.0))
+	# Bright emissive start (HDR values > 1.0 for bloom effect)
+	gradient.add_point(0.0, Color(color.r * 2.0, color.g * 2.0, color.b * 2.0, 1.0))
+	# Peak brightness
+	gradient.add_point(0.2, Color(color.r * 1.5, color.g * 1.5, color.b * 1.5, 1.0))
+	# Normal color
+	gradient.add_point(0.5, Color(color.r, color.g, color.b, 0.8))
+	# Darken and fade
+	gradient.add_point(1.0, Color(color.r * 0.3, color.g * 0.3, color.b * 0.3, 0.0))
+
 	var gradient_texture = GradientTexture1D.new()
 	gradient_texture.gradient = gradient
 	material.color_ramp = gradient_texture
@@ -121,17 +133,29 @@ func _create_impact_material() -> ParticleProcessMaterial:
 	material.damping_min = 100.0
 	material.damping_max = 150.0
 
-	# Scale
+	# Scale with expansion curve
 	material.scale_min = 2.0
 	material.scale_max = 4.0
 
-	# Color - cyan energy
-	material.color = Color(0.6, 1.0, 1.0)
+	var scale_curve = Curve.new()
+	scale_curve.add_point(Vector2(0.0, 1.0))
+	scale_curve.add_point(Vector2(0.5, 1.2))  # Expand mid-life
+	scale_curve.add_point(Vector2(1.0, 0.1))  # Shrink at end
+	var scale_texture = CurveTexture.new()
+	scale_texture.curve = scale_curve
+	material.scale_curve = scale_texture
 
-	# Fade
+	# Enhanced gradient with emissive cyan-white energy
 	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(0.6, 1.0, 1.0, 1.0))
-	gradient.add_point(1.0, Color(0.6, 1.0, 1.0, 0.0))
+	# Ultra-bright white flash (emissive HDR)
+	gradient.add_point(0.0, Color(3.0, 3.0, 3.0, 1.0))
+	# Cyan energy peak
+	gradient.add_point(0.3, Color(1.5, 2.5, 2.5, 1.0))
+	# Cyan fade
+	gradient.add_point(0.7, Color(0.6, 1.0, 1.0, 0.5))
+	# Transparent
+	gradient.add_point(1.0, Color(0.3, 0.5, 0.5, 0.0))
+
 	var gradient_texture = GradientTexture1D.new()
 	gradient_texture.gradient = gradient
 	material.color_ramp = gradient_texture
@@ -179,17 +203,29 @@ func _create_muzzle_flash_material(direction: Vector2) -> ParticleProcessMateria
 	material.damping_min = 200.0
 	material.damping_max = 250.0
 
-	# Scale
+	# Scale with quick burst
 	material.scale_min = 3.0
 	material.scale_max = 5.0
 
-	# Color - bright cyan flash
-	material.color = Color(0.8, 1.0, 1.0)
+	var scale_curve = Curve.new()
+	scale_curve.add_point(Vector2(0.0, 1.0))
+	scale_curve.add_point(Vector2(0.1, 1.5))  # Quick expansion
+	scale_curve.add_point(Vector2(1.0, 0.0))  # Rapid shrink
+	var scale_texture = CurveTexture.new()
+	scale_texture.curve = scale_curve
+	material.scale_curve = scale_texture
 
-	# Quick fade
+	# Intense muzzle flash gradient (emissive)
 	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(0.8, 1.0, 1.0, 1.0))
-	gradient.add_point(1.0, Color(0.8, 1.0, 1.0, 0.0))
+	# Blinding white flash (HDR emissive)
+	gradient.add_point(0.0, Color(4.0, 4.0, 4.0, 1.0))
+	# Cyan-white energy
+	gradient.add_point(0.3, Color(2.0, 2.5, 2.5, 1.0))
+	# Fade to cyan
+	gradient.add_point(0.7, Color(0.8, 1.0, 1.0, 0.3))
+	# Transparent
+	gradient.add_point(1.0, Color(0.4, 0.5, 0.5, 0.0))
+
 	var gradient_texture = GradientTexture1D.new()
 	gradient_texture.gradient = gradient
 	material.color_ramp = gradient_texture
@@ -236,18 +272,32 @@ func _create_boss_explosion_material() -> ParticleProcessMaterial:
 	material.damping_min = 30.0
 	material.damping_max = 60.0
 
-	# Scale
+	# Large scale with dramatic curve
 	material.scale_min = 5.0
 	material.scale_max = 10.0
 
-	# Color - green/cyan mix
-	material.color = Color(0.3, 1.0, 0.7)
+	var scale_curve = Curve.new()
+	scale_curve.add_point(Vector2(0.0, 0.3))  # Start smaller
+	scale_curve.add_point(Vector2(0.2, 1.5))  # Massive expansion
+	scale_curve.add_point(Vector2(0.6, 1.0))  # Hold
+	scale_curve.add_point(Vector2(1.0, 0.2))  # Shrink
+	var scale_texture = CurveTexture.new()
+	scale_texture.curve = scale_curve
+	material.scale_curve = scale_texture
 
-	# Fade
+	# Epic boss explosion gradient with multiple color shifts
 	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(0.3, 1.0, 0.7, 1.0))
+	# White-hot core (emissive HDR)
+	gradient.add_point(0.0, Color(4.0, 4.0, 4.0, 1.0))
+	# Cyan-green energy blast
+	gradient.add_point(0.15, Color(1.5, 3.0, 2.5, 1.0))
+	# Green energy
+	gradient.add_point(0.4, Color(0.5, 2.0, 1.2, 0.9))
+	# Cyan fade
 	gradient.add_point(0.7, Color(0.3, 1.0, 0.7, 0.5))
-	gradient.add_point(1.0, Color(0.3, 1.0, 0.7, 0.0))
+	# Dark green smoke
+	gradient.add_point(1.0, Color(0.1, 0.3, 0.2, 0.0))
+
 	var gradient_texture = GradientTexture1D.new()
 	gradient_texture.gradient = gradient
 	material.color_ramp = gradient_texture
@@ -293,17 +343,32 @@ func _create_celebration_material() -> ParticleProcessMaterial:
 	# Gravity - particles fall
 	material.gravity = Vector3(0, 200, 0)
 
-	# Scale
+	# Scale with sparkle effect
 	material.scale_min = 4.0
 	material.scale_max = 8.0
 
-	# Color - cyan/blue celebration
-	material.color = Color(0.4, 0.9, 1.0)
+	var scale_curve = Curve.new()
+	scale_curve.add_point(Vector2(0.0, 0.8))
+	scale_curve.add_point(Vector2(0.3, 1.2))  # Sparkle expansion
+	scale_curve.add_point(Vector2(0.6, 0.9))
+	scale_curve.add_point(Vector2(1.0, 0.3))  # Fade out
+	var scale_texture = CurveTexture.new()
+	scale_texture.curve = scale_curve
+	material.scale_curve = scale_texture
 
-	# Fade
+	# Celebratory gradient with rainbow shimmer effect
 	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(0.4, 0.9, 1.0, 1.0))
-	gradient.add_point(1.0, Color(0.4, 0.9, 1.0, 0.0))
+	# Bright white-cyan start (emissive)
+	gradient.add_point(0.0, Color(2.5, 2.5, 3.0, 1.0))
+	# Cyan peak
+	gradient.add_point(0.25, Color(1.0, 2.0, 2.5, 1.0))
+	# Blue-purple shift
+	gradient.add_point(0.5, Color(0.7, 1.2, 2.0, 0.8))
+	# Cyan fade
+	gradient.add_point(0.75, Color(0.4, 0.9, 1.0, 0.4))
+	# Transparent
+	gradient.add_point(1.0, Color(0.2, 0.4, 0.5, 0.0))
+
 	var gradient_texture = GradientTexture1D.new()
 	gradient_texture.gradient = gradient
 	material.color_ramp = gradient_texture
