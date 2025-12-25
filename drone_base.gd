@@ -17,34 +17,6 @@ func _ready() -> void:
 	# Create visual representation (child classes should set drone_type)
 	_create_drone_visual()
 
-	# Add Light2D for drone glow (color varies by type)
-	var light = Light2D.new()
-	light.enabled = true
-	light.texture = preload("res://icon.svg")
-	light.texture_scale = 1.2
-
-	# Different colors for different drone types
-	match drone_type:
-		"flame":
-			light.color = Color(1.0, 0.5, 0.0, 1.0)  # Orange flame
-			light.energy = 1.3
-		"poison":
-			light.color = Color(0.5, 0.0, 1.0, 1.0)  # Purple poison
-			light.energy = 1.1
-		"frost":
-			light.color = Color(0.3, 0.7, 1.0, 1.0)  # Ice blue
-			light.energy = 1.1
-		"lightning":
-			light.color = Color(1.0, 1.0, 0.3, 1.0)  # Electric yellow
-			light.energy = 1.4
-		_:  # Default
-			light.color = Color(0.5, 1.0, 0.5, 1.0)  # Green
-			light.energy = 1.0
-
-	light.blend_mode = Light2D.BLEND_MODE_ADD
-	light.shadow_enabled = false
-	add_child(light)
-
 func _on_fire_timer_timeout() -> void:
 	var target = pick_target()
 	if target:

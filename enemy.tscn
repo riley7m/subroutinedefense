@@ -1,7 +1,6 @@
-[gd_scene load_steps=5 format=3 uid="uid://rui5sml5vao5"]
+[gd_scene load_steps=3 format=3 uid="uid://rui5sml5vao5"]
 
 [ext_resource type="Script" uid="uid://blc80km0c65ap" path="res://enemy.gd" id="1_4gyqm"]
-[ext_resource type="Texture2D" uid="uid://cbj5qmh8y3e0i" path="res://sprites/Red Pixel Creature in Grid.png" id="2_4gyqm"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qi2p4"]
 
@@ -12,11 +11,6 @@ collision_layer = 2
 collision_mask = 5
 script = ExtResource("1_4gyqm")
 base_hp = 50
-
-[node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(60, 60)
-scale = Vector2(0.117, 0.117)
-texture = ExtResource("2_4gyqm")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, 100)

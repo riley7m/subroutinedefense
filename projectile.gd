@@ -23,44 +23,13 @@ func _ready() -> void:
 	# Create visual representation
 	VisualFactory.create_projectile_visual(self)
 
-	# Add Light2D for projectile glow
-	var light = Light2D.new()
-	light.enabled = true
-	light.texture = preload("res://icon.svg")
-	light.texture_scale = 0.8
-	light.color = Color(0.3, 0.9, 1.0, 1.0)  # Bright cyan-white
-	light.energy = 1.2
-	light.blend_mode = Light2D.BLEND_MODE_ADD
-	light.shadow_enabled = false
-	add_child(light)
-
-	# Create trail effect
-	trail = Line2D.new()
-	trail.width = 3.0
-	trail.default_color = Color(0.3, 0.9, 1.0, 0.6)
-
-	# Create gradient for trail fade
-	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(0.3, 0.9, 1.0, 0.0))  # Transparent at tail
-	gradient.add_point(1.0, Color(0.3, 0.9, 1.0, 0.8))  # Brighter at head
-	trail.gradient = gradient
-
-	trail.width_curve = Curve.new()
-	trail.width_curve.add_point(Vector2(0.0, 0.3))  # Thin at tail
-	trail.width_curve.add_point(Vector2(1.0, 1.0))  # Full width at head
-
-	trail.antialiased = true
-	trail.z_index = -1
-
-	# Null safety check for parent
+	# Create trail effect using AdvancedVisuals
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		parent.add_child(trail)
+		trail = AdvancedVisuals.create_projectile_trail(parent, Color(0.3, 0.9, 1.0))
+		last_trail_pos = global_position
 	else:
-		trail.queue_free()
 		trail = null
-
-	last_trail_pos = global_position
 
 func _process(delta: float) -> void:
 	if target and is_instance_valid(target):
@@ -68,15 +37,11 @@ func _process(delta: float) -> void:
 		global_position += direction * speed * delta
 		rotation = direction.angle()
 
-		# Update trail
+		# Update trail using AdvancedVisuals
 		if trail and is_instance_valid(trail):
 			if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
-				trail.add_point(global_position)
+				AdvancedVisuals.update_trail(trail, global_position, MAX_TRAIL_POINTS)
 				last_trail_pos = global_position
-
-				# Limit trail length
-				if trail.get_point_count() > MAX_TRAIL_POINTS:
-					trail.remove_point(0)
 	else:
 		# Target is invalid, clean up
 		if trail and is_instance_valid(trail):
