@@ -25,10 +25,16 @@ var perm_projectile_damage: int = 0
 var perm_projectile_fire_rate: float = 0.0
 var perm_crit_chance: int = 0
 var perm_crit_damage: float = 0.0
+var perm_piercing: int = 0
+var perm_overkill_damage: float = 0.0
+var perm_projectile_speed: float = 0.0
 
 var perm_shield_integrity: int = 0
 var perm_damage_reduction: float = 0.0
 var perm_shield_regen: float = 0.0
+var perm_block_chance: float = 0.0
+var perm_block_amount: int = 0
+var perm_boss_resistance: float = 0.0
 
 var perm_data_credit_multiplier: float = 0.0
 var perm_archive_token_multiplier: float = 0.0
@@ -329,9 +335,15 @@ func save_permanent_upgrades():
 		"perm_projectile_fire_rate": perm_projectile_fire_rate,
 		"perm_crit_chance": perm_crit_chance,
 		"perm_crit_damage": perm_crit_damage,
+		"perm_piercing": perm_piercing,
+		"perm_overkill_damage": perm_overkill_damage,
+		"perm_projectile_speed": perm_projectile_speed,
 		"perm_shield_integrity": perm_shield_integrity,
 		"perm_damage_reduction": perm_damage_reduction,
 		"perm_shield_regen": perm_shield_regen,
+		"perm_block_chance": perm_block_chance,
+		"perm_block_amount": perm_block_amount,
+		"perm_boss_resistance": perm_boss_resistance,
 		"perm_data_credit_multiplier": perm_data_credit_multiplier,
 		"perm_archive_token_multiplier": perm_archive_token_multiplier,
 		"perm_wave_skip_chance": perm_wave_skip_chance,
@@ -377,9 +389,15 @@ func load_permanent_upgrades():
 	perm_projectile_fire_rate = clamp(data.get("perm_projectile_fire_rate", 0.0), 0.0, 1000.0)
 	perm_crit_chance = clamp(data.get("perm_crit_chance", 0), 0, 100000)
 	perm_crit_damage = clamp(data.get("perm_crit_damage", 0.0), 0.0, 1000.0)
+	perm_piercing = clamp(data.get("perm_piercing", 0), 0, 100000)
+	perm_overkill_damage = clamp(data.get("perm_overkill_damage", 0.0), 0.0, 1000.0)
+	perm_projectile_speed = clamp(data.get("perm_projectile_speed", 0.0), 0.0, 1000.0)
 	perm_shield_integrity = clamp(data.get("perm_shield_integrity", 0), 0, 100000)
 	perm_damage_reduction = clamp(data.get("perm_damage_reduction", 0.0), 0.0, 1000.0)
 	perm_shield_regen = clamp(data.get("perm_shield_regen", 0.0), 0.0, 1000.0)
+	perm_block_chance = clamp(data.get("perm_block_chance", 0.0), 0.0, 100.0)
+	perm_block_amount = clamp(data.get("perm_block_amount", 0), 0, 100000)
+	perm_boss_resistance = clamp(data.get("perm_boss_resistance", 0.0), 0.0, 100.0)
 	perm_data_credit_multiplier = clamp(data.get("perm_data_credit_multiplier", 0.0), 0.0, 1000.0)
 	perm_archive_token_multiplier = clamp(data.get("perm_archive_token_multiplier", 0.0), 0.0, 1000.0)
 	perm_wave_skip_chance = clamp(data.get("perm_wave_skip_chance", 0.0), 0.0, 100.0)

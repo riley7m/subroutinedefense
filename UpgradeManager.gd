@@ -26,6 +26,14 @@ var archive_token_multiplier_level: int = 0
 var wave_skip_chance_level: int = 0
 var free_upgrade_chance_level: int = 1
 
+# New upgrades
+var piercing_level: int = 0
+var overkill_damage_level: int = 0
+var projectile_speed_level: int = 0
+var block_chance_level: int = 0
+var block_amount_level: int = 0
+var boss_resistance_level: int = 0
+
 # --- PURCHASE COUNT TRACKING (for cost scaling) ---
 var damage_purchases: int = 0
 var fire_rate_purchases: int = 0
@@ -38,6 +46,12 @@ var data_multiplier_purchases: int = 0
 var archive_multiplier_purchases: int = 0
 var wave_skip_purchases: int = 0
 var free_upgrade_purchases: int = 0
+var piercing_purchases: int = 0
+var overkill_purchases: int = 0
+var projectile_speed_purchases: int = 0
+var block_chance_purchases: int = 0
+var block_amount_purchases: int = 0
+var boss_resistance_purchases: int = 0
 
 # --- UPGRADE CONSTANTS (In-Run) - BASE COSTS ---
 # Base costs scale exponentially with each purchase (like The Tower)
@@ -62,6 +76,22 @@ const WAVE_SKIP_MAX_CHANCE := 25.0
 const FREE_UPGRADE_BASE_COST := 250
 const FREE_UPGRADE_CHANCE_PER_LEVEL := 1.0
 const FREE_UPGRADE_MAX_CHANCE := 50.0
+
+# New upgrade constants
+const PIERCING_BASE_COST := 150
+const PIERCING_PER_LEVEL := 1  # +1 enemy pierced per level
+const OVERKILL_BASE_COST := 200
+const OVERKILL_PER_LEVEL := 0.05  # +5% overkill damage spread
+const PROJECTILE_SPEED_BASE_COST := 75
+const PROJECTILE_SPEED_PER_LEVEL := 0.1  # +10% speed
+const BLOCK_CHANCE_BASE_COST := 150
+const BLOCK_CHANCE_PER_LEVEL := 1.0  # +1% block chance
+const BLOCK_CHANCE_MAX := 75.0  # Max 75% block chance
+const BLOCK_AMOUNT_BASE_COST := 100
+const BLOCK_AMOUNT_PER_LEVEL := 5  # +5 damage blocked
+const BOSS_RESISTANCE_BASE_COST := 250
+const BOSS_RESISTANCE_PER_LEVEL := 1.0  # +1% damage reduction vs bosses
+const BOSS_RESISTANCE_MAX := 50.0  # Max 50% damage reduction
 
 # --- PER-PURCHASE COST SCALING (like The Tower) ---
 # Cost increases exponentially with each purchase, not with wave number
