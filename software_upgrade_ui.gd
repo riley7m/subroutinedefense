@@ -114,8 +114,10 @@ func _update_slots() -> void:
 			ui["progress_bar"].value = 0
 			ui["time_label"].text = "Ready for new upgrade"
 		else:
-			var upgrade = SoftwareUpgradeManager.upgrade_tree[slot["id"]]
-			ui["name_label"].text = "Slot %d: %s" % [i + 1, upgrade["name"]]
+			var lab_id = slot["id"]
+			var lab = SoftwareUpgradeManager.labs[lab_id]
+			var target_level = slot["target_level"]
+			ui["name_label"].text = "Slot %d: %s → Lv %d" % [i + 1, lab["name"], target_level]
 
 			var progress = SoftwareUpgradeManager.get_upgrade_progress(i)
 			ui["progress_bar"].value = progress * 100
@@ -141,51 +143,68 @@ func _update_available_upgrades() -> void:
 	for child in available_list.get_children():
 		child.queue_free()
 
-	# Get available upgrades
-	var available = []
-	for upgrade_id in SoftwareUpgradeManager.unlocked_upgrades:
-		if upgrade_id not in SoftwareUpgradeManager.completed_upgrades:
-			available.append(upgrade_id)
-
-	# Sort by tier
-	available.sort_custom(func(a, b):
-		var tier_a = SoftwareUpgradeManager.upgrade_tree[a].get("tier", 0)
-		var tier_b = SoftwareUpgradeManager.upgrade_tree[b].get("tier", 0)
+	# Get all labs sorted by tier
+	var lab_ids = SoftwareUpgradeManager.labs.keys()
+	lab_ids.sort_custom(func(a, b):
+		var tier_a = SoftwareUpgradeManager.labs[a].get("tier", 0)
+		var tier_b = SoftwareUpgradeManager.labs[b].get("tier", 0)
 		return tier_a < tier_b
 	)
 
-	# Create buttons for each available upgrade
-	for upgrade_id in available:
-		var upgrade = SoftwareUpgradeManager.upgrade_tree[upgrade_id]
+	# Create buttons for each lab
+	for lab_id in lab_ids:
+		var lab = SoftwareUpgradeManager.labs[lab_id]
+		var current_level = SoftwareUpgradeManager.get_level(lab_id)
+		var max_level = SoftwareUpgradeManager.get_max_level(lab_id)
+		var is_maxed = SoftwareUpgradeManager.is_maxed(lab_id)
 
 		var button = Button.new()
-		button.custom_minimum_size = Vector2(300, 80)
+		button.custom_minimum_size = Vector2(300, 90)
 
-		var name = upgrade["name"]
-		var duration = _format_time(upgrade["duration"])
-		var cost = upgrade.get("cost", {})
+		var name = lab["name"]
+		var tier = lab.get("tier", 1)
+
+		# Get next level info
+		var next_level = current_level + 1
+		var duration_str = ""
 		var cost_str = ""
-		if cost.get("fragments", 0) > 0:
-			cost_str += "%d Fragments" % cost["fragments"]
-		if cost.get("archive_tokens", 0) > 0:
-			if cost_str != "":
-				cost_str += ", "
-			cost_str += "%d AT" % cost["archive_tokens"]
 
-		var tier = upgrade.get("tier", 1)
-		button.text = "[T%d] %s\n%s\nCost: %s" % [tier, name, duration, cost_str]
+		if not is_maxed:
+			var duration = SoftwareUpgradeManager.get_duration_for_level(lab_id, next_level)
+			duration_str = _format_time(duration)
 
-		var can_start = SoftwareUpgradeManager.can_start_upgrade(upgrade_id)
+			var cost = SoftwareUpgradeManager.get_cost_for_level(lab_id, next_level)
+			if cost.get("fragments", 0) > 0:
+				cost_str += "%d Fragments" % cost["fragments"]
+			if cost.get("archive_tokens", 0) > 0:
+				if cost_str != "":
+					cost_str += ", "
+				cost_str += "%d AT" % cost["archive_tokens"]
+		else:
+			duration_str = "MAXED"
+			cost_str = "---"
+
+		button.text = "[T%d] %s\nLevel: %d/%d\n%s\nCost: %s" % [tier, name, current_level, max_level, duration_str, cost_str]
+
+		var can_start = SoftwareUpgradeManager.can_start_upgrade(lab_id)
 		button.disabled = not can_start
 
-		button.pressed.connect(_on_upgrade_button_pressed.bind(upgrade_id))
+		button.pressed.connect(_on_upgrade_button_pressed.bind(lab_id))
 
 		available_list.add_child(button)
 
 func _update_completed_count() -> void:
-	var total = SoftwareUpgradeManager.upgrade_tree.size()
-	var completed = SoftwareUpgradeManager.completed_upgrades.size()
-	completed_label.text = "✓ Completed: %d / %d" % [completed, total]
+	# Calculate total levels across all labs
+	var total_levels = 0
+	var current_levels = 0
+
+	for lab_id in SoftwareUpgradeManager.labs.keys():
+		var max_level = SoftwareUpgradeManager.get_max_level(lab_id)
+		var current_level = SoftwareUpgradeManager.get_level(lab_id)
+		total_levels += max_level
+		current_levels += current_level
+
+	completed_label.text = "Progress: %d / %d levels (%d%%)" % [current_levels, total_levels, int(float(current_levels) / float(total_levels) * 100)]
 
 func _on_upgrade_button_pressed(upgrade_id: String) -> void:
 	# Find first empty slot
@@ -202,20 +221,21 @@ func _on_upgrade_button_pressed(upgrade_id: String) -> void:
 	if SoftwareUpgradeManager.start_upgrade(upgrade_id, slot_index):
 		_refresh_ui()
 
-func _on_upgrade_started(upgrade_id: String, slot_index: int) -> void:
-	var upgrade = SoftwareUpgradeManager.upgrade_tree[upgrade_id]
-	print("🔬 Started: %s in slot %d" % [upgrade["name"], slot_index])
+func _on_upgrade_started(lab_id: String, slot_index: int) -> void:
+	var lab = SoftwareUpgradeManager.labs[lab_id]
+	var level = SoftwareUpgradeManager.get_level(lab_id) + 1
+	print("🔬 Started: %s level %d in slot %d" % [lab["name"], level, slot_index])
 	_refresh_ui()
 
-func _on_upgrade_completed(upgrade_id: String) -> void:
-	var upgrade = SoftwareUpgradeManager.upgrade_tree[upgrade_id]
-	print("✅ Completed: %s" % upgrade["name"])
+func _on_upgrade_completed(lab_id: String, new_level: int) -> void:
+	var lab = SoftwareUpgradeManager.labs[lab_id]
+	print("✅ Completed: %s level %d" % [lab["name"], new_level])
 	_refresh_ui()
 
 	# Show notification (you can make this fancier)
 	if has_node("/root/Main/NotificationLabel"):
 		var notif = get_node("/root/Main/NotificationLabel")
-		notif.text = "✅ Upgrade Complete: %s" % upgrade["name"]
+		notif.text = "✅ %s Level %d Complete!" % [lab["name"], new_level]
 
 func _format_time(seconds: int) -> String:
 	if seconds <= 0:

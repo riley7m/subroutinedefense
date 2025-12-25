@@ -1,370 +1,310 @@
 extends Node
 
-# Software Upgrade System (Lab/Research equivalent)
-# Total completion time: ~3 years with 2 concurrent slots
+# Software Upgrade System - Ranked/Leveled Labs
+# Each lab has multiple levels (30-100) with incremental bonuses
 
 # Active upgrade slots
 const MAX_SLOTS = 2
 var active_upgrades: Array = [null, null]  # Each entry is a Dictionary with upgrade data
 
-# Completed upgrades
-var completed_upgrades: Array[String] = []
-var unlocked_upgrades: Array[String] = ["data_analysis_101"]  # Starting upgrade
+# Current levels for each lab (0 = not started)
+var lab_levels: Dictionary = {
+	"damage_processing": 0,
+	"fire_rate_optimization": 0,
+	"critical_analysis": 0,
+	"damage_amplification": 0,
+	"shield_matrix": 0,
+	"damage_mitigation": 0,
+	"shield_regeneration": 0,
+	"resource_optimization": 0,
+	"archive_efficiency": 0,
+	"wave_analysis": 0,
+	"probability_matrix": 0,
+	"multi_target_systems": 0,
+}
 
-# Upgrade tree definition
-var upgrade_tree: Dictionary = {}
+# Lab definitions
+var labs: Dictionary = {}
 
-signal upgrade_completed(upgrade_id: String)
-signal upgrade_started(upgrade_id: String, slot_index: int)
+signal upgrade_completed(lab_id: String, new_level: int)
+signal upgrade_started(lab_id: String, slot_index: int)
 signal upgrades_updated
 
 func _ready() -> void:
-	_initialize_upgrade_tree()
+	_initialize_labs()
 	load_upgrade_state()
 
-func _initialize_upgrade_tree() -> void:
-	# Duration in seconds (for offline calculations)
-	# 1 hour = 3600, 1 day = 86400, 1 week = 604800, 1 month = 2592000
-
-	upgrade_tree = {
-		# === TIER 1: Foundation (1-4 hours each) ===
-		"data_analysis_101": {
-			"name": "Data Analysis 101",
-			"description": "Learn basic data analysis techniques",
-			"duration": 3600,  # 1 hour
-			"cost": {"fragments": 50},
-			"requires": [],
-			"unlocks": ["pattern_recognition", "code_optimization"],
-			"bonuses": {"data_credit_multiplier": 0.05},
+func _initialize_labs() -> void:
+	labs = {
+		"damage_processing": {
+			"name": "Damage Processing",
+			"description": "Optimize projectile damage algorithms",
+			"max_level": 100,
+			"base_duration": 3600,  # 1 hour for level 1
+			"duration_scaling": 1.05,  # 5% longer each level
+			"base_cost_fragments": 50,
+			"base_cost_at": 0,
+			"cost_scaling": 1.08,  # 8% more expensive each level
+			"at_cost_starts_at_level": 20,  # AT cost starts at level 20
+			"bonus_per_level": {"projectile_damage_perm": 10},
 			"tier": 1,
 		},
 
-		"pattern_recognition": {
-			"name": "Pattern Recognition",
-			"description": "Identify enemy patterns faster",
-			"duration": 7200,  # 2 hours
-			"cost": {"fragments": 100},
-			"requires": ["data_analysis_101"],
-			"unlocks": ["advanced_targeting", "predictive_analytics"],
-			"bonuses": {"crit_chance_perm": 2},
+		"fire_rate_optimization": {
+			"name": "Fire Rate Optimization",
+			"description": "Increase projectile firing speed",
+			"max_level": 100,
+			"base_duration": 3600,
+			"duration_scaling": 1.05,
+			"base_cost_fragments": 50,
+			"base_cost_at": 0,
+			"cost_scaling": 1.08,
+			"at_cost_starts_at_level": 20,
+			"bonus_per_level": {"fire_rate_perm": 0.01},
 			"tier": 1,
 		},
 
-		"code_optimization": {
-			"name": "Code Optimization",
-			"description": "Optimize core algorithms",
-			"duration": 10800,  # 3 hours
-			"cost": {"fragments": 100},
-			"requires": ["data_analysis_101"],
-			"unlocks": ["compiler_improvements", "memory_management"],
-			"bonuses": {"fire_rate_perm": 0.05},
+		"critical_analysis": {
+			"name": "Critical Analysis",
+			"description": "Enhance critical hit probability",
+			"max_level": 100,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_fragments": 100,
+			"base_cost_at": 0,
+			"cost_scaling": 1.10,
+			"at_cost_starts_at_level": 15,
+			"bonus_per_level": {"crit_chance_perm": 0.5},  # 0.5% per level
 			"tier": 1,
 		},
 
-		# === TIER 2: Specialization (8-24 hours each) ===
-		"advanced_targeting": {
-			"name": "Advanced Targeting",
-			"description": "Multi-target enemy acquisition",
-			"duration": 28800,  # 8 hours
-			"cost": {"fragments": 500, "archive_tokens": 100},
-			"requires": ["pattern_recognition"],
-			"unlocks": ["quantum_targeting", "swarm_intelligence"],
-			"bonuses": {"multi_target_bonus": 1},
-			"tier": 2,
-			"tradeoff": "Locks defensive_protocols path"
-		},
-
-		"predictive_analytics": {
-			"name": "Predictive Analytics",
-			"description": "Predict enemy movements",
-			"duration": 43200,  # 12 hours
-			"cost": {"fragments": 500, "archive_tokens": 100},
-			"requires": ["pattern_recognition"],
-			"unlocks": ["ai_prediction", "behavior_modeling"],
-			"bonuses": {"wave_skip_chance_perm": 1.0},
+		"damage_amplification": {
+			"name": "Damage Amplification",
+			"description": "Boost critical hit damage",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_fragments": 200,
+			"base_cost_at": 50,
+			"cost_scaling": 1.12,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"crit_damage_perm": 0.02},  # 2% per level
 			"tier": 2,
 		},
 
-		"compiler_improvements": {
-			"name": "Compiler Improvements",
-			"description": "Faster code execution",
-			"duration": 57600,  # 16 hours
-			"cost": {"fragments": 500, "archive_tokens": 100},
-			"requires": ["code_optimization"],
-			"unlocks": ["jit_compilation", "parallel_processing"],
-			"bonuses": {"projectile_damage_perm": 50},
+		"shield_matrix": {
+			"name": "Shield Matrix",
+			"description": "Fortify shield integrity",
+			"max_level": 100,
+			"base_duration": 3600,
+			"duration_scaling": 1.05,
+			"base_cost_fragments": 50,
+			"base_cost_at": 0,
+			"cost_scaling": 1.08,
+			"at_cost_starts_at_level": 20,
+			"bonus_per_level": {"shield_integrity_perm": 20},
+			"tier": 1,
+		},
+
+		"damage_mitigation": {
+			"name": "Damage Mitigation",
+			"description": "Reduce incoming damage",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_fragments": 200,
+			"base_cost_at": 50,
+			"cost_scaling": 1.12,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"damage_reduction_perm": 0.005},  # 0.5% per level
 			"tier": 2,
 		},
 
-		"memory_management": {
-			"name": "Memory Management",
-			"description": "Efficient resource allocation",
-			"duration": 86400,  # 24 hours (1 day)
-			"cost": {"fragments": 500, "archive_tokens": 100},
-			"requires": ["code_optimization"],
-			"unlocks": ["garbage_collection", "cache_optimization"],
-			"bonuses": {"shield_integrity_perm": 100},
+		"shield_regeneration": {
+			"name": "Shield Regeneration",
+			"description": "Accelerate shield recovery",
+			"max_level": 76,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_fragments": 100,
+			"base_cost_at": 0,
+			"cost_scaling": 1.09,
+			"at_cost_starts_at_level": 25,
+			"bonus_per_level": {"shield_regen_perm": 0.5},
+			"tier": 1,
+		},
+
+		"resource_optimization": {
+			"name": "Resource Optimization",
+			"description": "Boost data credit income",
+			"max_level": 50,
+			"base_duration": 10800,  # 3 hours
+			"duration_scaling": 1.08,
+			"base_cost_fragments": 150,
+			"base_cost_at": 100,
+			"cost_scaling": 1.15,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"data_credit_multiplier": 0.01},  # 1% per level
 			"tier": 2,
 		},
 
-		# === TIER 3: Advanced (2-7 days each) ===
-		"quantum_targeting": {
-			"name": "Quantum Targeting",
-			"description": "Superposition-based targeting",
-			"duration": 172800,  # 48 hours (2 days)
-			"cost": {"fragments": 2000, "archive_tokens": 500},
-			"requires": ["advanced_targeting"],
-			"unlocks": ["entanglement_systems"],
-			"bonuses": {"crit_damage_perm": 0.25},
+		"archive_efficiency": {
+			"name": "Archive Efficiency",
+			"description": "Increase archive token income",
+			"max_level": 50,
+			"base_duration": 10800,  # 3 hours
+			"duration_scaling": 1.08,
+			"base_cost_fragments": 150,
+			"base_cost_at": 100,
+			"cost_scaling": 1.15,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"archive_token_multiplier": 0.01},  # 1% per level
+			"tier": 2,
+		},
+
+		"wave_analysis": {
+			"name": "Wave Analysis",
+			"description": "Predict and skip waves",
+			"max_level": 30,
+			"base_duration": 21600,  # 6 hours
+			"duration_scaling": 1.10,
+			"base_cost_fragments": 500,
+			"base_cost_at": 200,
+			"cost_scaling": 1.18,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"wave_skip_chance_perm": 0.5},  # 0.5% per level
 			"tier": 3,
 		},
 
-		"jit_compilation": {
-			"name": "JIT Compilation",
-			"description": "Just-in-time code compilation",
-			"duration": 259200,  # 72 hours (3 days)
-			"cost": {"fragments": 2000, "archive_tokens": 500},
-			"requires": ["compiler_improvements"],
-			"unlocks": ["aot_compilation"],
-			"bonuses": {"fire_rate_perm": 0.15},
+		"probability_matrix": {
+			"name": "Probability Matrix",
+			"description": "Free upgrade chance",
+			"max_level": 30,
+			"base_duration": 21600,  # 6 hours
+			"duration_scaling": 1.10,
+			"base_cost_fragments": 500,
+			"base_cost_at": 200,
+			"cost_scaling": 1.18,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"free_upgrade_chance_perm": 0.5},  # 0.5% per level
 			"tier": 3,
 		},
 
-		"parallel_processing": {
-			"name": "Parallel Processing",
-			"description": "Multi-threaded execution",
-			"duration": 345600,  # 96 hours (4 days)
-			"cost": {"fragments": 2000, "archive_tokens": 500},
-			"requires": ["compiler_improvements"],
-			"unlocks": ["distributed_computing"],
-			"bonuses": {"projectile_damage_perm": 150},
+		"multi_target_systems": {
+			"name": "Multi-Target Systems",
+			"description": "Enhance multi-target capabilities",
+			"max_level": 30,
+			"base_duration": 28800,  # 8 hours
+			"duration_scaling": 1.12,
+			"base_cost_fragments": 1000,
+			"base_cost_at": 500,
+			"cost_scaling": 1.20,
+			"at_cost_starts_at_level": 1,
+			"bonus_per_level": {"multi_target_bonus": 0.1},  # 0.1 per level
 			"tier": 3,
-		},
-
-		"garbage_collection": {
-			"name": "Garbage Collection",
-			"description": "Automatic memory cleanup",
-			"duration": 432000,  # 120 hours (5 days)
-			"cost": {"fragments": 2000, "archive_tokens": 500},
-			"requires": ["memory_management"],
-			"unlocks": ["memory_pooling"],
-			"bonuses": {"shield_regen_perm": 5.0},
-			"tier": 3,
-		},
-
-		"cache_optimization": {
-			"name": "Cache Optimization",
-			"description": "CPU cache optimization",
-			"duration": 604800,  # 168 hours (1 week)
-			"cost": {"fragments": 2000, "archive_tokens": 500},
-			"requires": ["memory_management"],
-			"unlocks": ["memory_hierarchy"],
-			"bonuses": {"free_upgrade_chance_perm": 2.0},
-			"tier": 3,
-		},
-
-		# === TIER 4: Expert (1-4 weeks each) ===
-		"entanglement_systems": {
-			"name": "Quantum Entanglement",
-			"description": "Instant multi-target synchronization",
-			"duration": 1209600,  # 336 hours (2 weeks)
-			"cost": {"fragments": 10000, "archive_tokens": 2000},
-			"requires": ["quantum_targeting"],
-			"unlocks": ["superposition_weapons"],
-			"bonuses": {"multi_target_bonus": 2},
-			"tier": 4,
-		},
-
-		"aot_compilation": {
-			"name": "AOT Compilation",
-			"description": "Ahead-of-time compilation",
-			"duration": 1814400,  # 504 hours (3 weeks)
-			"cost": {"fragments": 10000, "archive_tokens": 2000},
-			"requires": ["jit_compilation"],
-			"unlocks": ["native_codegen"],
-			"bonuses": {"fire_rate_perm": 0.30},
-			"tier": 4,
-		},
-
-		"distributed_computing": {
-			"name": "Distributed Computing",
-			"description": "Network-wide processing",
-			"duration": 2419200,  # 672 hours (4 weeks)
-			"cost": {"fragments": 10000, "archive_tokens": 2000},
-			"requires": ["parallel_processing"],
-			"unlocks": ["cluster_computing"],
-			"bonuses": {"projectile_damage_perm": 500},
-			"tier": 4,
-		},
-
-		"memory_pooling": {
-			"name": "Memory Pooling",
-			"description": "Pre-allocated memory pools",
-			"duration": 1814400,  # 504 hours (3 weeks)
-			"cost": {"fragments": 10000, "archive_tokens": 2000},
-			"requires": ["garbage_collection"],
-			"unlocks": ["memory_arena"],
-			"bonuses": {"shield_integrity_perm": 500},
-			"tier": 4,
-		},
-
-		# === TIER 5: Master (1-3 months each) ===
-		"superposition_weapons": {
-			"name": "Superposition Weapons",
-			"description": "Weapons exist in multiple states",
-			"duration": 2592000,  # 720 hours (1 month)
-			"cost": {"fragments": 50000, "archive_tokens": 10000},
-			"requires": ["entanglement_systems"],
-			"unlocks": ["reality_manipulation"],
-			"bonuses": {"crit_damage_perm": 0.75, "crit_chance_perm": 10},
-			"tier": 5,
-		},
-
-		"native_codegen": {
-			"name": "Native Code Generation",
-			"description": "Direct machine code generation",
-			"duration": 5184000,  # 1440 hours (2 months)
-			"cost": {"fragments": 50000, "archive_tokens": 10000},
-			"requires": ["aot_compilation"],
-			"unlocks": ["assembly_optimization"],
-			"bonuses": {"fire_rate_perm": 0.50, "data_credit_multiplier": 0.25},
-			"tier": 5,
-		},
-
-		"cluster_computing": {
-			"name": "Cluster Computing",
-			"description": "Massive parallel processing",
-			"duration": 7776000,  # 2160 hours (3 months)
-			"cost": {"fragments": 50000, "archive_tokens": 10000},
-			"requires": ["distributed_computing"],
-			"unlocks": ["grid_computing"],
-			"bonuses": {"projectile_damage_perm": 2000, "archive_token_multiplier": 0.25},
-			"tier": 5,
-		},
-
-		"memory_arena": {
-			"name": "Memory Arena",
-			"description": "Massive memory allocation",
-			"duration": 5184000,  # 1440 hours (2 months)
-			"cost": {"fragments": 50000, "archive_tokens": 10000},
-			"requires": ["memory_pooling"],
-			"unlocks": ["memory_fortress"],
-			"bonuses": {"shield_integrity_perm": 2000, "damage_reduction_perm": 0.15},
-			"tier": 5,
-		},
-
-		# === TIER 6: Legendary (3-6 months each) - Endgame ===
-		"reality_manipulation": {
-			"name": "Reality Manipulation",
-			"description": "Bend the fabric of reality",
-			"duration": 10368000,  # 2880 hours (4 months)
-			"cost": {"fragments": 250000, "archive_tokens": 50000},
-			"requires": ["superposition_weapons"],
-			"unlocks": [],
-			"bonuses": {"crit_damage_perm": 1.5, "crit_chance_perm": 20, "multi_target_bonus": 5},
-			"tier": 6,
-			"final": true,
-		},
-
-		"assembly_optimization": {
-			"name": "Assembly Optimization",
-			"description": "Hand-tuned assembly code",
-			"duration": 12960000,  # 3600 hours (5 months)
-			"cost": {"fragments": 250000, "archive_tokens": 50000},
-			"requires": ["native_codegen"],
-			"unlocks": [],
-			"bonuses": {"fire_rate_perm": 1.0, "data_credit_multiplier": 0.50, "free_upgrade_chance_perm": 10.0},
-			"tier": 6,
-			"final": true,
-		},
-
-		"grid_computing": {
-			"name": "Grid Computing",
-			"description": "Planet-scale computing",
-			"duration": 15552000,  # 4320 hours (6 months)
-			"cost": {"fragments": 250000, "archive_tokens": 50000},
-			"requires": ["cluster_computing"],
-			"unlocks": [],
-			"bonuses": {"projectile_damage_perm": 10000, "archive_token_multiplier": 1.0, "wave_skip_chance_perm": 10.0},
-			"tier": 6,
-			"final": true,
-		},
-
-		"memory_fortress": {
-			"name": "Memory Fortress",
-			"description": "Impenetrable defenses",
-			"duration": 12960000,  # 3600 hours (5 months)
-			"cost": {"fragments": 250000, "archive_tokens": 50000},
-			"requires": ["memory_arena"],
-			"unlocks": [],
-			"bonuses": {"shield_integrity_perm": 10000, "damage_reduction_perm": 0.50, "shield_regen_perm": 50.0},
-			"tier": 6,
-			"final": true,
 		},
 	}
 
-func can_start_upgrade(upgrade_id: String) -> bool:
-	# Check if upgrade exists
-	if not upgrade_tree.has(upgrade_id):
+func get_level(lab_id: String) -> int:
+	return lab_levels.get(lab_id, 0)
+
+func get_max_level(lab_id: String) -> int:
+	if not labs.has(lab_id):
+		return 0
+	return labs[lab_id]["max_level"]
+
+func is_maxed(lab_id: String) -> bool:
+	return get_level(lab_id) >= get_max_level(lab_id)
+
+func get_duration_for_level(lab_id: String, level: int) -> int:
+	if not labs.has(lab_id):
+		return 0
+
+	var lab = labs[lab_id]
+	var base = lab["base_duration"]
+	var scaling = lab["duration_scaling"]
+
+	# Duration = base * (scaling ^ (level - 1))
+	return int(base * pow(scaling, level - 1))
+
+func get_cost_for_level(lab_id: String, level: int) -> Dictionary:
+	if not labs.has(lab_id):
+		return {"fragments": 0, "archive_tokens": 0}
+
+	var lab = labs[lab_id]
+	var base_frag = lab["base_cost_fragments"]
+	var base_at = lab["base_cost_at"]
+	var scaling = lab["cost_scaling"]
+	var at_starts = lab["at_cost_starts_at_level"]
+
+	var frag_cost = int(base_frag * pow(scaling, level - 1))
+	var at_cost = 0
+
+	if level >= at_starts:
+		at_cost = int(base_at * pow(scaling, level - at_starts))
+
+	return {
+		"fragments": frag_cost,
+		"archive_tokens": at_cost
+	}
+
+func can_start_upgrade(lab_id: String) -> bool:
+	# Check if lab exists
+	if not labs.has(lab_id):
 		return false
 
-	# Check if already completed
-	if upgrade_id in completed_upgrades:
+	# Check if maxed
+	if is_maxed(lab_id):
 		return false
 
 	# Check if already in progress
 	for slot in active_upgrades:
-		if slot != null and slot["id"] == upgrade_id:
+		if slot != null and slot["id"] == lab_id:
 			return false
 
-	# Check if unlocked
-	if not upgrade_id in unlocked_upgrades:
-		return false
+	# Check cost for next level
+	var next_level = get_level(lab_id) + 1
+	var cost = get_cost_for_level(lab_id, next_level)
 
-	# Check requirements
-	var upgrade = upgrade_tree[upgrade_id]
-	for req in upgrade["requires"]:
-		if not req in completed_upgrades:
-			return false
-
-	# Check cost
-	var cost = upgrade.get("cost", {})
-	if cost.get("fragments", 0) > RewardManager.fragments:
+	if cost["fragments"] > RewardManager.fragments:
 		return false
-	if cost.get("archive_tokens", 0) > RewardManager.archive_tokens:
+	if cost["archive_tokens"] > RewardManager.archive_tokens:
 		return false
 
 	return true
 
-func start_upgrade(upgrade_id: String, slot_index: int) -> bool:
+func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	if slot_index < 0 or slot_index >= MAX_SLOTS:
 		return false
 
 	if active_upgrades[slot_index] != null:
 		return false
 
-	if not can_start_upgrade(upgrade_id):
+	if not can_start_upgrade(lab_id):
 		return false
 
-	var upgrade = upgrade_tree[upgrade_id]
+	var lab = labs[lab_id]
+	var next_level = get_level(lab_id) + 1
+	var cost = get_cost_for_level(lab_id, next_level)
+	var duration = get_duration_for_level(lab_id, next_level)
 
 	# Deduct cost
-	var cost = upgrade.get("cost", {})
-	RewardManager.fragments -= cost.get("fragments", 0)
-	RewardManager.archive_tokens -= cost.get("archive_tokens", 0)
+	RewardManager.fragments -= cost["fragments"]
+	RewardManager.archive_tokens -= cost["archive_tokens"]
 
 	# Start upgrade
 	active_upgrades[slot_index] = {
-		"id": upgrade_id,
+		"id": lab_id,
 		"start_time": Time.get_unix_time_from_system(),
-		"duration": upgrade["duration"],
+		"duration": duration,
+		"target_level": next_level,
 	}
 
-	emit_signal("upgrade_started", upgrade_id, slot_index)
+	emit_signal("upgrade_started", lab_id, slot_index)
 	emit_signal("upgrades_updated")
 	save_upgrade_state()
 
-	print("🔬 Started upgrade: %s (slot %d)" % [upgrade["name"], slot_index])
+	print("🔬 Started %s level %d (slot %d)" % [lab["name"], next_level, slot_index])
 	return true
 
 func update_upgrades() -> void:
@@ -389,30 +329,26 @@ func _complete_upgrade(slot_index: int) -> void:
 	if slot == null:
 		return
 
-	var upgrade_id = slot["id"]
-	var upgrade = upgrade_tree[upgrade_id]
+	var lab_id = slot["id"]
+	var new_level = slot["target_level"]
+	var lab = labs[lab_id]
 
-	# Mark as completed
-	completed_upgrades.append(upgrade_id)
-
-	# Unlock next upgrades
-	for next_id in upgrade.get("unlocks", []):
-		if not next_id in unlocked_upgrades:
-			unlocked_upgrades.append(next_id)
+	# Set new level
+	lab_levels[lab_id] = new_level
 
 	# Apply bonuses
-	_apply_upgrade_bonuses(upgrade)
+	_apply_level_bonuses(lab)
 
 	# Clear slot
 	active_upgrades[slot_index] = null
 
-	emit_signal("upgrade_completed", upgrade_id)
+	emit_signal("upgrade_completed", lab_id, new_level)
 	save_upgrade_state()
 
-	print("✅ Completed upgrade: %s" % upgrade["name"])
+	print("✅ Completed %s level %d" % [lab["name"], new_level])
 
-func _apply_upgrade_bonuses(upgrade: Dictionary) -> void:
-	var bonuses = upgrade.get("bonuses", {})
+func _apply_level_bonuses(lab: Dictionary) -> void:
+	var bonuses = lab.get("bonus_per_level", {})
 
 	for bonus_key in bonuses.keys():
 		var value = bonuses[bonus_key]
@@ -440,7 +376,8 @@ func _apply_upgrade_bonuses(upgrade: Dictionary) -> void:
 				RewardManager.perm_wave_skip_chance += value
 			"free_upgrade_chance_perm":
 				RewardManager.perm_free_upgrade_chance += value
-			# Add more bonus types as needed
+			"multi_target_bonus":
+				pass  # Not currently stored in RewardManager
 
 func get_upgrade_progress(slot_index: int) -> float:
 	if slot_index < 0 or slot_index >= MAX_SLOTS:
@@ -466,12 +403,25 @@ func get_upgrade_time_remaining(slot_index: int) -> int:
 	var elapsed = now - slot["start_time"]
 	return max(0, slot["duration"] - elapsed)
 
+func get_total_bonus(lab_id: String) -> Dictionary:
+	var level = get_level(lab_id)
+	if level == 0 or not labs.has(lab_id):
+		return {}
+
+	var lab = labs[lab_id]
+	var bonus_per = lab.get("bonus_per_level", {})
+	var result = {}
+
+	for key in bonus_per.keys():
+		result[key] = bonus_per[key] * level
+
+	return result
+
 # === SAVE/LOAD ===
 func save_upgrade_state() -> void:
 	var data = {
 		"active_upgrades": active_upgrades,
-		"completed_upgrades": completed_upgrades,
-		"unlocked_upgrades": unlocked_upgrades,
+		"lab_levels": lab_levels,
 	}
 
 	var file = FileAccess.open("user://software_upgrades.save", FileAccess.WRITE)
@@ -501,8 +451,7 @@ func load_upgrade_state() -> void:
 		return
 
 	active_upgrades = data.get("active_upgrades", [null, null])
-	completed_upgrades = data.get("completed_upgrades", [])
-	unlocked_upgrades = data.get("unlocked_upgrades", ["data_analysis_101"])
+	lab_levels = data.get("lab_levels", {})
 
 	print("🔄 Software upgrades loaded")
 
