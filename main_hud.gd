@@ -576,6 +576,75 @@ func refresh_all_drones() -> void:
 					drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
 			# Fire rate automatically updates in apply_upgrade()
 
+# Drone purchase system
+func purchase_drone(drone_type: String) -> bool:
+	# Check if already purchased
+	if purchased_drones.get(drone_type, false):
+		print("⚠️ Drone", drone_type, "already purchased!")
+		return false
+
+	# Check if we have the drone scene
+	if not drone_scenes.has(drone_type):
+		print("⚠️ Unknown drone type:", drone_type)
+		return false
+
+	var cost = get_drone_purchase_cost(drone_type)
+
+	# Check if we can afford it (using Data Credits for in-run purchase)
+	if RewardManager.data_credits < cost:
+		print("⚠️ Not enough DC to purchase", drone_type, "drone. Need:", cost)
+		return false
+
+	# Deduct cost
+	RewardManager.data_credits -= cost
+
+	# Mark as purchased
+	purchased_drones[drone_type] = true
+
+	# Spawn the drone
+	var drone = drone_scenes[drone_type].instantiate()
+	active_drones.append(drone)
+	add_child(drone)
+
+	# Apply permanent upgrade level
+	match drone_type:
+		"flame":
+			drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
+		"frost":
+			drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
+		"poison":
+			drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
+		"shock":
+			drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+
+	# Position drone in horizontal line from tower
+	var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
+	var slot_index = _get_drone_slot_index(drone_type)
+	var horizontal_offset = _get_horizontal_offset_for_slot(slot_index)
+	drone.global_position = tower_pos + Vector2(horizontal_offset, 0)
+
+	print("✅ Purchased", drone_type, "drone for", cost, "DC")
+	update_labels()
+	return true
+
+func get_drone_purchase_cost(drone_type: String) -> int:
+	# Base cost for purchasing a drone (one-time purchase per run)
+	return 100  # Fixed cost for now, can be made variable later
+
+func _get_drone_slot_index(drone_type: String) -> int:
+	# Map drone types to slot indices (0-3)
+	match drone_type:
+		"flame": return 0
+		"frost": return 1
+		"poison": return 2
+		"shock": return 3
+		_: return 0
+
+func _get_horizontal_offset_for_slot(slot_index: int) -> float:
+	# Horizontal positions for 4 drone slots
+	var offsets = [-80.0, -40.0, 40.0, 80.0]  # Left far, left near, right near, right far
+	return offsets[slot_index] if slot_index < 4 else 0.0
+
 func get_current_buy_amount() -> int:
 	var x = buy_x_options[current_buy_index]
 	return -1 if x is String and x == "Max" else x
