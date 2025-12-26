@@ -190,6 +190,13 @@ func take_damage(amount: int, attacker: Node2D = null) -> void:
 		# Check for death
 		if tower_hp <= 0 and death_screen:
 			_cleanup_before_death()
+
+			# End boss rush if active
+			if BossRushManager.is_boss_rush_active():
+				var spawner = get_tree().current_scene.get_node_or_null("Spawner")
+				if spawner and spawner.has_method("end_boss_rush"):
+					spawner.end_boss_rush()
+
 			ScreenEffects.death_transition()
 			death_screen.show_death()
 

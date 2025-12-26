@@ -430,7 +430,18 @@ func apply_wave_scaling():
 	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)
 	#print("enemy hp:", hp, "tier mult:", tier_mult)
-	
+
+func apply_boss_rush_scaling():
+	# Boss rush uses faster scaling than normal tiers
+	var boss_rush_mult = BossRushManager.get_boss_rush_hp_multiplier(wave_number)
+
+	# Apply exponential HP scaling (5% per wave vs 2% normal)
+	hp = int(base_hp * boss_rush_mult)
+	damage_to_tower = int(base_damage * BossRushManager.get_boss_rush_damage_multiplier())
+	move_speed = base_speed * BossRushManager.get_boss_rush_speed_multiplier()
+
+	#print("Boss rush wave:", wave_number, "HP:", hp, "Mult:", boss_rush_mult)
+
 func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) -> void:
 	# 15% at level 1 → 150% at level 10 (linear)
 	var percent = BURN_MIN_PERCENT + ((level - 1) * (BURN_MAX_PERCENT - BURN_MIN_PERCENT) / 9)

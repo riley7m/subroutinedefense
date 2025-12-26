@@ -74,6 +74,10 @@ var software_upgrade_button: Button = null
 var tier_selection_panel: Control = null
 var tier_selection_button: Button = null
 
+# Boss rush panel
+var boss_rush_panel: Control = null
+var boss_rush_button: Button = null
+
 # Statistics panel
 var statistics_panel: Panel = null
 var statistics_button: Button = null
@@ -180,10 +184,22 @@ func _ready() -> void:
 	tier_selection_button.pressed.connect(_on_tier_selection_button_pressed)
 	add_child(tier_selection_button)
 
+	# Add Boss Rush panel and button
+	boss_rush_panel = preload("res://boss_rush_ui.gd").new()
+	boss_rush_panel.visible = false
+	add_child(boss_rush_panel)
+
+	boss_rush_button = Button.new()
+	boss_rush_button.text = "🏆 Boss Rush"
+	boss_rush_button.position = Vector2(10, 950)
+	boss_rush_button.custom_minimum_size = Vector2(150, 40)
+	boss_rush_button.pressed.connect(_on_boss_rush_button_pressed)
+	add_child(boss_rush_button)
+
 	# Add Statistics button
 	statistics_button = Button.new()
 	statistics_button.text = "📊 Stats"
-	statistics_button.position = Vector2(300, 900)
+	statistics_button.position = Vector2(170, 950)
 	statistics_button.custom_minimum_size = Vector2(120, 40)
 	statistics_button.pressed.connect(_on_statistics_button_pressed)
 	add_child(statistics_button)
@@ -844,7 +860,23 @@ func _on_tier_selection_button_pressed():
 			perm_panel.visible = false
 			if software_upgrade_panel:
 				software_upgrade_panel.visible = false
-		
+			if boss_rush_panel:
+				boss_rush_panel.visible = false
+
+func _on_boss_rush_button_pressed():
+	if boss_rush_panel:
+		boss_rush_panel.visible = not boss_rush_panel.visible
+		if boss_rush_panel.visible:
+			# Hide other panels
+			offense_panel.visible = false
+			defense_panel.visible = false
+			economy_panel.visible = false
+			perm_panel.visible = false
+			if software_upgrade_panel:
+				software_upgrade_panel.visible = false
+			if tier_selection_panel:
+				tier_selection_panel.visible = false
+
 func reset_to_wave_1():
 	# Called when entering a new tier - resets to wave 1 but keeps permanent upgrades
 	print("🔄 Resetting to Wave 1 for new tier...")
@@ -895,6 +927,75 @@ func reset_to_wave_1():
 	RewardManager.start_run_tracking(1)
 
 	print("✅ Reset complete! Starting Wave 1 in Tier %d" % TierManager.get_current_tier())
+
+func start_boss_rush():
+	# Called when boss rush starts from UI
+	print("🏆 Starting Boss Rush mode...")
+
+	if not BossRushManager.start_boss_rush():
+		print("⚠️ Failed to start boss rush!")
+		return
+
+	# Reset game state (similar to tier reset but for boss rush)
+	# 1. Reset in-run upgrades
+	if Engine.has_singleton("UpgradeManager"):
+		UpgradeManager.reset_run_upgrades()
+
+	# 2. Reset run currency
+	if Engine.has_singleton("RewardManager"):
+		RewardManager.reset_run_currency()
+
+	# 3. Reset wave and clear enemies
+	if spawner.has_method("reset_wave_timers"):
+		spawner.reset_wave_timers()
+	spawner.wave_spawning = false
+	spawner.current_wave = 1
+	spawner.enemies_to_spawn = 0
+	spawner.spawned_enemies = 0
+
+	# Remove any enemy nodes
+	for e in spawner.get_children():
+		if is_instance_valid(e) and e.is_in_group("enemies"):
+			e.queue_free()
+
+	# 4. Reset the tower
+	tower.tower_hp = 1000
+	tower.refresh_shield_stats()
+	tower.current_shield = tower.max_shield
+	tower.update_bars()
+
+	# 5. Hide all panels
+	offense_panel.visible = false
+	defense_panel.visible = false
+	economy_panel.visible = false
+	perm_panel.visible = false
+	if software_upgrade_panel:
+		software_upgrade_panel.visible = false
+	if tier_selection_panel:
+		tier_selection_panel.visible = false
+	if boss_rush_panel:
+		boss_rush_panel.visible = false
+
+	# 6. Reset RunStats for damage tracking
+	RunStats.reset()
+
+	# 7. Start wave 1
+	wave_timer = 0.0
+	spawner.start_wave(1)
+	update_labels()
+
+	print("✅ Boss Rush started! Good luck!")
+
+func exit_boss_rush():
+	# Called when exiting boss rush (player quits or dies)
+	print("🏆 Exiting Boss Rush mode...")
+
+	# End boss rush in spawner (this will trigger leaderboard entry)
+	if spawner and spawner.has_method("end_boss_rush"):
+		spawner.end_boss_rush()
+
+	# Return to start screen
+	_on_quit_button_pressed()
 
 func _on_quit_button_pressed():
 	# Record run performance before quitting
