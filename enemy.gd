@@ -48,6 +48,9 @@ var is_dead: bool = false
 var in_range: bool = false
 var tower: Node = null
 
+# Pooling support
+var is_pooled: bool = false
+
 # --- Burn Effect ---
 var burn_active: bool = false
 var burn_timer: float = 0.0
@@ -357,7 +360,7 @@ func _trigger_death_dissolve() -> void:
 	# Find visual container
 	var visual_container = get_node_or_null("VisualContainer")
 	if not visual_container:
-		queue_free()
+		_cleanup_and_recycle()
 		return
 
 	# Dissolve animation
@@ -374,7 +377,7 @@ func _trigger_death_dissolve() -> void:
 	# Cleanup after animation
 	tween.tween_callback(func():
 		if is_instance_valid(self):
-			queue_free()
+			_cleanup_and_recycle()
 	).set_delay(0.4)
 
 func _spawn_dissolve_particles() -> void:
@@ -494,3 +497,89 @@ func get_health() -> int:
 
 func is_boss() -> bool:
 	return enemy_type == "override"
+
+# --- OBJECT POOLING METHODS ---
+
+func reset_pooled_object() -> void:
+	# Called when enemy is taken from pool
+	is_pooled = true
+
+	# Reset state
+	is_dead = false
+	in_range = false
+	time_since_last_attack = 0.0
+
+	# Reset status effects
+	burn_active = false
+	burn_timer = 0.0
+	burn_damage = 0.0
+	burn_power = 0.0
+
+	poison_active = false
+	poison_timer = 0.0
+	poison_percent = 0.0
+
+	slow_active = false
+	slow_timer = 0.0
+	slow_percent = 0.0
+	slow_duration = 0.0
+
+	stun_active = false
+	stun_timer = 0.0
+	stun_duration = 0.0
+
+	# Reconnect signals if needed
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if not attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			var err = attack_zone.body_entered.connect(Callable(self, "_on_attack_zone_body_entered"))
+			if err != OK:
+				push_error("Failed to connect AttackZone.body_entered signal: " + str(err))
+
+		if not attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			var err = attack_zone.body_exited.connect(Callable(self, "_on_attack_zone_body_exited"))
+			if err != OK:
+				push_error("Failed to connect AttackZone.body_exited signal: " + str(err))
+
+	# Create visual representation
+	var visual_container = VisualFactory.create_enemy_visual(enemy_type, self)
+
+	# Reset visual if exists
+	if visual_container:
+		visual_container.modulate = Color(1, 1, 1, 1)
+		visual_container.scale = Vector2.ONE
+
+func cleanup_pooled_object() -> void:
+	# Called when enemy is returned to pool
+	# Remove from enemies group
+	remove_from_group("enemies")
+
+	# Disconnect signals
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			attack_zone.body_entered.disconnect(Callable(self, "_on_attack_zone_body_entered"))
+		if attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			attack_zone.body_exited.disconnect(Callable(self, "_on_attack_zone_body_exited"))
+
+	# Clear references
+	tower = null
+	target = null
+
+func _cleanup_and_recycle() -> void:
+	# Remove from group
+	remove_from_group("enemies")
+
+	# Disconnect signals
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			attack_zone.body_entered.disconnect(Callable(self, "_on_attack_zone_body_entered"))
+		if attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			attack_zone.body_exited.disconnect(Callable(self, "_on_attack_zone_body_exited"))
+
+	# Return to pool or free
+	if is_pooled:
+		ObjectPool.recycle(self)
+	else:
+		queue_free()

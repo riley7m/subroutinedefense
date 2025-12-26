@@ -26,6 +26,10 @@ func _ready() -> void:
 	# Add to Tower group for easy reference
 	add_to_group("Tower")
 
+	# Initialize projectile pool
+	if projectile_scene and not ObjectPool.pools.has("projectile"):
+		ObjectPool.create_pool("projectile", projectile_scene, 50)
+
 	# Init timers
 	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)  # Guard against division by zero
 	fire_timer.wait_time = 1.0 / fire_rate
@@ -119,10 +123,10 @@ func fire_projectile() -> void:
 	var num_targets = UpgradeManager.get_multi_target_level()
 	var enemies = get_nearest_enemies(num_targets)
 	for enemy in enemies:
-		var projectile = projectile_scene.instantiate()
-		projectile.global_position = global_position
-		projectile.target = enemy
-		current.add_child(projectile)
+		var projectile = ObjectPool.spawn("projectile", current)
+		if projectile:
+			projectile.global_position = global_position
+			projectile.target = enemy
 
 		# Create muzzle flash effect
 		var direction = (enemy.global_position - global_position).normalized()

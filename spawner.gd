@@ -25,6 +25,15 @@ var current_wave: int = 1
 var wave_spawning: bool = false
 var enemy_spawn_timer: float = 0.0
 
+func _ready() -> void:
+	# Initialize enemy pools for all types
+	var enemy_types = ["breacher", "slicer", "sentinel", "signal_runner", "null_walker", "override"]
+	for i in range(enemy_scenes.size()):
+		if i < enemy_types.size():
+			var pool_name = "enemy_" + enemy_types[i]
+			if not ObjectPool.pools.has(pool_name):
+				ObjectPool.create_pool(pool_name, enemy_scenes[i], 30)
+
 func _process(delta: float) -> void:
 	if wave_spawning:
 		enemy_spawn_timer += delta
@@ -75,9 +84,14 @@ func spawn_enemy() -> void:
 		return
 
 	var enemy_type_index = pick_enemy_type(current_wave)
-	var enemy_scene = enemy_scenes[enemy_type_index]
-	var enemy = enemy_scene.instantiate()
-	add_child(enemy)
+	var enemy_types = ["breacher", "slicer", "sentinel", "signal_runner", "null_walker", "override"]
+	var pool_name = "enemy_" + enemy_types[enemy_type_index]
+
+	# Spawn from pool
+	var enemy = ObjectPool.spawn(pool_name, self)
+	if not enemy:
+		print("❌ Failed to spawn enemy from pool!")
+		return
 
 	# Assign wave info
 	enemy.wave_number = current_wave
@@ -101,9 +115,12 @@ func spawn_enemy() -> void:
 	enemy.position = Vector2(spawn_x, spawn_y)
 
 func spawn_boss(wave_number: int) -> void:
-	var boss_scene = enemy_scenes[5]  # OVERRIDE index
-	var boss = boss_scene.instantiate()
-	add_child(boss)
+	# Spawn boss from pool
+	var boss = ObjectPool.spawn("enemy_override", self)
+	if not boss:
+		print("❌ Failed to spawn boss from pool!")
+		return
+
 	boss.wave_number = wave_number
 	boss.tower_position = tower_ref.global_position
 	boss.tower = tower_ref
@@ -158,4 +175,7 @@ func reset():
 	# Remove all enemies from the scene
 	for enemy in get_children():
 		if "Enemy" in enemy.name or enemy.is_in_group("enemies"):
-			enemy.queue_free()
+			if enemy.has_method("_cleanup_and_recycle"):
+				enemy._cleanup_and_recycle()
+			else:
+				enemy.queue_free()

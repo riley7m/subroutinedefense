@@ -1,6 +1,7 @@
 extends Area2D
 
 @export var speed: float = 400
+@export var base_speed: float = 400  # Store original speed for pooling reset
 var target: Node2D = null
 var pierced_targets: Array = []  # Track pierced enemies
 var ricochet_count: int = 0  # Track number of ricochets
@@ -10,6 +11,9 @@ var trail: Line2D
 const MAX_TRAIL_POINTS: int = 15
 const TRAIL_SPACING: float = 5.0
 var last_trail_pos: Vector2
+
+# Pooling support
+var is_pooled: bool = false
 
 func _ready() -> void:
 	# Apply projectile speed multiplier from upgrades
@@ -47,14 +51,7 @@ func _process(delta: float) -> void:
 				last_trail_pos = global_position
 	else:
 		# Target is invalid, clean up
-		if trail and is_instance_valid(trail):
-			trail.queue_free()
-
-		# Disconnect signal before freeing
-		if body_entered.is_connected(Callable(self, "_on_body_entered")):
-			body_entered.disconnect(Callable(self, "_on_body_entered"))
-
-		queue_free()
+		_cleanup_and_recycle()
 
 func _exit_tree() -> void:
 	# Safety cleanup if projectile is freed without hitting target
@@ -143,15 +140,8 @@ func _on_body_entered(body: Node2D) -> void:
 				var spread_damage = int(overkill_damage * overkill_percent)
 				_spread_overkill_damage(spread_damage, body)
 
-		# Clean up trail and signal
-		if trail and is_instance_valid(trail):
-			trail.queue_free()
-
-		# Disconnect signal before freeing
-		if body_entered.is_connected(Callable(self, "_on_body_entered")):
-			body_entered.disconnect(Callable(self, "_on_body_entered"))
-
-		queue_free()
+		# Clean up and recycle
+		_cleanup_and_recycle()
 
 func _find_nearest_enemy(exclude: Node2D) -> Node2D:
 	var enemies = get_tree().get_nodes_in_group("enemies")
@@ -196,3 +186,65 @@ func _spread_overkill_damage(damage: int, origin: Node2D) -> void:
 			if enemy.has_method("take_damage"):
 				enemy.take_damage(split_damage)
 				RunStats.damage_dealt += split_damage
+
+# --- OBJECT POOLING METHODS ---
+
+func reset_pooled_object() -> void:
+	# Called when projectile is taken from pool
+	is_pooled = true
+
+	# Reset state
+	pierced_targets.clear()
+	ricochet_count = 0
+	speed = base_speed * UpgradeManager.get_projectile_speed()
+
+	# Reconnect signal if needed
+	if not body_entered.is_connected(Callable(self, "_on_body_entered")):
+		var err = body_entered.connect(Callable(self, "_on_body_entered"))
+		if err != OK:
+			push_error("Failed to connect projectile body_entered signal: " + str(err))
+
+	# Create visual representation
+	VisualFactory.create_projectile_visual(self)
+
+	# Add quick spawn animation
+	VisualFactory.add_spawn_animation(self, 0.15)
+
+	# Create trail effect
+	var parent = get_parent()
+	if parent and is_instance_valid(parent):
+		trail = AdvancedVisuals.create_projectile_trail(parent, Color(0.3, 0.9, 1.0))
+		last_trail_pos = global_position
+	else:
+		trail = null
+
+func cleanup_pooled_object() -> void:
+	# Called when projectile is returned to pool
+	# Clean up trail
+	if trail and is_instance_valid(trail):
+		trail.queue_free()
+		trail = null
+
+	# Disconnect signal
+	if body_entered.is_connected(Callable(self, "_on_body_entered")):
+		body_entered.disconnect(Callable(self, "_on_body_entered"))
+
+	# Clear references
+	target = null
+	pierced_targets.clear()
+
+func _cleanup_and_recycle() -> void:
+	# Clean up trail
+	if trail and is_instance_valid(trail):
+		trail.queue_free()
+		trail = null
+
+	# Disconnect signal
+	if body_entered.is_connected(Callable(self, "_on_body_entered")):
+		body_entered.disconnect(Callable(self, "_on_body_entered"))
+
+	# Return to pool or free
+	if is_pooled:
+		ObjectPool.recycle(self)
+	else:
+		queue_free()
