@@ -16,9 +16,17 @@ config/features=PackedStringArray("4.4", "Mobile")
 
 [autoload]
 
+ConfigLoader="*res://ConfigLoader.gd"
+NumberFormatter="*res://NumberFormatter.gd"
 VisualFactory="*res://VisualFactory.gd"
+AdvancedVisuals="*res://AdvancedVisuals.gd"
 ParticleEffects="*res://ParticleEffects.gd"
+ScreenEffects="*res://ScreenEffects.gd"
 UIStyler="*res://UIStyler.gd"
+ObjectPool="*res://ObjectPool.gd"
+TierManager="*res://TierManager.gd"
+BossRushManager="*res://BossRushManager.gd"
+CloudSaveManager="*res://CloudSaveManager.gd"
 RewardManager="*res://RewardManager.gd"
 UpgradeManager="*res://UpgradeManager.gd"
 RunStats="*res://RunStats.gd"

@@ -25,6 +25,8 @@ func pick_target() -> Node2D:
 			continue
 		if not enemy.has_method("global_position") and not "global_position" in enemy:
 			continue
+		if not is_in_range(enemy):  # Only target enemies in horizontal range
+			continue
 		var distance = tower.global_position.distance_to(enemy.global_position)
 		if distance < min_distance:
 			min_distance = distance

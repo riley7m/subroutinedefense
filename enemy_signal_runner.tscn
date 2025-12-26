@@ -1,15 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://dxstpg16bvq7a"]
+[gd_scene load_steps=1 format=3 uid="uid://dxstpg16bvq7a"]
 
 [ext_resource type="PackedScene" uid="uid://rui5sml5vao5" path="res://enemy.tscn" id="1_dqi1k"]
-[ext_resource type="Texture2D" uid="uid://b371kkb8lhrqi" path="res://sprites/Signal Runner Sprite.png" id="2_w8spo"]
 
 [node name="Enemy" instance=ExtResource("1_dqi1k")]
 base_hp = 65
 base_damage = 15
 base_speed = 120.0
 enemy_type = "signal_runner"
-
-[node name="Sprite2D" parent="." index="0"]
-z_index = 1
-scale = Vector2(1, 1)
-texture = ExtResource("2_w8spo")

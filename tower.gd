@@ -15,6 +15,7 @@ var target: Node2D = null
 var tower_hp: int = 1000
 var max_shield: int
 var current_shield: int = 0
+var current_overshield: int = 0  # Extra shield layer from upgrades
 var shield_regen_rate: float
 var shield_initialized: bool = false
 
@@ -24,6 +25,10 @@ var shield_initialized: bool = false
 func _ready() -> void:
 	# Add to Tower group for easy reference
 	add_to_group("Tower")
+
+	# Initialize projectile pool
+	if projectile_scene and not ObjectPool.pools.has("projectile"):
+		ObjectPool.create_pool("projectile", projectile_scene, 50)
 
 	# Init timers
 	var fire_rate = max(UpgradeManager.get_projectile_fire_rate(), 0.1)  # Guard against division by zero
@@ -48,20 +53,8 @@ func _ready() -> void:
 	if current:
 		death_screen = current.get_node_or_null("DeathScreen")
 
-	# Create visual representation
+	# Create visual representation (includes Light2D)
 	VisualFactory.create_tower_visual(self)
-
-	# Add Light2D for tower glow
-	var light = Light2D.new()
-	light.name = "TowerLight"
-	light.enabled = true
-	light.texture = preload("res://icon.svg")  # Using default texture
-	light.texture_scale = 2.0
-	light.color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
-	light.energy = 1.5
-	light.blend_mode = Light2D.BLEND_MODE_ADD
-	light.shadow_enabled = false
-	add_child(light)
 
 	# Shield init
 	refresh_shield_stats()
@@ -77,9 +70,13 @@ func refresh_shield_stats():
 	# On first initialization, set shield to max; otherwise cap at new max
 	if not shield_initialized:
 		current_shield = max_shield
+		current_overshield = UpgradeManager.get_overshield()
 		shield_initialized = true
 	else:
 		current_shield = min(current_shield, max_shield)
+		# Update overshield based on upgrades
+		var max_overshield = UpgradeManager.get_overshield()
+		current_overshield = min(current_overshield, max_overshield)
 
 	update_bars()
 	update_visual_tier()
@@ -126,27 +123,55 @@ func fire_projectile() -> void:
 	var num_targets = UpgradeManager.get_multi_target_level()
 	var enemies = get_nearest_enemies(num_targets)
 	for enemy in enemies:
-		var projectile = projectile_scene.instantiate()
-		projectile.global_position = global_position
-		projectile.target = enemy
-		current.add_child(projectile)
+		var projectile = ObjectPool.spawn("projectile", current)
+		if projectile:
+			projectile.global_position = global_position
+			projectile.target = enemy
 
 		# Create muzzle flash effect
 		var direction = (enemy.global_position - global_position).normalized()
 		ParticleEffects.create_muzzle_flash(global_position, direction, current)
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, attacker: Node2D = null) -> void:
+	var damage = amount
+
+	# Check for block chance
+	var block_chance = UpgradeManager.get_block_chance()
+	if block_chance > 0 and randf() * 100.0 < block_chance:
+		var block_amount = UpgradeManager.get_block_amount()
+		damage = max(0, damage - block_amount)
+		if damage == 0:
+			#print("🛡️ Blocked all damage!")
+			return
+
+	# Apply boss resistance if attacker is a boss
+	var is_boss_attack = false
+	if attacker and attacker.has_method("is_boss") and attacker.is_boss():
+		is_boss_attack = true
+		var boss_resistance = UpgradeManager.get_boss_resistance()
+		damage = int(damage * (1.0 - (boss_resistance / 100.0)))
+
+		# Trigger impact distortion on boss hits
+		BackgroundEffects.trigger_impact_distortion(global_position, 5.0)
+
 	# Apply damage reduction
 	var reduction = UpgradeManager.get_damage_reduction_level()
-	var reduced_amount = int(amount * (1.0 - (reduction / 100.0)))
+	var reduced_amount = int(damage * (1.0 - (reduction / 100.0)))
 
 	RunStats.damage_taken += reduced_amount
 
 	# Screen shake when hit
 	ScreenEffects.screen_shake(3.0, 0.2)
 
-	# Apply to shield first
-	if current_shield > 0:
+	# Apply to overshield first
+	if current_overshield > 0:
+		var blocked = min(current_overshield, reduced_amount)
+		current_overshield -= blocked
+		reduced_amount -= blocked
+		#print("⚡ Overshield blocked", blocked, "Remaining:", current_overshield)
+
+	# Then apply to shield
+	if current_shield > 0 and reduced_amount > 0:
 		var blocked = min(current_shield, reduced_amount)
 		var shield_broke = (current_shield - blocked) <= 0 and current_shield > 0
 		current_shield -= blocked
@@ -163,10 +188,29 @@ func take_damage(amount: int) -> void:
 		#print("💥 Tower hit! Remaining HP:", tower_hp)
 
 		# Check for death
-		if tower_hp <= 0 and death_screen:
+		if tower_hp <= 0:
 			_cleanup_before_death()
-			ScreenEffects.death_transition()
-			death_screen.show_death()
+
+			# Check if boss rush is active - use custom death screen
+			if BossRushManager and BossRushManager.is_boss_rush_active():
+				var spawner = get_tree().current_scene.get_node_or_null("Spawner")
+				if spawner and spawner.has_method("end_boss_rush"):
+					spawner.end_boss_rush()
+
+				# Show boss rush death screen instead of normal death screen
+				var boss_rush_death = get_tree().current_scene.get_node_or_null("BossRushDeathScreen")
+				if boss_rush_death and boss_rush_death.has_method("show_boss_rush_death"):
+					ScreenEffects.death_transition()
+					boss_rush_death.show_boss_rush_death(RunStats.damage_dealt, spawner.current_wave)
+				else:
+					print("⚠️ Boss rush death screen not found!")
+					if death_screen:
+						ScreenEffects.death_transition()
+						death_screen.show_death()
+			elif death_screen:
+				# Normal death
+				ScreenEffects.death_transition()
+				death_screen.show_death()
 
 	update_bars()
 

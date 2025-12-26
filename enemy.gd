@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
 # Wave Scaling Constants
-const HP_PER_WAVE: float = 2.5
+const HP_SCALING_BASE: float = 1.02  # Exponential HP scaling (2% per wave)
 const DAMAGE_PER_WAVE: float = 0.4
 const SPEED_PER_WAVE: float = 0.25
 
@@ -47,6 +47,9 @@ var time_since_last_attack := 0.0
 var is_dead: bool = false
 var in_range: bool = false
 var tower: Node = null
+
+# Pooling support
+var is_pooled: bool = false
 
 # --- Burn Effect ---
 var burn_active: bool = false
@@ -110,72 +113,46 @@ func _ready() -> void:
 	attack_zone.monitorable = true
 
 	# Create visual representation
-	VisualFactory.create_enemy_visual(enemy_type, self)
+	var visual_container = VisualFactory.create_enemy_visual(enemy_type, self)
 
-	# Add Light2D for enemy glow (color varies by type)
-	var light = Light2D.new()
-	light.enabled = true
-	light.texture = preload("res://icon.svg")
-	light.texture_scale = 1.5
+	# Add spawn animation
+	VisualFactory.add_spawn_animation(self, 0.4)
 
-	# Different colors for different enemy types
-	match enemy_type:
-		"override":  # Boss
-			light.color = Color(1.0, 0.0, 1.0, 1.0)  # Magenta
-			light.energy = 2.0
-			light.texture_scale = 3.0
-		"sentinel":
-			light.color = Color(1.0, 0.5, 0.0, 1.0)  # Orange
-			light.energy = 1.2
-		"slicer":
-			light.color = Color(1.0, 0.3, 0.3, 1.0)  # Red-orange
-			light.energy = 1.0
-		_:  # Default (breacher)
-			light.color = Color(1.0, 0.2, 0.2, 1.0)  # Red
-			light.energy = 1.0
+	# Add idle animations based on enemy type
+	if visual_container:
+		match enemy_type:
+			"override":  # Boss - slow rotation
+				VisualFactory.add_rotation_animation(visual_container, 0.3)
+			"sentinel":  # Tank - gentle pulse
+				VisualFactory.add_pulse_animation(visual_container, 0.95, 1.05, 1.5)
+			"slicer":  # Fast - quick rotation
+				VisualFactory.add_rotation_animation(visual_container, 2.0)
+			"signal_runner":  # Medium - moderate pulse
+				VisualFactory.add_pulse_animation(visual_container, 0.9, 1.1, 1.0)
+			"null_walker":  # Special - rotation + pulse combo
+				VisualFactory.add_rotation_animation(visual_container, 0.5)
+			_:  # Breacher - subtle pulse
+				VisualFactory.add_pulse_animation(visual_container, 0.95, 1.05, 0.8)
 
-	light.blend_mode = Light2D.BLEND_MODE_ADD
-	light.shadow_enabled = false
-	add_child(light)
-
-	# Create trail effect
-	trail = Line2D.new()
-	trail.width = 4.0
-
-	# Trail color matches enemy type
+	# Create trail effect using AdvancedVisuals (color matches enemy type)
 	var trail_color: Color
 	match enemy_type:
 		"override":  # Boss
-			trail_color = Color(1.0, 0.0, 1.0, 0.5)  # Magenta
+			trail_color = Color(1.0, 0.0, 1.0)  # Magenta
 		"sentinel":
-			trail_color = Color(1.0, 0.5, 0.0, 0.5)  # Orange
+			trail_color = Color(1.0, 0.5, 0.0)  # Orange
 		"slicer":
-			trail_color = Color(1.0, 0.3, 0.3, 0.5)  # Red-orange
+			trail_color = Color(1.0, 0.3, 0.3)  # Red-orange
 		_:  # Breacher
-			trail_color = Color(1.0, 0.2, 0.2, 0.5)  # Red
+			trail_color = Color(1.0, 0.2, 0.2)  # Red
 
-	# Create gradient for trail fade
-	var gradient = Gradient.new()
-	gradient.add_point(0.0, Color(trail_color.r, trail_color.g, trail_color.b, 0.0))
-	gradient.add_point(1.0, trail_color)
-	trail.gradient = gradient
-
-	trail.width_curve = Curve.new()
-	trail.width_curve.add_point(Vector2(0.0, 0.2))
-	trail.width_curve.add_point(Vector2(1.0, 1.0))
-
-	trail.antialiased = true
-	trail.z_index = -1
-
-	# Null safety check for parent
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		parent.add_child(trail)
+		trail = AdvancedVisuals.create_projectile_trail(parent, trail_color)
+		trail.width = 4.0  # Enemies have thicker trails than projectiles
+		last_trail_pos = global_position
 	else:
-		trail.queue_free()
 		trail = null
-
-	last_trail_pos = global_position
 
 	#print("✅ AttackZone signals connected")
 	#print("New enemy spawned:", self.name)
@@ -188,8 +165,9 @@ func _physics_process(delta: float) -> void:
 		if stun_timer >= stun_duration:
 			stun_active = false
 			stun_timer = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("stun", self)
+			AdvancedVisuals.remove_status_icon("stun", self)
 			#print(name, "stun ended")
 		return
 	# Move toward tower
@@ -197,15 +175,11 @@ func _physics_process(delta: float) -> void:
 	velocity = direction * move_speed
 	move_and_slide()
 
-	# Update trail
+	# Update trail using AdvancedVisuals
 	if trail and is_instance_valid(trail):
 		if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
-			trail.add_point(global_position)
+			AdvancedVisuals.update_trail(trail, global_position, MAX_TRAIL_POINTS)
 			last_trail_pos = global_position
-
-			# Limit trail length
-			if trail.get_point_count() > MAX_TRAIL_POINTS:
-				trail.remove_point(0)
 
 	time_since_last_attack += delta
 	if in_range and time_since_last_attack >= attack_speed:
@@ -213,7 +187,18 @@ func _physics_process(delta: float) -> void:
 		time_since_last_attack = 0.0
 
 		if tower and tower.has_method("take_damage"):
-			tower.take_damage(damage_to_tower)
+			# Pass enemy reference for boss resistance check
+			var method_info = tower.get_method_list()
+			var supports_enemy_ref = false
+			for method in method_info:
+				if method.name == "take_damage":
+					supports_enemy_ref = method.args.size() >= 2
+					break
+
+			if supports_enemy_ref:
+				tower.take_damage(damage_to_tower, self)
+			else:
+				tower.take_damage(damage_to_tower)
 			#print("🔥 Called take_damage on tower!")
 		else:
 			print("❌ tower.take_damage() failed — tower is:", tower)
@@ -232,8 +217,9 @@ func _physics_process(delta: float) -> void:
 			burn_tick_timer = 0.0
 			burn_duration = 0.0
 			burn_damage_per_tick = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("burn", self)
+			AdvancedVisuals.remove_status_icon("burn", self)
 			#print("🔥", name, "burn ended")
 		if hp <= 0 and not is_dead:
 			is_dead = true
@@ -253,8 +239,9 @@ func _physics_process(delta: float) -> void:
 			poison_tick_timer = 0.0
 			poison_duration = 0.0
 			poison_damage_per_tick = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("poison", self)
+			AdvancedVisuals.remove_status_icon("poison", self)
 			#print("🟣", name, "poison ended")
 		if hp <= 0 and not is_dead:
 			is_dead = true
@@ -266,8 +253,9 @@ func _physics_process(delta: float) -> void:
 			slow_active = false
 			slow_timer = 0.0
 			slow_percent = 0.0
-			# Remove visual effect
+			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("slow", self)
+			AdvancedVisuals.remove_status_icon("slow", self)
 			#print("🟦", name, "slow effect ended.")
 		else:
 			# Apply slow to current movement
@@ -301,40 +289,10 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 	# Hit flash effect
 	_trigger_hit_flash(is_critical)
 
-	# Spawn floating damage number
-	var damage_label = Label.new()
-	damage_label.text = str(amount)
-	damage_label.global_position = global_position
-	damage_label.z_index = 100
-
-	# Style the label
-	damage_label.add_theme_font_size_override("font_size", 24 if not is_critical else 32)
-	damage_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	damage_label.add_theme_constant_override("outline_size", 3)
-
-	if is_critical:
-		damage_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.3))  # Yellow for crits
-	else:
-		damage_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))  # White for normal
-
-	# Null safety check for parent
+	# Spawn floating damage number using AdvancedVisuals
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		parent.add_child(damage_label)
-	else:
-		damage_label.queue_free()
-		return
-
-	# Animate the damage number
-	var tween = damage_label.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(damage_label, "global_position:y", global_position.y - 50, 1.0)
-	tween.tween_property(damage_label, "global_position:x", global_position.x + randf_range(-20, 20), 1.0)
-	tween.tween_property(damage_label, "modulate:a", 0.0, 0.5).set_delay(0.5)
-	tween.tween_callback(func():
-		if is_instance_valid(damage_label):
-			damage_label.queue_free()
-	).set_delay(1.0)
+		AdvancedVisuals.create_damage_number(amount, global_position, is_critical, parent)
 
 	hp -= amount
 	if hp <= 0:
@@ -382,12 +340,17 @@ func die():
 	# Existing death logic (play animation, remove from scene, etc.)
 	RewardManager.reward_enemy(enemy_type, wave_number)
 	RewardManager.reward_enemy_at(enemy_type, wave_number)
+	RunStats.record_kill(enemy_type)  # Track lifetime kills
 
 	# Grant fragments for boss kills
 	if enemy_type == "override":
 		var fragment_reward = 10 + int(wave_number / 10)  # Scales with wave
 		RewardManager.add_fragments(fragment_reward)
 		print("💎 Boss killed! Fragments earned:", fragment_reward)
+
+		# Show fragment notification at boss position
+		ScreenEffects.fragment_notification(fragment_reward, global_position)
+
 		# Boss mega explosion
 		ParticleEffects.create_boss_explosion(global_position, get_parent())
 	else:
@@ -401,7 +364,7 @@ func _trigger_death_dissolve() -> void:
 	# Find visual container
 	var visual_container = get_node_or_null("VisualContainer")
 	if not visual_container:
-		queue_free()
+		_cleanup_and_recycle()
 		return
 
 	# Dissolve animation
@@ -418,7 +381,7 @@ func _trigger_death_dissolve() -> void:
 	# Cleanup after animation
 	tween.tween_callback(func():
 		if is_instance_valid(self):
-			queue_free()
+			_cleanup_and_recycle()
 	).set_delay(0.4)
 
 func _spawn_dissolve_particles() -> void:
@@ -461,12 +424,28 @@ func _spawn_dissolve_particles() -> void:
 		)
 	
 func apply_wave_scaling():
-	hp = base_hp + int(wave_number * HP_PER_WAVE)
-	damage_to_tower = base_damage + int(wave_number * DAMAGE_PER_WAVE)
-	move_speed = (base_speed + wave_number * SPEED_PER_WAVE) / 2
+	# Get tier multiplier
+	var tier_mult = TierManager.get_enemy_multiplier()
+
+	# Apply tier multiplier to base stats, then wave scaling
+	# Exponential HP scaling for better late-game balance
+	hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
+	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
+	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)
-	#print("enemy hp:", hp)
-	
+	#print("enemy hp:", hp, "tier mult:", tier_mult)
+
+func apply_boss_rush_scaling():
+	# Boss rush uses faster scaling than normal tiers
+	var boss_rush_mult = BossRushManager.get_boss_rush_hp_multiplier(wave_number)
+
+	# Apply exponential HP scaling (5% per wave vs 2% normal)
+	hp = int(base_hp * boss_rush_mult)
+	damage_to_tower = int(base_damage * BossRushManager.get_boss_rush_damage_multiplier())
+	move_speed = base_speed * BossRushManager.get_boss_rush_speed_multiplier()
+
+	#print("Boss rush wave:", wave_number, "HP:", hp, "Mult:", boss_rush_mult)
+
 func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) -> void:
 	# 15% at level 1 → 150% at level 10 (linear)
 	var percent = BURN_MIN_PERCENT + ((level - 1) * (BURN_MAX_PERCENT - BURN_MIN_PERCENT) / 9)
@@ -474,7 +453,8 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) ->
 	burn_damage_per_tick = base_damage * percent * crit_multiplier
 
 	# Cap at 10% of max HP per second
-	var max_hp = base_hp + int(wave_number * HP_PER_WAVE)
+	var tier_mult = TierManager.get_enemy_multiplier()
+	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
 	var max_burn_per_tick = max_hp * BURN_HP_CAP_PERCENT
 	if burn_damage_per_tick > max_burn_per_tick:
 		burn_damage_per_tick = max_burn_per_tick
@@ -484,8 +464,9 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) ->
 	burn_timer = 0.0
 	burn_tick_timer = 0.0
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("burn", self)
+	AdvancedVisuals.create_status_icon("burn", self)
 	#print("🔥", name, "burning for", burn_duration, "sec, burn tick:", burn_damage_per_tick, "every", burn_tick_interval, "s (capped at 10% max HP if exceeded)")
 
 func apply_poison(level: int) -> void:
@@ -493,7 +474,8 @@ func apply_poison(level: int) -> void:
 	# Level 1 = 1% per sec, Level 10 = 10% per sec, capped at 10%
 	var percent_per_sec = POISON_MIN_PERCENT + (level - 1) * POISON_PERCENT_PER_LEVEL
 	percent_per_sec = clamp(percent_per_sec, POISON_MIN_PERCENT, POISON_MAX_PERCENT)
-	var max_hp = base_hp + int(wave_number * HP_PER_WAVE)
+	var tier_mult = TierManager.get_enemy_multiplier()
+	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
 	poison_damage_per_tick = max_hp * percent_per_sec
 
 	poison_duration = POISON_DURATION
@@ -501,8 +483,9 @@ func apply_poison(level: int) -> void:
 	poison_timer = 0.0
 	poison_tick_timer = 0.0
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("poison", self)
+	AdvancedVisuals.create_status_icon("poison", self)
 	#print("🟣", name, "poisoned for", poison_duration, "sec at", poison_damage_per_tick, "DPS (" + str(round(percent_per_sec * 100.0)) + "%/s)")
 
 func apply_slow(level: int) -> void:
@@ -512,8 +495,9 @@ func apply_slow(level: int) -> void:
 	slow_timer = 0.0
 	slow_active = true
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("slow", self)
+	AdvancedVisuals.create_status_icon("slow", self)
 	#print("❄️", name, "slowed by", int(slow_percent * 100), "% for", slow_duration, "seconds")
 
 func apply_stun(level: int) -> void:
@@ -522,9 +506,102 @@ func apply_stun(level: int) -> void:
 	stun_timer = 0.0
 	stun_active = true
 
-	# Add visual effect
+	# Add visual effects
 	VisualFactory.create_status_effect_overlay("stun", self)
+	AdvancedVisuals.create_status_icon("stun", self)
 	#print("⚡", name, "stunned for", stun_duration, "seconds!")
 
 func get_current_hp() -> int:
 	return hp
+
+func get_health() -> int:
+	return hp
+
+func is_boss() -> bool:
+	return enemy_type == "override"
+
+# --- OBJECT POOLING METHODS ---
+
+func reset_pooled_object() -> void:
+	# Called when enemy is taken from pool
+	is_pooled = true
+
+	# Reset state
+	is_dead = false
+	in_range = false
+	time_since_last_attack = 0.0
+
+	# Reset status effects
+	burn_active = false
+	burn_timer = 0.0
+	burn_damage = 0.0
+	burn_power = 0.0
+
+	poison_active = false
+	poison_timer = 0.0
+	poison_percent = 0.0
+
+	slow_active = false
+	slow_timer = 0.0
+	slow_percent = 0.0
+	slow_duration = 0.0
+
+	stun_active = false
+	stun_timer = 0.0
+	stun_duration = 0.0
+
+	# Reconnect signals if needed
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if not attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			var err = attack_zone.body_entered.connect(Callable(self, "_on_attack_zone_body_entered"))
+			if err != OK:
+				push_error("Failed to connect AttackZone.body_entered signal: " + str(err))
+
+		if not attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			var err = attack_zone.body_exited.connect(Callable(self, "_on_attack_zone_body_exited"))
+			if err != OK:
+				push_error("Failed to connect AttackZone.body_exited signal: " + str(err))
+
+	# Create visual representation
+	var visual_container = VisualFactory.create_enemy_visual(enemy_type, self)
+
+	# Reset visual if exists
+	if visual_container:
+		visual_container.modulate = Color(1, 1, 1, 1)
+		visual_container.scale = Vector2.ONE
+
+func cleanup_pooled_object() -> void:
+	# Called when enemy is returned to pool
+	# Remove from enemies group
+	remove_from_group("enemies")
+
+	# Disconnect signals
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			attack_zone.body_entered.disconnect(Callable(self, "_on_attack_zone_body_entered"))
+		if attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			attack_zone.body_exited.disconnect(Callable(self, "_on_attack_zone_body_exited"))
+
+	# Clear references
+	tower = null
+	target = null
+
+func _cleanup_and_recycle() -> void:
+	# Remove from group
+	remove_from_group("enemies")
+
+	# Disconnect signals
+	if has_node("AttackZone"):
+		var attack_zone = $AttackZone
+		if attack_zone.body_entered.is_connected(Callable(self, "_on_attack_zone_body_entered")):
+			attack_zone.body_entered.disconnect(Callable(self, "_on_attack_zone_body_entered"))
+		if attack_zone.body_exited.is_connected(Callable(self, "_on_attack_zone_body_exited")):
+			attack_zone.body_exited.disconnect(Callable(self, "_on_attack_zone_body_exited"))
+
+	# Return to pool or free
+	if is_pooled:
+		ObjectPool.recycle(self)
+	else:
+		queue_free()

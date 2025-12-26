@@ -1,13 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://crf7dww6nwm4"]
+[gd_scene load_steps=2 format=3 uid="uid://crf7dww6nwm4"]
 
 [ext_resource type="PackedScene" uid="uid://c0xs6jpvoe8ds" path="res://drone_base.tscn" id="1_mwgkh"]
 [ext_resource type="Script" uid="uid://cynsoxvi07ayp" path="res://drone_frost.gd" id="2_rpj7q"]
-[ext_resource type="Texture2D" uid="uid://73uvhv1tkelg" path="res://icon.svg" id="3_ory3g"]
 
 [node name="drone_base" instance=ExtResource("1_mwgkh")]
 script = ExtResource("2_rpj7q")
-
-[node name="Sprite2D" parent="." index="1"]
-position = Vector2(300, 500)
-scale = Vector2(0.33, 0.33)
-texture = ExtResource("3_ory3g")

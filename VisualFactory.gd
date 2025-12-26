@@ -145,7 +145,7 @@ func _create_default_enemy_visual(container: Node2D) -> void:
 # TOWER VISUALS
 # ============================================================================
 
-func create_tower_visual(parent: Node2D) -> Node2D:
+func create_tower_visual(parent: Node2D) -> Dictionary:
 	var container = Node2D.new()
 	container.name = "TowerVisual"
 
@@ -170,7 +170,20 @@ func create_tower_visual(parent: Node2D) -> Node2D:
 	container.add_child(center)
 
 	parent.add_child(container)
-	return container
+
+	# Create Light2D for tower glow
+	var light = Light2D.new()
+	light.name = "TowerLight"
+	light.enabled = true
+	light.texture = preload("res://icon.svg")
+	light.texture_scale = 2.0
+	light.color = Color(0.2, 0.8, 1.0, 1.0)  # Bright cyan
+	light.energy = 1.5
+	light.blend_mode = Light2D.BLEND_MODE_ADD
+	light.shadow_enabled = false
+	parent.add_child(light)
+
+	return {"container": container, "light": light}
 
 # ============================================================================
 # DRONE VISUALS
@@ -566,3 +579,14 @@ func add_pulse_animation(node: Node2D, scale_min: float = 0.9, scale_max: float 
 		if is_instance_valid(tween):
 			tween.kill()
 	)
+
+func add_spawn_animation(node: Node2D, duration: float = 0.3) -> void:
+	# Start invisible and small
+	node.modulate.a = 0.0
+	node.scale = Vector2(0.3, 0.3)
+
+	# Fade in and scale up
+	var tween = node.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(node, "modulate:a", 1.0, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "scale", Vector2(1.0, 1.0), duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

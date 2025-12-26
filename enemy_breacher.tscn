@@ -1,14 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://b1rgcwi4frgru"]
+[gd_scene load_steps=1 format=3 uid="uid://b1rgcwi4frgru"]
 
 [ext_resource type="PackedScene" uid="uid://rui5sml5vao5" path="res://enemy.tscn" id="1_8j8w7"]
-[ext_resource type="Texture2D" uid="uid://cvysq1t3lyopo" path="res://sprites/Breacher Sprite.png" id="2_orx4q"]
 
 [node name="Enemy" instance=ExtResource("1_8j8w7")]
 base_hp = 20
 base_damage = 8
 base_speed = 250.0
-
-[node name="Sprite2D" parent="." index="0"]
-z_index = 1
-scale = Vector2(1, 1)
-texture = ExtResource("2_orx4q")

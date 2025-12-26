@@ -1,14 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://dbrlti05mdx3p"]
+[gd_scene load_steps=1 format=3 uid="uid://dbrlti05mdx3p"]
 
 [ext_resource type="PackedScene" uid="uid://rui5sml5vao5" path="res://enemy.tscn" id="1_p10ou"]
-[ext_resource type="Texture2D" uid="uid://tts62b4olaut" path="res://sprites/Nullwalker Sprite.png" id="2_7nu56"]
 
 [node name="Enemy" instance=ExtResource("1_p10ou")]
 base_hp = 100
 base_damage = 20
+base_speed = 70.0
 enemy_type = "nullwalker"
-
-[node name="Sprite2D" parent="." index="0"]
-z_index = 1
-scale = Vector2(1, 1)
-texture = ExtResource("2_7nu56")

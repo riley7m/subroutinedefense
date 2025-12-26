@@ -21,6 +21,16 @@ var lab_levels: Dictionary = {
 	"wave_analysis": 0,
 	"probability_matrix": 0,
 	"multi_target_systems": 0,
+	"piercing_enhancement": 0,
+	"overkill_processing": 0,
+	"projectile_acceleration": 0,
+	"block_systems": 0,
+	"block_amplification": 0,
+	"boss_resistance_training": 0,
+	"overshield_enhancement": 0,
+	"boss_targeting": 0,
+	"loot_optimization": 0,
+	"lab_acceleration": 0,
 }
 
 # Lab definitions
@@ -42,10 +52,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 3600,  # 1 hour for level 1
 			"duration_scaling": 1.05,  # 5% longer each level
-			"base_cost_fragments": 50,
-			"base_cost_at": 0,
+			"base_cost_at": 500,  # AT-only cost from level 1
 			"cost_scaling": 1.08,  # 8% more expensive each level
-			"at_cost_starts_at_level": 20,  # AT cost starts at level 20
 			"bonus_per_level": {"projectile_damage_perm": 10},
 			"tier": 1,
 		},
@@ -56,10 +64,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 3600,
 			"duration_scaling": 1.05,
-			"base_cost_fragments": 50,
-			"base_cost_at": 0,
+			"base_cost_at": 500,
 			"cost_scaling": 1.08,
-			"at_cost_starts_at_level": 20,
 			"bonus_per_level": {"fire_rate_perm": 0.01},
 			"tier": 1,
 		},
@@ -70,10 +76,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 7200,  # 2 hours
 			"duration_scaling": 1.06,
-			"base_cost_fragments": 100,
-			"base_cost_at": 0,
+			"base_cost_at": 600,
 			"cost_scaling": 1.10,
-			"at_cost_starts_at_level": 15,
 			"bonus_per_level": {"crit_chance_perm": 0.5},  # 0.5% per level
 			"tier": 1,
 		},
@@ -84,10 +88,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 14400,  # 4 hours
 			"duration_scaling": 1.07,
-			"base_cost_fragments": 200,
-			"base_cost_at": 50,
+			"base_cost_at": 1000,
 			"cost_scaling": 1.12,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"crit_damage_perm": 0.02},  # 2% per level
 			"tier": 2,
 		},
@@ -98,10 +100,8 @@ func _initialize_labs() -> void:
 			"max_level": 100,
 			"base_duration": 3600,
 			"duration_scaling": 1.05,
-			"base_cost_fragments": 50,
-			"base_cost_at": 0,
+			"base_cost_at": 500,
 			"cost_scaling": 1.08,
-			"at_cost_starts_at_level": 20,
 			"bonus_per_level": {"shield_integrity_perm": 20},
 			"tier": 1,
 		},
@@ -112,10 +112,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 14400,  # 4 hours
 			"duration_scaling": 1.07,
-			"base_cost_fragments": 200,
-			"base_cost_at": 50,
+			"base_cost_at": 1000,
 			"cost_scaling": 1.12,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"damage_reduction_perm": 0.005},  # 0.5% per level
 			"tier": 2,
 		},
@@ -126,10 +124,8 @@ func _initialize_labs() -> void:
 			"max_level": 76,
 			"base_duration": 7200,  # 2 hours
 			"duration_scaling": 1.06,
-			"base_cost_fragments": 100,
-			"base_cost_at": 0,
+			"base_cost_at": 500,
 			"cost_scaling": 1.09,
-			"at_cost_starts_at_level": 25,
 			"bonus_per_level": {"shield_regen_perm": 0.5},
 			"tier": 1,
 		},
@@ -140,10 +136,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 10800,  # 3 hours
 			"duration_scaling": 1.08,
-			"base_cost_fragments": 150,
-			"base_cost_at": 100,
+			"base_cost_at": 1200,
 			"cost_scaling": 1.15,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"data_credit_multiplier": 0.01},  # 1% per level
 			"tier": 2,
 		},
@@ -154,10 +148,8 @@ func _initialize_labs() -> void:
 			"max_level": 50,
 			"base_duration": 10800,  # 3 hours
 			"duration_scaling": 1.08,
-			"base_cost_fragments": 150,
-			"base_cost_at": 100,
+			"base_cost_at": 1200,
 			"cost_scaling": 1.15,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"archive_token_multiplier": 0.01},  # 1% per level
 			"tier": 2,
 		},
@@ -168,10 +160,8 @@ func _initialize_labs() -> void:
 			"max_level": 30,
 			"base_duration": 21600,  # 6 hours
 			"duration_scaling": 1.10,
-			"base_cost_fragments": 500,
-			"base_cost_at": 200,
+			"base_cost_at": 2000,
 			"cost_scaling": 1.18,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"wave_skip_chance_perm": 0.5},  # 0.5% per level
 			"tier": 3,
 		},
@@ -182,10 +172,8 @@ func _initialize_labs() -> void:
 			"max_level": 30,
 			"base_duration": 21600,  # 6 hours
 			"duration_scaling": 1.10,
-			"base_cost_fragments": 500,
-			"base_cost_at": 200,
+			"base_cost_at": 2000,
 			"cost_scaling": 1.18,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"free_upgrade_chance_perm": 0.5},  # 0.5% per level
 			"tier": 3,
 		},
@@ -196,11 +184,129 @@ func _initialize_labs() -> void:
 			"max_level": 30,
 			"base_duration": 28800,  # 8 hours
 			"duration_scaling": 1.12,
-			"base_cost_fragments": 1000,
-			"base_cost_at": 500,
+			"base_cost_at": 5000,
 			"cost_scaling": 1.20,
-			"at_cost_starts_at_level": 1,
 			"bonus_per_level": {"multi_target_bonus": 0.1},  # 0.1 per level
+			"tier": 3,
+		},
+
+		"piercing_enhancement": {
+			"name": "Piercing Enhancement",
+			"description": "Enable projectiles to pierce multiple enemies",
+			"max_level": 100,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_at": 700,
+			"cost_scaling": 1.09,
+			"bonus_per_level": {"piercing_perm": 1},  # +1 pierce per level
+			"tier": 1,
+		},
+
+		"overkill_processing": {
+			"name": "Overkill Processing",
+			"description": "Spread excess damage to nearby enemies",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_at": 1000,
+			"cost_scaling": 1.12,
+			"bonus_per_level": {"overkill_damage_perm": 0.05},  # +5% overkill per level
+			"tier": 2,
+		},
+
+		"projectile_acceleration": {
+			"name": "Projectile Acceleration",
+			"description": "Increase projectile travel speed",
+			"max_level": 100,
+			"base_duration": 3600,  # 1 hour
+			"duration_scaling": 1.05,
+			"base_cost_at": 400,
+			"cost_scaling": 1.07,
+			"bonus_per_level": {"projectile_speed_perm": 0.1},  # +10% speed per level
+			"tier": 1,
+		},
+
+		"block_systems": {
+			"name": "Block Systems",
+			"description": "Add chance to completely block incoming damage",
+			"max_level": 75,
+			"base_duration": 7200,  # 2 hours
+			"duration_scaling": 1.06,
+			"base_cost_at": 700,
+			"cost_scaling": 1.09,
+			"bonus_per_level": {"block_chance_perm": 1.0},  # +1% block chance per level
+			"tier": 1,
+		},
+
+		"block_amplification": {
+			"name": "Block Amplification",
+			"description": "Increase amount of damage blocked per successful block",
+			"max_level": 100,
+			"base_duration": 5400,  # 1.5 hours
+			"duration_scaling": 1.055,
+			"base_cost_at": 500,
+			"cost_scaling": 1.08,
+			"bonus_per_level": {"block_amount_perm": 5},  # +5 damage blocked per level
+			"tier": 1,
+		},
+
+		"boss_resistance_training": {
+			"name": "Boss Resistance Training",
+			"description": "Reduce damage taken from boss enemies",
+			"max_level": 50,
+			"base_duration": 18000,  # 5 hours
+			"duration_scaling": 1.08,
+			"base_cost_at": 1500,
+			"cost_scaling": 1.14,
+			"bonus_per_level": {"boss_resistance_perm": 1.0},  # +1% boss resistance per level
+			"tier": 2,
+		},
+
+		"overshield_enhancement": {
+			"name": "Overshield Enhancement",
+			"description": "Add extra shield layer beyond base shield",
+			"max_level": 100,
+			"base_duration": 3600,  # 1 hour
+			"duration_scaling": 1.05,
+			"base_cost_at": 500,
+			"cost_scaling": 1.08,
+			"bonus_per_level": {"overshield_perm": 15},  # +15 overshield per level
+			"tier": 1,
+		},
+
+		"boss_targeting": {
+			"name": "Boss Targeting",
+			"description": "Optimize damage output against bosses",
+			"max_level": 50,
+			"base_duration": 14400,  # 4 hours
+			"duration_scaling": 1.07,
+			"base_cost_at": 1000,
+			"cost_scaling": 1.12,
+			"bonus_per_level": {"boss_bonus_perm": 0.05},  # +5% boss damage per level
+			"tier": 2,
+		},
+
+		"loot_optimization": {
+			"name": "Loot Optimization",
+			"description": "Increase chance for extra rewards",
+			"max_level": 50,
+			"base_duration": 10800,  # 3 hours
+			"duration_scaling": 1.08,
+			"base_cost_at": 1200,
+			"cost_scaling": 1.15,
+			"bonus_per_level": {"lucky_drops_perm": 0.5},  # +0.5% lucky drops per level
+			"tier": 2,
+		},
+
+		"lab_acceleration": {
+			"name": "Lab Acceleration",
+			"description": "Reduce lab completion time",
+			"max_level": 50,
+			"base_duration": 21600,  # 6 hours
+			"duration_scaling": 1.10,
+			"base_cost_at": 2000,
+			"cost_scaling": 1.16,
+			"bonus_per_level": {"lab_speed_perm": 1.0},  # +1% lab speed per level
 			"tier": 3,
 		},
 	}
@@ -225,28 +331,44 @@ func get_duration_for_level(lab_id: String, level: int) -> int:
 	var scaling = lab["duration_scaling"]
 
 	# Duration = base * (scaling ^ (level - 1))
-	return int(base * pow(scaling, level - 1))
+	var duration = base * pow(scaling, level - 1)
 
-func get_cost_for_level(lab_id: String, level: int) -> Dictionary:
+	# Apply lab acceleration (reduces duration by perm_lab_speed %)
+	# Example: 10% lab speed = duration / 1.10 = 0.909x duration (9.1% reduction)
+	var lab_speed_multiplier = 1.0 + (RewardManager.perm_lab_speed / 100.0)
+	duration = duration / lab_speed_multiplier
+
+	return int(duration)
+
+# Software lab cost calculation with exponential scaling
+# Formula: base_at * (scaling ^ (level - 1))
+#
+# Scaling factors by tier:
+# - Tier 1 labs (100 levels): 1.08 scaling (8% increase per level)
+# - Tier 2 labs (50 levels): 1.08-1.20 scaling (varies by lab importance)
+# - Tier 3 labs (30 levels): 1.08 scaling
+#
+# Example progression for base_at=100, scaling=1.08:
+# - Level 1: 100 AT (1.08^0 = 1.0x)
+# - Level 10: 200 AT (1.08^9 = 2.0x)
+# - Level 25: 584 AT (1.08^24 = 5.84x)
+# - Level 50: 4,390 AT (1.08^49 = 43.9x)
+# - Level 100: 192,854 AT (1.08^99 = 1,929x)
+#
+# Higher scaling (1.20) for meta-progression labs like Lab Acceleration
+# creates steeper costs to balance their compounding benefits
+func get_cost_for_level(lab_id: String, level: int) -> int:
 	if not labs.has(lab_id):
-		return {"fragments": 0, "archive_tokens": 0}
+		return 0
 
 	var lab = labs[lab_id]
-	var base_frag = lab["base_cost_fragments"]
 	var base_at = lab["base_cost_at"]
 	var scaling = lab["cost_scaling"]
-	var at_starts = lab["at_cost_starts_at_level"]
 
-	var frag_cost = int(base_frag * pow(scaling, level - 1))
-	var at_cost = 0
+	# Cost = base_at * (scaling ^ (level - 1))
+	var at_cost = int(base_at * pow(scaling, level - 1))
 
-	if level >= at_starts:
-		at_cost = int(base_at * pow(scaling, level - at_starts))
-
-	return {
-		"fragments": frag_cost,
-		"archive_tokens": at_cost
-	}
+	return at_cost
 
 func can_start_upgrade(lab_id: String) -> bool:
 	# Check if lab exists
@@ -266,9 +388,8 @@ func can_start_upgrade(lab_id: String) -> bool:
 	var next_level = get_level(lab_id) + 1
 	var cost = get_cost_for_level(lab_id, next_level)
 
-	if cost["fragments"] > RewardManager.fragments:
-		return false
-	if cost["archive_tokens"] > RewardManager.archive_tokens:
+	# Only check AT cost
+	if cost > RewardManager.archive_tokens:
 		return false
 
 	return true
@@ -288,9 +409,9 @@ func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	var cost = get_cost_for_level(lab_id, next_level)
 	var duration = get_duration_for_level(lab_id, next_level)
 
-	# Deduct cost
-	RewardManager.fragments -= cost["fragments"]
-	RewardManager.archive_tokens -= cost["archive_tokens"]
+	# Deduct AT cost
+	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_lab(cost)  # Track lifetime AT spent on labs
 
 	# Start upgrade
 	active_upgrades[slot_index] = {
@@ -304,7 +425,7 @@ func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	emit_signal("upgrades_updated")
 	save_upgrade_state()
 
-	print("🔬 Started %s level %d (slot %d)" % [lab["name"], next_level, slot_index])
+	print("🔬 Started %s level %d (slot %d) - Cost: %d AT" % [lab["name"], next_level, slot_index, cost])
 	return true
 
 func update_upgrades() -> void:
@@ -378,6 +499,26 @@ func _apply_level_bonuses(lab: Dictionary) -> void:
 				RewardManager.perm_free_upgrade_chance += value
 			"multi_target_bonus":
 				pass  # Not currently stored in RewardManager
+			"piercing_perm":
+				RewardManager.perm_piercing += value
+			"overkill_damage_perm":
+				RewardManager.perm_overkill_damage += value
+			"projectile_speed_perm":
+				RewardManager.perm_projectile_speed += value
+			"block_chance_perm":
+				RewardManager.perm_block_chance += value
+			"block_amount_perm":
+				RewardManager.perm_block_amount += value
+			"boss_resistance_perm":
+				RewardManager.perm_boss_resistance += value
+			"overshield_perm":
+				RewardManager.perm_overshield += value
+			"boss_bonus_perm":
+				RewardManager.perm_boss_bonus += value
+			"lucky_drops_perm":
+				RewardManager.perm_lucky_drops += value
+			"lab_speed_perm":
+				RewardManager.perm_lab_speed += value  # +1% lab speed per level
 
 func get_upgrade_progress(slot_index: int) -> float:
 	if slot_index < 0 or slot_index >= MAX_SLOTS:
@@ -418,42 +559,79 @@ func get_total_bonus(lab_id: String) -> Dictionary:
 	return result
 
 # === SAVE/LOAD ===
-func save_upgrade_state() -> void:
+const LAB_SAVE_FILE = "user://software_upgrades.save"
+const LAB_SAVE_FILE_TEMP = "user://software_upgrades.save.tmp"
+const LAB_SAVE_FILE_BACKUP = "user://software_upgrades.save.backup"
+
+func save_upgrade_state() -> bool:
 	var data = {
 		"active_upgrades": active_upgrades,
 		"lab_levels": lab_levels,
 	}
 
-	var file = FileAccess.open("user://software_upgrades.save", FileAccess.WRITE)
-	if file == null:
-		push_error("Failed to save software upgrades: " + str(FileAccess.get_open_error()))
-		return
+	# ATOMIC SAVE WITH BACKUP
+	# Step 1: Backup existing save
+	if FileAccess.file_exists(LAB_SAVE_FILE):
+		var dir = DirAccess.open("user://")
+		if dir:
+			if FileAccess.file_exists(LAB_SAVE_FILE_BACKUP):
+				dir.remove(LAB_SAVE_FILE_BACKUP)
+			dir.copy(LAB_SAVE_FILE, LAB_SAVE_FILE_BACKUP)
 
+	# Step 2: Write to temp file
+	var file = FileAccess.open(LAB_SAVE_FILE_TEMP, FileAccess.WRITE)
+	if file == null:
+		push_error("❌ Failed to save software upgrades: " + str(FileAccess.get_open_error()))
+		return false
 	file.store_var(data)
 	file.close()
-	print("💾 Software upgrades saved")
 
-func load_upgrade_state() -> void:
-	if not FileAccess.file_exists("user://software_upgrades.save"):
-		print("No software upgrade save found")
-		return
-
-	var file = FileAccess.open("user://software_upgrades.save", FileAccess.READ)
-	if file == null:
-		push_error("Failed to load software upgrades: " + str(FileAccess.get_open_error()))
-		return
-
-	var data = file.get_var()
+	# Step 3: Verify temp file
+	file = FileAccess.open(LAB_SAVE_FILE_TEMP, FileAccess.READ)
+	if file == null or typeof(file.get_var()) != TYPE_DICTIONARY:
+		push_error("❌ Lab save verification failed!")
+		return false
 	file.close()
 
-	if typeof(data) != TYPE_DICTIONARY:
-		push_error("Software upgrade save corrupted")
+	# Step 4: Atomic rename
+	var dir = DirAccess.open("user://")
+	if not dir:
+		return false
+	if FileAccess.file_exists(LAB_SAVE_FILE):
+		dir.remove(LAB_SAVE_FILE)
+	dir.rename(LAB_SAVE_FILE_TEMP, LAB_SAVE_FILE)
+
+	print("💾 Software upgrades saved (atomic)")
+	return true
+
+func load_upgrade_state() -> void:
+	# Try main save, then backup if corrupted
+	var files_to_try = [LAB_SAVE_FILE, LAB_SAVE_FILE_BACKUP]
+
+	for save_file_path in files_to_try:
+		if not FileAccess.file_exists(save_file_path):
+			continue
+
+		var file = FileAccess.open(save_file_path, FileAccess.READ)
+		if file == null:
+			continue
+
+		var data = file.get_var()
+		file.close()
+
+		if typeof(data) != TYPE_DICTIONARY:
+			continue
+
+		# Successfully loaded
+		if save_file_path == LAB_SAVE_FILE_BACKUP:
+			print("⚠️ Lab save corrupted, loaded from backup!")
+
+		active_upgrades = data.get("active_upgrades", [null, null])
+		lab_levels = data.get("lab_levels", {})
+
+		print("🔄 Software upgrades loaded")
+		# Update any completed upgrades that finished while offline
+		update_upgrades()
 		return
 
-	active_upgrades = data.get("active_upgrades", [null, null])
-	lab_levels = data.get("lab_levels", {})
-
-	print("🔄 Software upgrades loaded")
-
-	# Update any completed upgrades that finished while offline
-	update_upgrades()
+	print("No software upgrade save found")

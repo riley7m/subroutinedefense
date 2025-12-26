@@ -6,5 +6,3 @@
 script = ExtResource("1_3557c")
 
 [node name="FireTimer" type="Timer" parent="."]
-
-[node name="Sprite2D" type="Sprite2D" parent="."]

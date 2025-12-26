@@ -25,6 +25,15 @@ var current_wave: int = 1
 var wave_spawning: bool = false
 var enemy_spawn_timer: float = 0.0
 
+func _ready() -> void:
+	# Initialize enemy pools for all types
+	var enemy_types = ["breacher", "slicer", "sentinel", "signal_runner", "null_walker", "override"]
+	for i in range(enemy_scenes.size()):
+		if i < enemy_types.size():
+			var pool_name = "enemy_" + enemy_types[i]
+			if not ObjectPool.pools.has(pool_name):
+				ObjectPool.create_pool(pool_name, enemy_scenes[i], 30)
+
 func _process(delta: float) -> void:
 	if wave_spawning:
 		enemy_spawn_timer += delta
@@ -39,14 +48,41 @@ func _process(delta: float) -> void:
 			RewardManager.add_wave_at(current_wave)
 			print("📦 Wave", current_wave, "completed! AT reward granted.")
 
+			# Trigger wave complete celebration effect
+			var tower = get_tree().current_scene.get_node_or_null("tower")
+			if tower:
+				ParticleEffects.create_wave_complete_effect(tower.global_position)
+
 func start_wave(wave_number: int) -> int:
 	print("Called start_wave with wave number: ", wave_number)
 	var actual_wave = wave_number
+
+	# Boss rush mode handling
+	if BossRushManager.is_boss_rush_active():
+		# No wave skipping in boss rush
+		current_wave = actual_wave
+		RunStats.current_wave = actual_wave
+
+		# In boss rush, spawn bosses based on wave (1 boss + 1 per 10 waves, max 10)
+		var boss_count = BossRushManager.get_boss_count_for_wave(current_wave)
+		enemies_to_spawn = boss_count
+		spawned_enemies = 0
+		wave_spawning = true
+		enemy_spawn_timer = 0.0
+
+		# Always show boss wave transition in boss rush
+		ScreenEffects.boss_wave_transition(current_wave)
+		print("🏆 Boss Rush Wave", current_wave, "→ Spawning", boss_count, "bosses")
+		return current_wave
+
+	# Normal mode handling
 	if should_skip_wave():
 		print("⏩ Wave", actual_wave, "skipped due to Wave Skip Chance!")
 		actual_wave += 1
 
 	current_wave = actual_wave
+	RunStats.current_wave = actual_wave  # Track wave in RunStats for upgrade scaling
+	TierManager.update_highest_wave(current_wave)  # Track highest wave for tier unlocks
 	enemies_to_spawn = get_max_enemies_for_wave(current_wave)
 	spawned_enemies = 0
 	wave_spawning = true
@@ -68,14 +104,26 @@ func spawn_enemy() -> void:
 		print("❌ No enemy scenes assigned!")
 		return
 
-	var enemy_type_index = pick_enemy_type(current_wave)
-	var enemy_scene = enemy_scenes[enemy_type_index]
-	var enemy = enemy_scene.instantiate()
-	add_child(enemy)
+	# In boss rush mode, always spawn bosses
+	var enemy_type_index = 5 if BossRushManager.is_boss_rush_active() else pick_enemy_type(current_wave)
+	var enemy_types = ["breacher", "slicer", "sentinel", "signal_runner", "null_walker", "override"]
+	var pool_name = "enemy_" + enemy_types[enemy_type_index]
+
+	# Spawn from pool
+	var enemy = ObjectPool.spawn(pool_name, self)
+	if not enemy:
+		print("❌ Failed to spawn enemy from pool!")
+		return
 
 	# Assign wave info
 	enemy.wave_number = current_wave
-	enemy.apply_wave_scaling()
+
+	# Apply boss rush scaling if active
+	if BossRushManager.is_boss_rush_active() and enemy.has_method("apply_boss_rush_scaling"):
+		enemy.apply_boss_rush_scaling()
+	else:
+		enemy.apply_wave_scaling()
+
 	enemy.tower = tower_ref
 	enemy.tower_position = tower_ref.global_position
 
@@ -95,9 +143,12 @@ func spawn_enemy() -> void:
 	enemy.position = Vector2(spawn_x, spawn_y)
 
 func spawn_boss(wave_number: int) -> void:
-	var boss_scene = enemy_scenes[5]  # OVERRIDE index
-	var boss = boss_scene.instantiate()
-	add_child(boss)
+	# Spawn boss from pool
+	var boss = ObjectPool.spawn("enemy_override", self)
+	if not boss:
+		print("❌ Failed to spawn boss from pool!")
+		return
+
 	boss.wave_number = wave_number
 	boss.tower_position = tower_ref.global_position
 	boss.tower = tower_ref
@@ -152,4 +203,18 @@ func reset():
 	# Remove all enemies from the scene
 	for enemy in get_children():
 		if "Enemy" in enemy.name or enemy.is_in_group("enemies"):
-			enemy.queue_free()
+			if enemy.has_method("_cleanup_and_recycle"):
+				enemy._cleanup_and_recycle()
+			else:
+				enemy.queue_free()
+
+func end_boss_rush() -> void:
+	# Called when boss rush ends (wave 100 or player death)
+	var final_damage = RunStats.damage_dealt
+	var final_wave = current_wave
+	BossRushManager.end_boss_rush(final_damage, final_wave)
+	print("🏆 Boss Rush ended! Final wave: %d, Damage dealt: %d" % [final_wave, final_damage])
+
+func reset_wave_timers():
+	enemy_spawn_timer = 0.0
+	wave_spawning = false

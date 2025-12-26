@@ -1,3 +1,55 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Export presets (may contain signing keys)
+export_presets.cfg
+
+# Environment variables (if you add them in future)
+.env
+.env.local
+.env.*.local
+
+# Android signing keys
+*.keystore
+*.jks
+*.pepk
+
+# iOS provisioning
+*.mobileprovision
+*.p12
+*.cer
+
+# User data directory (local saves - not needed in repo)
+user_data/
+
+# Editor settings (personal preferences)
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build artifacts
+builds/
+exports/
+*.apk
+*.aab
+*.ipa
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# Secret keys and credentials (safety net)
+*secret*
+*credentials*
+*private_key*
+*.pem
+*.key
