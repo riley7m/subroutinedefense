@@ -23,7 +23,14 @@ func _on_restart_button_pressed():
 	print("Restart button pressed!")
 	get_tree().paused = false
 	visible = false
-	
+
+	# If boss rush was active, return to start screen instead of restarting
+	if BossRushManager and BossRushManager.is_boss_rush_active():
+		print("🏆 Boss rush ended - returning to start screen")
+		BossRushManager.is_active = false  # Deactivate boss rush
+		get_tree().change_scene_to_file("res://StartScreen.tscn")
+		return
+
 	var root = get_tree().current_scene
 
 	var perm_upgrades_panel = root.get_node_or_null("PermUpgradesPanel")

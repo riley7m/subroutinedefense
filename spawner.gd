@@ -59,17 +59,11 @@ func start_wave(wave_number: int) -> int:
 
 	# Boss rush mode handling
 	if BossRushManager.is_boss_rush_active():
-		# Check if reached max wave for boss rush
-		if actual_wave > BossRushManager.MAX_WAVE:
-			print("🏆 Boss Rush completed! Reached wave 100!")
-			end_boss_rush()
-			return current_wave
-
 		# No wave skipping in boss rush
 		current_wave = actual_wave
 		RunStats.current_wave = actual_wave
 
-		# In boss rush, spawn bosses based on wave (1 boss + 1 per 10 waves)
+		# In boss rush, spawn bosses based on wave (1 boss + 1 per 10 waves, max 10)
 		var boss_count = BossRushManager.get_boss_count_for_wave(current_wave)
 		enemies_to_spawn = boss_count
 		spawned_enemies = 0

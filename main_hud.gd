@@ -166,9 +166,9 @@ func _ready() -> void:
 	add_child(software_upgrade_panel)
 
 	software_upgrade_button = Button.new()
-	software_upgrade_button.text = "🔬 Software"
-	software_upgrade_button.position = Vector2(10, 900)
-	software_upgrade_button.custom_minimum_size = Vector2(150, 40)
+	software_upgrade_button.text = "🔬 Labs"
+	software_upgrade_button.position = Vector2(5, 800)
+	software_upgrade_button.custom_minimum_size = Vector2(90, 35)
 	software_upgrade_button.pressed.connect(_on_software_upgrade_button_pressed)
 	add_child(software_upgrade_button)
 
@@ -179,8 +179,8 @@ func _ready() -> void:
 
 	tier_selection_button = Button.new()
 	tier_selection_button.text = "🎖️ Tiers"
-	tier_selection_button.position = Vector2(170, 900)
-	tier_selection_button.custom_minimum_size = Vector2(120, 40)
+	tier_selection_button.position = Vector2(100, 800)
+	tier_selection_button.custom_minimum_size = Vector2(90, 35)
 	tier_selection_button.pressed.connect(_on_tier_selection_button_pressed)
 	add_child(tier_selection_button)
 
@@ -190,17 +190,17 @@ func _ready() -> void:
 	add_child(boss_rush_panel)
 
 	boss_rush_button = Button.new()
-	boss_rush_button.text = "🏆 Boss Rush"
-	boss_rush_button.position = Vector2(10, 950)
-	boss_rush_button.custom_minimum_size = Vector2(150, 40)
+	boss_rush_button.text = "🏆 Rush"
+	boss_rush_button.position = Vector2(195, 800)
+	boss_rush_button.custom_minimum_size = Vector2(90, 35)
 	boss_rush_button.pressed.connect(_on_boss_rush_button_pressed)
 	add_child(boss_rush_button)
 
 	# Add Statistics button
 	statistics_button = Button.new()
 	statistics_button.text = "📊 Stats"
-	statistics_button.position = Vector2(170, 950)
-	statistics_button.custom_minimum_size = Vector2(120, 40)
+	statistics_button.position = Vector2(290, 800)
+	statistics_button.custom_minimum_size = Vector2(95, 35)
 	statistics_button.pressed.connect(_on_statistics_button_pressed)
 	add_child(statistics_button)
 

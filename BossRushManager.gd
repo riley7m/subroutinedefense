@@ -17,8 +17,7 @@ var current_run_damage: int = 0
 var current_run_wave: int = 0
 
 # Boss Rush Configuration
-const MAX_WAVE := 100  # Boss rush ends at wave 100
-const BOSS_HP_SCALING_BASE := 1.05  # 5% per wave (vs 2% normal)
+const BOSS_HP_SCALING_BASE := 1.13  # 13% per wave (vs 2% normal)
 const BOSS_ENEMY_MULTIPLIER := 5.0  # Base stats 5x higher than normal
 
 # Leaderboard (top 10 runs sorted by damage)

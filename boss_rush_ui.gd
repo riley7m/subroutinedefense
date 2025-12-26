@@ -57,8 +57,8 @@ func _create_ui() -> void:
 • Wave 1-9: 1 boss
 • Wave 10-19: 2 bosses
 • +1 boss every 10 waves (max 10)
-• Wave 100: Final challenge!
-• Faster scaling than normal tiers
+• ENDLESS MODE - survive as long as you can!
+• 13% HP scaling per wave (vs 2% normal)
 • Ranked by DAMAGE DEALT
 """
 	panel.add_child(info_text)
