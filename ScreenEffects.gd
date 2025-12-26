@@ -315,3 +315,57 @@ func death_transition(parent: Node = null) -> void:
 
 	# Red flash
 	screen_flash(Color(1.0, 0.0, 0.0, 0.5), 0.5, parent)
+
+# ============================================================================
+# FRAGMENT NOTIFICATION
+# ============================================================================
+
+func fragment_notification(amount: int, position: Vector2 = Vector2.ZERO, parent: Node = null) -> void:
+	if parent == null:
+		parent = _get_main_scene()
+
+	if parent == null:
+		return
+
+	# Create notification label
+	var notification = Label.new()
+	notification.text = "+%d 💎" % amount
+	notification.name = "FragmentNotification"
+	notification.add_theme_font_size_override("font_size", 32)
+	notification.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2, 1.0))
+	notification.add_theme_color_override("font_outline_color", Color(0.8, 0.4, 0.0, 1.0))
+	notification.add_theme_constant_override("outline_size", 4)
+	notification.z_index = 600
+
+	# Position the notification
+	if position == Vector2.ZERO:
+		# Center screen if no position provided
+		notification.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		notification.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		notification.set_anchors_preset(Control.PRESET_FULL_RECT)
+	else:
+		# Position at given world position
+		notification.global_position = position - Vector2(50, 50)
+
+	parent.add_child(notification)
+
+	# Animate: float up and fade out
+	var tween = notification.create_tween()
+	tween.set_parallel(true)
+
+	# Float upward
+	if position != Vector2.ZERO:
+		tween.tween_property(notification, "global_position:y", position.y - 150, 1.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	else:
+		# Scale and fade for centered notification
+		tween.tween_property(notification, "scale", Vector2(1.5, 1.5), 0.3).from(Vector2(0.5, 0.5)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(notification, "scale", Vector2(1.0, 1.0), 0.4).set_delay(0.3)
+
+	# Fade out
+	tween.tween_property(notification, "modulate:a", 0.0, 0.5).set_delay(1.0)
+
+	# Cleanup
+	tween.tween_callback(func():
+		if is_instance_valid(notification):
+			notification.queue_free()
+	)

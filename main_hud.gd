@@ -362,13 +362,6 @@ func update_damage_label() -> void:
 	var dmg = UpgradeManager.get_projectile_damage()
 	print("Projectile Damage: %d" % dmg)
 
-func take_damage(amount: int) -> void:
-	tower_hp -= amount
-	#print("💥 Tower hit! Remaining HP:", tower_hp)
-	if tower_hp <= 0:
-		print("☠️ Tower destroyed!")
-		# TODO: Add game-over logic
-
 # --- Offense Panel Logic ---
 func _on_offense_button_pressed() -> void:
 	var new_state = not offense_panel.visible
