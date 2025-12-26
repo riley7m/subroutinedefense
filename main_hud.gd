@@ -1087,6 +1087,39 @@ func _create_statistics_panel() -> void:
 	UIStyler.apply_theme_to_node(title)
 
 	# Separator
+	var sep_account = HSeparator.new()
+	vbox.add_child(sep_account)
+
+	# Account Section
+	var account_title = Label.new()
+	account_title.text = "🔐 Account"
+	account_title.custom_minimum_size = Vector2(550, 25)
+	vbox.add_child(account_title)
+	UIStyler.apply_theme_to_node(account_title)
+
+	var account_status = Label.new()
+	account_status.name = "AccountStatusLabel"
+	if CloudSaveManager and CloudSaveManager.is_logged_in:
+		if CloudSaveManager.is_guest:
+			account_status.text = "👤 Guest Account (ID: %s)" % CloudSaveManager.player_id.substr(0, 8)
+		else:
+			account_status.text = "✅ Registered Account (ID: %s)" % CloudSaveManager.player_id.substr(0, 8)
+	else:
+		account_status.text = "❌ Not Logged In"
+	account_status.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(account_status)
+	UIStyler.apply_theme_to_node(account_status)
+
+	# Bind account button (only for guests)
+	if CloudSaveManager and CloudSaveManager.is_logged_in and CloudSaveManager.is_guest:
+		var bind_button = Button.new()
+		bind_button.text = "🔗 Bind Email to Save Progress"
+		bind_button.custom_minimum_size = Vector2(300, 40)
+		bind_button.pressed.connect(_on_bind_account_pressed)
+		vbox.add_child(bind_button)
+		UIStyler.apply_theme_to_node(bind_button)
+
+	# Separator
 	var sep1 = HSeparator.new()
 	vbox.add_child(sep1)
 
@@ -1224,13 +1257,36 @@ func _on_statistics_button_pressed() -> void:
 		return
 
 	statistics_panel.visible = not statistics_panel.visible
-	
+
 	if statistics_panel.visible:
 		_update_statistics_panel()
 		# Hide other panels
 		if software_upgrade_panel:
 			software_upgrade_panel.visible = false
 		perm_panel.visible = false
+
+func _on_bind_account_pressed() -> void:
+	if not CloudSaveManager:
+		print("⚠️ CloudSaveManager not available")
+		return
+
+	if not CloudSaveManager.is_guest:
+		print("⚠️ Account already registered")
+		return
+
+	# Show login UI in bind mode
+	var login_ui = preload("res://login_ui.gd").new()
+	add_child(login_ui)
+	login_ui.show_login()
+	login_ui.login_completed.connect(func():
+		print("✅ Account bound successfully!")
+		# Refresh statistics panel to show new account status
+		if statistics_panel and statistics_panel.visible:
+			statistics_panel.queue_free()
+			_create_statistics_panel()
+			statistics_panel.visible = true
+			_update_statistics_panel()
+	)
 
 func _on_statistics_panel_close() -> void:
 	if statistics_panel:

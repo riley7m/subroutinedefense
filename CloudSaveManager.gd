@@ -11,8 +11,7 @@ signal save_downloaded(data: Dictionary)
 signal account_created(player_id: String)
 
 # PlayFab Configuration
-# TODO: Replace with your actual PlayFab Title ID from dashboard
-const PLAYFAB_TITLE_ID = "YOUR_TITLE_ID_HERE"  # Get from playfab.com dashboard
+const PLAYFAB_TITLE_ID = "1DEAD6"  # Your PlayFab Title ID
 const PLAYFAB_API_URL = "https://%s.playfabapi.com" % PLAYFAB_TITLE_ID
 
 # Session State
