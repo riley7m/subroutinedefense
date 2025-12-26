@@ -20,6 +20,7 @@ signal score_submitted(success: bool, rank: int)
 var is_active: bool = false
 var current_run_damage: int = 0
 var current_run_wave: int = 0
+var fragments_awarded_for_current_run: bool = false  # Prevent double fragment awards
 
 # Online state
 var is_online: bool = true
@@ -130,6 +131,7 @@ func start_boss_rush() -> bool:
 	is_active = true
 	current_run_damage = 0
 	current_run_wave = 0
+	fragments_awarded_for_current_run = false  # Reset fragment award flag
 	print("🏆 Boss Rush started!")
 	boss_rush_started.emit()
 	return true
@@ -407,10 +409,16 @@ func _on_fetch_leaderboard_completed(result: int, response_code: int, headers: P
 
 ## Helper: Award fragments based on rank
 func _award_fragments_for_rank(rank: int) -> void:
+	# Prevent double fragment awards for the same run
+	if fragments_awarded_for_current_run:
+		print("⚠️ Fragments already awarded for this run")
+		return
+
 	var fragments = get_fragment_reward_for_rank(rank)
 
 	if fragments > 0 and RewardManager:
 		RewardManager.add_fragments(fragments)
+		fragments_awarded_for_current_run = true  # Mark as awarded
 		print("💎 Awarded %d fragments for rank #%d!" % [fragments, rank])
 
 # === LOCAL LEADERBOARD (Fallback/Cache) ===

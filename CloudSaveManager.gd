@@ -28,8 +28,11 @@ const MIN_SAVE_INTERVAL := 10  # Minimum 10 seconds between saves
 const MIN_DOWNLOAD_INTERVAL := 5  # Minimum 5 seconds between downloads
 
 # Save Queue (for when rate limited)
-var pending_save: Dictionary = {}
-var has_pending_save: bool = false
+var queued_save: Dictionary = {}
+var has_queued_save: bool = false
+
+# Encrypted save awaiting upload (after server validation)
+var pending_encrypted_save: Dictionary = {}
 
 # Encryption Key (generated per-player, stored locally)
 var encryption_key: PackedByteArray = []
@@ -143,17 +146,17 @@ func upload_save_data(save_data: Dictionary) -> void:
 		print("⚠️ Not logged in - save not uploaded")
 		return
 
-	# Rate limiting
-	var now = int(Time.get_ticks_msec() / 1000.0)
+	# Rate limiting (use Unix time, not ticks - persists across game restarts)
+	var now = int(Time.get_unix_time_from_system())
 	if now - last_save_upload < MIN_SAVE_INTERVAL:
 		# Queue save for later
-		pending_save = save_data.duplicate(true)
-		has_pending_save = true
+		queued_save = save_data.duplicate(true)
+		has_queued_save = true
 		print("⏳ Save rate limited. Queuing for later... (%d seconds remaining)" % (MIN_SAVE_INTERVAL - (now - last_save_upload)))
 
-		# Set timer to upload pending save
+		# Set timer to upload queued save
 		var timer = get_tree().create_timer(MIN_SAVE_INTERVAL - (now - last_save_upload))
-		timer.timeout.connect(_upload_pending_save)
+		timer.timeout.connect(_upload_queued_save)
 		return
 
 	last_save_upload = now
@@ -173,11 +176,11 @@ func upload_save_data(save_data: Dictionary) -> void:
 	# First, validate with server-side CloudScript
 	_validate_save_with_server(save_data, encoded_data, data_hash)
 
-func _upload_pending_save() -> void:
-	if has_pending_save:
-		has_pending_save = false
-		upload_save_data(pending_save)
-		pending_save.clear()
+func _upload_queued_save() -> void:
+	if has_queued_save:
+		has_queued_save = false
+		upload_save_data(queued_save)
+		queued_save.clear()
 
 func _validate_save_with_server(save_data: Dictionary, encrypted_data: String, data_hash: String) -> void:
 	var url = PLAYFAB_API_URL + "/Client/ExecuteCloudScript"
@@ -199,7 +202,7 @@ func _validate_save_with_server(save_data: Dictionary, encrypted_data: String, d
 		print("❌ Failed to validate save: %s" % error)
 
 	# Store encrypted data temporarily for upload after validation
-	pending_save = {
+	pending_encrypted_save = {
 		"encrypted": encrypted_data,
 		"hash": data_hash
 	}
@@ -227,8 +230,8 @@ func download_save_data() -> void:
 		print("⚠️ Not logged in - cannot download save")
 		return
 
-	# Rate limiting
-	var now = int(Time.get_ticks_msec() / 1000.0)
+	# Rate limiting (use Unix time, not ticks - persists across game restarts)
+	var now = int(Time.get_unix_time_from_system())
 	if now - last_save_download < MIN_DOWNLOAD_INTERVAL:
 		print("⏳ Download rate limited. Wait %d seconds." % (MIN_DOWNLOAD_INTERVAL - (now - last_save_download)))
 		return
@@ -552,11 +555,11 @@ func _on_validate_save_completed(result: int, response_code: int, headers: Packe
 	print("✅ Save validated by server")
 
 	# Upload the encrypted save data
-	if pending_save.has("encrypted") and pending_save.has("hash"):
-		_upload_validated_save(pending_save["encrypted"], pending_save["hash"])
-		pending_save.clear()
+	if pending_encrypted_save.has("encrypted") and pending_encrypted_save.has("hash"):
+		_upload_validated_save(pending_encrypted_save["encrypted"], pending_encrypted_save["hash"])
+		pending_encrypted_save.clear()
 	else:
-		print("⚠️ No pending save to upload after validation")
+		print("⚠️ No pending encrypted save to upload after validation")
 
 # === ENCRYPTION FUNCTIONS ===
 
@@ -573,10 +576,9 @@ func _encrypt_save_data(json_string: String) -> PackedByteArray:
 	var plaintext = json_string.to_utf8_buffer()
 
 	# Generate random IV (16 bytes for AES)
-	var iv = PackedByteArray()
-	iv.resize(16)
-	for i in range(16):
-		iv[i] = randi() % 256
+	# SECURITY: Use cryptographically secure random bytes
+	var crypto = Crypto.new()
+	var iv = crypto.generate_random_bytes(16)
 
 	# Create AES context
 	var aes = AESContext.new()
@@ -645,11 +647,10 @@ func _load_or_generate_encryption_key() -> void:
 
 	# Generate new random key
 	print("🔑 Generating new encryption key...")
-	encryption_key.resize(ENCRYPTION_KEY_SIZE)
 
-	# Use crypto random for security
-	for i in range(ENCRYPTION_KEY_SIZE):
-		encryption_key[i] = randi() % 256
+	# SECURITY: Use cryptographically secure random bytes
+	var crypto = Crypto.new()
+	encryption_key = crypto.generate_random_bytes(ENCRYPTION_KEY_SIZE)
 
 	# Save key to disk
 	var file = FileAccess.open(key_path, FileAccess.WRITE)
