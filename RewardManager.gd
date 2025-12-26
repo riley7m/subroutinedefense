@@ -208,14 +208,18 @@ func purchase_drone_permanent(drone_type: String, cost: int) -> bool:
 
 func get_drone_purchase_cost(drone_type: String) -> int:
 	# Cost to permanently unlock a drone (one-time ever)
+	# Price scales based on how many drones already owned (unlock in any order)
 	# Exponential cost: 3x multiplier per tier (5k, 15k, 45k, 135k)
-	var base_costs = {
-		"flame": 5000,      # First drone (500 boss kills)
-		"frost": 15000,     # Second drone (1500 boss kills)
-		"poison": 45000,    # Third drone (4500 boss kills)
-		"shock": 135000     # Fourth drone (13500 boss kills)
-	}
-	return base_costs.get(drone_type, 5000)
+
+	# Count how many drones already owned
+	var drones_owned = 0
+	for owned in owned_drones.values():
+		if owned:
+			drones_owned += 1
+
+	# Cost based on number already owned (0=5k, 1=15k, 2=45k, 3=135k)
+	var costs = [5000, 15000, 45000, 135000]
+	return costs[drones_owned] if drones_owned < 4 else 135000
 
 # === RUN PERFORMANCE TRACKING ===
 func start_run_tracking(starting_wave: int = 1) -> void:
