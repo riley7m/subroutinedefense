@@ -1343,11 +1343,40 @@ func _update_statistics_panel() -> void:
 		total_kills_label.text = "Total Kills: %s" % _format_number(total_kills)
 
 func _format_number(num: int) -> String:
-	if num < 1000:
+	# Handle negative numbers
+	var sign = "" if num >= 0 else "-"
+	var abs_num = abs(num)
+
+	# Small numbers (< 1000) - show raw value
+	if abs_num < 1000:
 		return str(num)
-	elif num < 1000000:
-		return "%.1fK" % (num / 1000.0)
-	elif num < 1000000000:
-		return "%.1fM" % (num / 1000000.0)
-	else:
-		return "%.1fB" % (num / 1000000000.0)
+
+	# Define thresholds and suffixes for big numbers
+	# Supports up to int64 max (~10^18 quintillion)
+	const THRESHOLDS = [
+		1000000000000000000,  # 10^18 Quintillion (Qi)
+		1000000000000000,     # 10^15 Quadrillion (Qa)
+		1000000000000,        # 10^12 Trillion (T)
+		1000000000,           # 10^9 Billion (B)
+		1000000,              # 10^6 Million (M)
+		1000                  # 10^3 Thousand (K)
+	]
+
+	const SUFFIXES_BIG = ["Qi", "Qa", "T", "B", "M", "K"]
+	const DIVISORS = [
+		1000000000000000000.0,
+		1000000000000000.0,
+		1000000000000.0,
+		1000000000.0,
+		1000000.0,
+		1000.0
+	]
+
+	# Find appropriate suffix
+	for i in range(THRESHOLDS.size()):
+		if abs_num >= THRESHOLDS[i]:
+			var value = abs_num / DIVISORS[i]
+			return "%s%.2f%s" % [sign, value, SUFFIXES_BIG[i]]
+
+	# Fallback (shouldn't reach here)
+	return str(num)
