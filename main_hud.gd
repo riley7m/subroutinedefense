@@ -199,7 +199,7 @@ func _ready() -> void:
 		fragments_label = Label.new()
 		fragments_label.name = "FragmentsLabel"
 		fragments_label.text = "💎: 0"
-		fragments_label.position = Vector2(450, 5)  # Position after AT label
+		fragments_label.position = Vector2(6, 45)  # Position below AT label
 		fragments_label.size = Vector2(150, 20)
 		top_banner.add_child(fragments_label)
 		UIStyler.apply_theme_to_node(fragments_label)

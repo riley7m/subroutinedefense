@@ -344,6 +344,11 @@ func calculate_offline_progress(watched_ad: bool = false) -> void:
 	if seconds_away < 60:
 		return
 
+	# Process any lab upgrades that completed while offline
+	if SoftwareUpgradeManager:
+		SoftwareUpgradeManager.update_upgrades()
+		print("🔬 Processed offline lab progress")
+
 	# Calculate efficiency: 25% base, 50% if watched ad
 	var efficiency = 0.25
 	if watched_ad:

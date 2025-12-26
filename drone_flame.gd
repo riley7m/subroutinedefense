@@ -12,7 +12,9 @@ func fire_at(target: Node2D) -> void:
 	var base_damage_percent = 0.05
 	var max_hp = target.base_hp if "base_hp" in target else 100
 	if "wave_number" in target:
-		max_hp += int(target.wave_number * (target.HP_PER_WAVE if "HP_PER_WAVE" in target else 0))
+		# Use exponential HP scaling to match enemy.gd
+		var hp_scaling = target.HP_SCALING_BASE if "HP_SCALING_BASE" in target else 1.02
+		max_hp = int(target.base_hp * pow(hp_scaling, target.wave_number))
 
 	var base_damage = max_hp * base_damage_percent
 	var crit_multiplier = 1.0  # No crit for drones
