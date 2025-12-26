@@ -82,6 +82,10 @@ func _ready() -> void:
 	if not get_tree().tree_exiting.is_connected(Callable(self, "save_permanent_upgrades")):
 		get_tree().connect("tree_exiting", Callable(self, "save_permanent_upgrades"))
 
+	# Connect cloud save signals
+	if CloudSaveManager:
+		CloudSaveManager.save_downloaded.connect(_on_cloud_save_downloaded)
+
 	# Add periodic auto-save timer (every 60 seconds)
 	var save_timer = Timer.new()
 	save_timer.name = "AutoSaveTimer"
@@ -524,6 +528,11 @@ func save_permanent_upgrades() -> bool:
 		return false
 
 	print("💾 Permanent upgrades saved (atomic write successful)")
+
+	# Upload to cloud if logged in
+	if CloudSaveManager and CloudSaveManager.is_logged_in:
+		CloudSaveManager.upload_save_data(data)
+
 	return true
 
 func load_permanent_upgrades():
@@ -620,3 +629,27 @@ func _apply_save_data(data: Dictionary) -> void:
 
 	# Calculate offline progress (without ad by default - UI will handle ad option)
 	calculate_offline_progress(false)
+
+# === CLOUD SAVE INTEGRATION ===
+
+func _on_cloud_save_downloaded(cloud_data: Dictionary) -> void:
+	print("☁️ Cloud save downloaded, comparing with local save...")
+
+	# Get cloud timestamp
+	var cloud_timestamp = cloud_data.get("cloud_timestamp", 0)
+	var cloud_last_play = cloud_data.get("last_play_time", 0)
+
+	# Get local timestamp
+	var local_timestamp = last_play_time
+
+	print("Cloud timestamp: %d, Local timestamp: %d" % [cloud_last_play, local_timestamp])
+
+	# Use whichever save is newer
+	if cloud_last_play > local_timestamp:
+		print("☁️ Cloud save is newer - applying cloud data")
+		_apply_save_data(cloud_data)
+		save_permanent_upgrades()  # Re-save to update local file
+	else:
+		print("💾 Local save is newer - keeping local data")
+		# Upload local save to cloud to sync
+		save_permanent_upgrades()
