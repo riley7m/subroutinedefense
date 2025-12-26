@@ -3,12 +3,9 @@ extends Node
 # --- Currency ---
 var data_credits: int = 100000
 var archive_tokens: int = 100000
-var fragments: int = 0  # For drone upgrades (unused placeholder)
+var fragments: int = 0  # Premium currency: earned from boss kills, used for drone purchases/upgrades
 
-# Premium Currency (purchased with $ or unlocked via features)
-var premium_currency: int = 0  # TODO: Replace with actual name when decided
-
-# --- Drone Ownership (purchased out-of-run with premium currency) ---
+# --- Drone Ownership (purchased out-of-run with fragments) ---
 var owned_drones: Dictionary = {
 	"flame": false,
 	"frost": false,
@@ -194,24 +191,25 @@ func owns_drone(drone_type: String) -> bool:
 	return owned_drones.get(drone_type, false)
 
 func purchase_drone_permanent(drone_type: String, cost: int) -> bool:
-	# Purchase a drone using premium currency (out-of-run)
+	# Purchase a drone using fragments (out-of-run, one-time unlock)
 	if owns_drone(drone_type):
 		print("⚠️ Drone", drone_type, "already owned!")
 		return false
 
-	if premium_currency < cost:
-		print("⚠️ Not enough premium currency to purchase", drone_type, "drone")
+	if fragments < cost:
+		print("⚠️ Not enough fragments to purchase", drone_type, "drone")
 		return false
 
-	premium_currency -= cost
+	fragments -= cost
 	owned_drones[drone_type] = true
 	save_permanent_upgrades()  # Auto-save on purchase
-	print("✅ Permanently purchased", drone_type, "drone for", cost, "premium currency")
+	print("✅ Permanently purchased", drone_type, "drone for", cost, "fragments")
 	return true
 
 func get_drone_purchase_cost(drone_type: String) -> int:
-	# Cost to permanently purchase a drone (one-time ever)
-	return 1000  # TODO: Adjust cost or make variable per drone type
+	# Cost to permanently unlock a drone (one-time ever)
+	# Balanced around: Boss gives ~11-20 fragments, drone upgrades cost 3500+ fragments
+	return 5000  # Significant investment - about 250-500 boss kills
 
 # === RUN PERFORMANCE TRACKING ===
 func start_run_tracking(starting_wave: int = 1) -> void:
@@ -415,7 +413,6 @@ func save_permanent_upgrades():
 		"perm_multi_target_unlocked": perm_multi_target_unlocked,
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
-		"premium_currency": premium_currency,
 		"owned_drones": owned_drones,
 		"last_play_time": last_play_time,
 		"run_history": run_history,
@@ -476,7 +473,6 @@ func load_permanent_upgrades():
 	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
 	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
 	fragments = clamp(data.get("fragments", 0), 0, 999999999)
-	premium_currency = clamp(data.get("premium_currency", 0), 0, 999999999)
 	owned_drones = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
 	last_play_time = data.get("last_play_time", 0)
 	run_history = data.get("run_history", [])
