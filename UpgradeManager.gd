@@ -656,6 +656,7 @@ func upgrade_perm_multi_target_unlock() -> bool:
 		print("❌ Not enough AT for permanent Multi Target unlock.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_multi_target_unlocked = true
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Multi Target unlocked for all runs!")
@@ -668,6 +669,8 @@ func upgrade_perm_projectile_damage() -> bool:
 		print("❌ Not enough AT for permanent projectile damage.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_projectile_damage += 10
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Projectile Damage +10. Now:", RewardManager.perm_projectile_damage)
@@ -679,6 +682,7 @@ func upgrade_perm_projectile_fire_rate() -> bool:
 		print("❌ Not enough AT for permanent fire rate.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_projectile_fire_rate += 0.1
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Fire Rate +0.1. Now:", RewardManager.perm_projectile_fire_rate)
@@ -690,6 +694,7 @@ func upgrade_perm_crit_chance() -> bool:
 		print("❌ Not enough AT for permanent crit chance.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_crit_chance += 1
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Crit Chance +1%. Now:", RewardManager.perm_crit_chance)
@@ -701,6 +706,7 @@ func upgrade_perm_crit_damage() -> bool:
 		print("❌ Not enough AT for permanent crit damage.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_crit_damage += 0.05
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Crit Damage +0.05x. Now:", RewardManager.perm_crit_damage)
@@ -712,6 +718,7 @@ func upgrade_perm_shield_integrity() -> bool:
 		print("❌ Not enough AT for permanent shield integrity.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_shield_integrity += 10
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Shield Integrity +10. Now:", RewardManager.perm_shield_integrity)
@@ -723,6 +730,7 @@ func upgrade_perm_damage_reduction() -> bool:
 		print("❌ Not enough AT for permanent damage reduction.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_damage_reduction += 0.5
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Damage Reduction +0.5%. Now:", RewardManager.perm_damage_reduction)
@@ -734,6 +742,7 @@ func upgrade_perm_shield_regen() -> bool:
 		print("❌ Not enough AT for permanent shield regen.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_shield_regen += 0.25
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Shield Regen +0.25%. Now:", RewardManager.perm_shield_regen)
@@ -745,6 +754,7 @@ func upgrade_perm_data_credit_multiplier() -> bool:
 		print("❌ Not enough AT for permanent DC multiplier.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_data_credit_multiplier += 0.05
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent DC Multiplier +0.05. Now:", RewardManager.perm_data_credit_multiplier)
@@ -756,6 +766,7 @@ func upgrade_perm_archive_token_multiplier() -> bool:
 		print("❌ Not enough AT for permanent AT multiplier.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_archive_token_multiplier += 0.05
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent AT Multiplier +0.05. Now:", RewardManager.perm_archive_token_multiplier)
@@ -767,6 +778,7 @@ func upgrade_perm_wave_skip_chance() -> bool:
 		print("❌ Not enough AT for permanent wave skip.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_wave_skip_chance += 1.0
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Wave Skip Chance +1%. Now:", RewardManager.perm_wave_skip_chance)
@@ -778,6 +790,7 @@ func upgrade_perm_free_upgrade_chance() -> bool:
 		print("❌ Not enough AT for permanent free upgrade chance.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_free_upgrade_chance += 1.0
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Free Upgrade Chance +1%. Now:", RewardManager.perm_free_upgrade_chance)
@@ -790,6 +803,7 @@ func upgrade_perm_overshield() -> bool:
 		print("❌ Not enough AT for permanent overshield.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_overshield += 15
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Overshield +15. Now:", RewardManager.perm_overshield)
@@ -801,6 +815,7 @@ func upgrade_perm_boss_bonus() -> bool:
 		print("❌ Not enough AT for permanent boss bonus.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_boss_bonus += 0.05
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Boss Bonus +5%. Now:", RewardManager.perm_boss_bonus)
@@ -812,6 +827,7 @@ func upgrade_perm_lucky_drops() -> bool:
 		print("❌ Not enough AT for permanent lucky drops.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_lucky_drops += 0.5
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Lucky Drops +0.5%. Now:", RewardManager.perm_lucky_drops)
@@ -823,6 +839,7 @@ func upgrade_perm_ricochet_chance() -> bool:
 		print("❌ Not enough AT for permanent ricochet chance.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_ricochet_chance += 1.0
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Ricochet Chance +1%. Now:", RewardManager.perm_ricochet_chance)
@@ -834,6 +851,7 @@ func upgrade_perm_ricochet_max_targets() -> bool:
 		print("❌ Not enough AT for permanent ricochet max targets.")
 		return false
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_ricochet_max_targets += 1
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Ricochet Max Targets +1. Now:", RewardManager.perm_ricochet_max_targets)

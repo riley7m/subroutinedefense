@@ -331,7 +331,14 @@ func get_duration_for_level(lab_id: String, level: int) -> int:
 	var scaling = lab["duration_scaling"]
 
 	# Duration = base * (scaling ^ (level - 1))
-	return int(base * pow(scaling, level - 1))
+	var duration = base * pow(scaling, level - 1)
+
+	# Apply lab acceleration (reduces duration by perm_lab_speed %)
+	# Example: 10% lab speed = duration / 1.10 = 0.909x duration (9.1% reduction)
+	var lab_speed_multiplier = 1.0 + (RewardManager.perm_lab_speed / 100.0)
+	duration = duration / lab_speed_multiplier
+
+	return int(duration)
 
 func get_cost_for_level(lab_id: String, level: int) -> int:
 	if not labs.has(lab_id):
@@ -387,6 +394,7 @@ func start_upgrade(lab_id: String, slot_index: int) -> bool:
 
 	# Deduct AT cost
 	RewardManager.archive_tokens -= cost
+	RunStats.add_at_spent_lab(cost)  # Track lifetime AT spent on labs
 
 	# Start upgrade
 	active_upgrades[slot_index] = {
@@ -493,7 +501,7 @@ func _apply_level_bonuses(lab: Dictionary) -> void:
 			"lucky_drops_perm":
 				RewardManager.perm_lucky_drops += value
 			"lab_speed_perm":
-				pass  # Lab speed is stored differently - reduces lab duration
+				RewardManager.perm_lab_speed += value  # +1% lab speed per level
 
 func get_upgrade_progress(slot_index: int) -> float:
 	if slot_index < 0 or slot_index >= MAX_SLOTS:

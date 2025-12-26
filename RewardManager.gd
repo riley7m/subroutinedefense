@@ -61,6 +61,7 @@ var perm_drone_poison_level: int = 0
 var perm_drone_shock_level: int = 0
 
 var perm_multi_target_unlocked: bool = false
+var perm_lab_speed: float = 0.0  # +1% per level from lab_acceleration
 
 # --- Multipliers (can be modified via upgrades) ---
 @export var dc_multiplier: float = 1.0
@@ -89,6 +90,7 @@ func add_archive_tokens(amount: int) -> void:
 
 func add_fragments(amount: int) -> void:
 	fragments += amount
+	RunStats.add_fragments_earned(amount)
 
 # === Flat Reward Lookup ===
 func get_dc_reward_for_enemy(enemy_type: String) -> int:
@@ -135,7 +137,7 @@ func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 		#print("🍀 Lucky drop! Bonus AT!")
 
 	archive_tokens += scaled_at
-	RunStats.archive_tokens_earned += scaled_at
+	RunStats.add_at_earned(scaled_at)  # Track lifetime AT
 	emit_signal("archive_tokens_changed")
 	#print("📦 AT from", enemy_type, "→", scaled_at, "→ Total:", archive_tokens)
 
@@ -150,7 +152,7 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 		#print("🍀 Lucky drop! Bonus DC!")
 
 	data_credits += scaled_dc
-	RunStats.data_credits_earned += scaled_dc
+	RunStats.add_dc_earned(scaled_dc)  # Track lifetime DC
 	#print("🪙 DC from", enemy_type, "→", scaled_dc, "→ Total:", data_credits)
 
 func get_wave_at_reward(wave_number: int) -> int:
@@ -160,6 +162,7 @@ func get_wave_at_reward(wave_number: int) -> int:
 func add_wave_at(wave_number: int) -> void:
 	var reward = get_wave_at_reward(wave_number)
 	archive_tokens += reward
+	RunStats.add_at_earned(reward)  # Track lifetime AT
 	emit_signal("archive_tokens_changed")
 	#print("📦 AT earned from wave", wave_number, "→", reward, "→ Total:", archive_tokens)
 
@@ -421,11 +424,19 @@ func save_permanent_upgrades():
 		"perm_drone_poison_level": perm_drone_poison_level,
 		"perm_drone_shock_level": perm_drone_shock_level,
 		"perm_multi_target_unlocked": perm_multi_target_unlocked,
+		"perm_lab_speed": perm_lab_speed,
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
 		"owned_drones": owned_drones,
 		"last_play_time": last_play_time,
 		"run_history": run_history,
+		# Lifetime statistics
+		"lifetime_dc_earned": RunStats.lifetime_dc_earned,
+		"lifetime_at_earned": RunStats.lifetime_at_earned,
+		"lifetime_fragments_earned": RunStats.lifetime_fragments_earned,
+		"lifetime_at_spent_labs": RunStats.lifetime_at_spent_labs,
+		"lifetime_at_spent_perm_upgrades": RunStats.lifetime_at_spent_perm_upgrades,
+		"lifetime_kills": RunStats.lifetime_kills,
 	}
 	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.WRITE)
 	if file == null:
@@ -477,6 +488,7 @@ func load_permanent_upgrades():
 	perm_ricochet_chance = clamp(data.get("perm_ricochet_chance", 0.0), 0.0, 100.0)
 	perm_ricochet_max_targets = clamp(data.get("perm_ricochet_max_targets", 0), 0, 100)
 	perm_multi_target_unlocked = data.get("perm_multi_target_unlocked", false)
+	perm_lab_speed = clamp(data.get("perm_lab_speed", 0.0), 0.0, 100.0)
 	perm_drone_flame_level = clamp(data.get("perm_drone_flame_level", 0), 0, 10000)
 	perm_drone_frost_level = clamp(data.get("perm_drone_frost_level", 0), 0, 10000)
 	perm_drone_poison_level = clamp(data.get("perm_drone_poison_level", 0), 0, 10000)
@@ -486,6 +498,21 @@ func load_permanent_upgrades():
 	owned_drones = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
 	last_play_time = data.get("last_play_time", 0)
 	run_history = data.get("run_history", [])
+
+	# Load lifetime statistics
+	RunStats.lifetime_dc_earned = data.get("lifetime_dc_earned", 0)
+	RunStats.lifetime_at_earned = data.get("lifetime_at_earned", 0)
+	RunStats.lifetime_fragments_earned = data.get("lifetime_fragments_earned", 0)
+	RunStats.lifetime_at_spent_labs = data.get("lifetime_at_spent_labs", 0)
+	RunStats.lifetime_at_spent_perm_upgrades = data.get("lifetime_at_spent_perm_upgrades", 0)
+	RunStats.lifetime_kills = data.get("lifetime_kills", {
+		"breacher": 0,
+		"slicer": 0,
+		"sentinel": 0,
+		"signal_runner": 0,
+		"nullwalker": 0,
+		"override": 0,
+	})
 
 	print("🔄 Permanent upgrades loaded.")
 

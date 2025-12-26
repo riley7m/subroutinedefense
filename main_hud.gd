@@ -70,6 +70,10 @@ const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
 var software_upgrade_panel: Control = null
 var software_upgrade_button: Button = null
 
+# Statistics panel
+var statistics_panel: Panel = null
+var statistics_button: Button = null
+
 # Drone purchase UI (in perm panel)
 var drone_purchase_containers: Dictionary = {}
 var drone_purchase_buttons: Dictionary = {}
@@ -158,6 +162,17 @@ func _ready() -> void:
 	software_upgrade_button.custom_minimum_size = Vector2(150, 40)
 	software_upgrade_button.pressed.connect(_on_software_upgrade_button_pressed)
 	add_child(software_upgrade_button)
+
+	# Add Statistics button
+	statistics_button = Button.new()
+	statistics_button.text = "📊 Stats"
+	statistics_button.position = Vector2(170, 900)
+	statistics_button.custom_minimum_size = Vector2(120, 40)
+	statistics_button.pressed.connect(_on_statistics_button_pressed)
+	add_child(statistics_button)
+
+	# Create statistics panel
+	_create_statistics_panel()
 
 	# Add matrix code rain (furthest back)
 	var matrix_rain = preload("res://MatrixCodeRain.gd").new()
@@ -841,3 +856,254 @@ func _on_quit_button_pressed():
 	print("Damage Taken: ", RunStats.damage_taken)
 	print("==========================")	
 	RunStats.reset()
+
+# === STATISTICS PANEL ===
+
+func _create_statistics_panel() -> void:
+	# Create panel
+	statistics_panel = Panel.new()
+	statistics_panel.custom_minimum_size = Vector2(600, 700)
+	statistics_panel.position = Vector2(300, 100)
+	statistics_panel.visible = false
+	add_child(statistics_panel)
+
+	# Create scroll container
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(580, 680)
+	scroll.position = Vector2(10, 10)
+	statistics_panel.add_child(scroll)
+
+	# Create VBox for content
+	var vbox = VBoxContainer.new()
+	scroll.add_child(vbox)
+
+	# Title
+	var title = Label.new()
+	title.text = "=== LIFETIME STATISTICS ==="
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(550, 30)
+	vbox.add_child(title)
+	UIStyler.apply_theme_to_node(title)
+
+	# Separator
+	var sep1 = HSeparator.new()
+	vbox.add_child(sep1)
+
+	# Currency Stats
+	var currency_title = Label.new()
+	currency_title.text = "💰 Currency Earned"
+	currency_title.custom_minimum_size = Vector2(550, 25)
+	vbox.add_child(currency_title)
+	UIStyler.apply_theme_to_node(currency_title)
+
+	var dc_stat = Label.new()
+	dc_stat.name = "DCStatLabel"
+	dc_stat.text = "Data Credits: 0"
+	dc_stat.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(dc_stat)
+	UIStyler.apply_theme_to_node(dc_stat)
+
+	var at_stat = Label.new()
+	at_stat.name = "ATStatLabel"
+	at_stat.text = "Archive Tokens: 0"
+	at_stat.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(at_stat)
+	UIStyler.apply_theme_to_node(at_stat)
+
+	var frag_stat = Label.new()
+	frag_stat.name = "FragStatLabel"
+	frag_stat.text = "Fragments: 0"
+	frag_stat.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(frag_stat)
+	UIStyler.apply_theme_to_node(frag_stat)
+
+	# Separator
+	var sep2 = HSeparator.new()
+	vbox.add_child(sep2)
+
+	# Spending Stats
+	var spending_title = Label.new()
+	spending_title.text = "💸 Archive Tokens Spent"
+	spending_title.custom_minimum_size = Vector2(550, 25)
+	vbox.add_child(spending_title)
+	UIStyler.apply_theme_to_node(spending_title)
+
+	var lab_spent = Label.new()
+	lab_spent.name = "LabSpentLabel"
+	lab_spent.text = "On Labs: 0"
+	lab_spent.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(lab_spent)
+	UIStyler.apply_theme_to_node(lab_spent)
+
+	var perm_spent = Label.new()
+	perm_spent.name = "PermSpentLabel"
+	perm_spent.text = "On Permanent Upgrades: 0"
+	perm_spent.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(perm_spent)
+	UIStyler.apply_theme_to_node(perm_spent)
+
+	var total_spent = Label.new()
+	total_spent.name = "TotalSpentLabel"
+	total_spent.text = "Total Spent: 0"
+	total_spent.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(total_spent)
+	UIStyler.apply_theme_to_node(total_spent)
+
+	# Separator
+	var sep3 = HSeparator.new()
+	vbox.add_child(sep3)
+
+	# Kill Stats
+	var kills_title = Label.new()
+	kills_title.text = "⚔️ Enemies Defeated"
+	kills_title.custom_minimum_size = Vector2(550, 25)
+	vbox.add_child(kills_title)
+	UIStyler.apply_theme_to_node(kills_title)
+
+	var breacher_kills = Label.new()
+	breacher_kills.name = "BreacherKillsLabel"
+	breacher_kills.text = "Breachers: 0"
+	breacher_kills.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(breacher_kills)
+	UIStyler.apply_theme_to_node(breacher_kills)
+
+	var slicer_kills = Label.new()
+	slicer_kills.name = "SlicerKillsLabel"
+	slicer_kills.text = "Slicers: 0"
+	slicer_kills.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(slicer_kills)
+	UIStyler.apply_theme_to_node(slicer_kills)
+
+	var sentinel_kills = Label.new()
+	sentinel_kills.name = "SentinelKillsLabel"
+	sentinel_kills.text = "Sentinels: 0"
+	sentinel_kills.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(sentinel_kills)
+	UIStyler.apply_theme_to_node(sentinel_kills)
+
+	var signal_kills = Label.new()
+	signal_kills.name = "SignalKillsLabel"
+	signal_kills.text = "Signal Runners: 0"
+	signal_kills.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(signal_kills)
+	UIStyler.apply_theme_to_node(signal_kills)
+
+	var null_kills = Label.new()
+	null_kills.name = "NullKillsLabel"
+	null_kills.text = "Null Walkers: 0"
+	null_kills.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(null_kills)
+	UIStyler.apply_theme_to_node(null_kills)
+
+	var boss_kills = Label.new()
+	boss_kills.name = "BossKillsLabel"
+	boss_kills.text = "Bosses (Override): 0"
+	boss_kills.custom_minimum_size = Vector2(550, 20)
+	vbox.add_child(boss_kills)
+	UIStyler.apply_theme_to_node(boss_kills)
+
+	var total_kills = Label.new()
+	total_kills.name = "TotalKillsLabel"
+	total_kills.text = "Total Kills: 0"
+	total_kills.custom_minimum_size = Vector2(550, 25)
+	vbox.add_child(total_kills)
+	UIStyler.apply_theme_to_node(total_kills)
+
+	# Close button
+	var close_button = Button.new()
+	close_button.text = "Close"
+	close_button.custom_minimum_size = Vector2(200, 40)
+	close_button.position = Vector2(200, 640)
+	close_button.pressed.connect(_on_statistics_panel_close)
+	statistics_panel.add_child(close_button)
+	UIStyler.apply_theme_to_node(close_button)
+
+func _on_statistics_button_pressed() -> void:
+	if not statistics_panel:
+		return
+
+	statistics_panel.visible = not statistics_panel.visible
+	
+	if statistics_panel.visible:
+		_update_statistics_panel()
+		# Hide other panels
+		if software_upgrade_panel:
+			software_upgrade_panel.visible = false
+		perm_panel.visible = false
+
+func _on_statistics_panel_close() -> void:
+	if statistics_panel:
+		statistics_panel.visible = false
+
+func _update_statistics_panel() -> void:
+	if not statistics_panel:
+		return
+
+	# Update currency stats
+	var dc_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/DCStatLabel")
+	if dc_label:
+		dc_label.text = "Data Credits: %s" % _format_number(RunStats.lifetime_dc_earned)
+
+	var at_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/ATStatLabel")
+	if at_label:
+		at_label.text = "Archive Tokens: %s" % _format_number(RunStats.lifetime_at_earned)
+
+	var frag_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/FragStatLabel")
+	if frag_label:
+		frag_label.text = "Fragments: %s" % _format_number(RunStats.lifetime_fragments_earned)
+
+	# Update spending stats
+	var lab_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/LabSpentLabel")
+	if lab_label:
+		lab_label.text = "On Labs: %s" % _format_number(RunStats.lifetime_at_spent_labs)
+
+	var perm_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/PermSpentLabel")
+	if perm_label:
+		perm_label.text = "On Permanent Upgrades: %s" % _format_number(RunStats.lifetime_at_spent_perm_upgrades)
+
+	var total_spent_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/TotalSpentLabel")
+	if total_spent_label:
+		var total = RunStats.lifetime_at_spent_labs + RunStats.lifetime_at_spent_perm_upgrades
+		total_spent_label.text = "Total Spent: %s" % _format_number(total)
+
+	# Update kill stats
+	var breacher_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/BreacherKillsLabel")
+	if breacher_label:
+		breacher_label.text = "Breachers: %s" % _format_number(RunStats.lifetime_kills.get("breacher", 0))
+
+	var slicer_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/SlicerKillsLabel")
+	if slicer_label:
+		slicer_label.text = "Slicers: %s" % _format_number(RunStats.lifetime_kills.get("slicer", 0))
+
+	var sentinel_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/SentinelKillsLabel")
+	if sentinel_label:
+		sentinel_label.text = "Sentinels: %s" % _format_number(RunStats.lifetime_kills.get("sentinel", 0))
+
+	var signal_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/SignalKillsLabel")
+	if signal_label:
+		signal_label.text = "Signal Runners: %s" % _format_number(RunStats.lifetime_kills.get("signal_runner", 0))
+
+	var null_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/NullKillsLabel")
+	if null_label:
+		null_label.text = "Null Walkers: %s" % _format_number(RunStats.lifetime_kills.get("nullwalker", 0))
+
+	var boss_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/BossKillsLabel")
+	if boss_label:
+		boss_label.text = "Bosses (Override): %s" % _format_number(RunStats.lifetime_kills.get("override", 0))
+
+	var total_kills_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/TotalKillsLabel")
+	if total_kills_label:
+		var total_kills = 0
+		for kills in RunStats.lifetime_kills.values():
+			total_kills += kills
+		total_kills_label.text = "Total Kills: %s" % _format_number(total_kills)
+
+func _format_number(num: int) -> String:
+	if num < 1000:
+		return str(num)
+	elif num < 1000000:
+		return "%.1fK" % (num / 1000.0)
+	elif num < 1000000000:
+		return "%.1fM" % (num / 1000000.0)
+	else:
+		return "%.1fB" % (num / 1000000000.0)

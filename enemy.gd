@@ -337,6 +337,7 @@ func die():
 	# Existing death logic (play animation, remove from scene, etc.)
 	RewardManager.reward_enemy(enemy_type, wave_number)
 	RewardManager.reward_enemy_at(enemy_type, wave_number)
+	RunStats.record_kill(enemy_type)  # Track lifetime kills
 
 	# Grant fragments for boss kills
 	if enemy_type == "override":
