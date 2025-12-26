@@ -190,6 +190,9 @@ const MULTI_TARGET_COST_SCALE := 2.5  # Exponential cost
 const MULTI_TARGET_INITIAL_LOCKED := true
 var multi_target_unlocked := false
 
+# --- PERMANENT DRONE UPGRADE CONSTANTS ---
+const PERM_DRONE_MAX_LEVEL := 30  # Max level for permanent drone upgrades
+
 # --- PERMANENT UPGRADE COSTS ---
 func get_perm_cost(base: int, increment: int, level: int) -> int:
 	return int(base * pow(1.13, level))
@@ -857,45 +860,73 @@ func upgrade_perm_ricochet_max_targets() -> bool:
 	print("🏅 Permanent Ricochet Max Targets +1. Now:", RewardManager.perm_ricochet_max_targets)
 	return true
 
-func upgrade_perm_drone_flame():
+func upgrade_perm_drone_flame() -> bool:
+	if not RewardManager.owns_drone("flame"):
+		print("❌ Flame Drone not owned! Purchase it first.")
+		return false
+	if RewardManager.perm_drone_flame_level >= PERM_DRONE_MAX_LEVEL:
+		print("❌ Flame Drone already at max level!")
+		return false
 	var cost = get_perm_drone_upgrade_cost(RewardManager.perm_drone_flame_level)
 	if RewardManager.fragments < cost:
 		print("❌ Not enough Fragments to upgrade Flame Drone.")
-		return
+		return false
 	RewardManager.fragments -= cost
 	RewardManager.perm_drone_flame_level += 1
 	RewardManager.save_permanent_upgrades()
 	print("🔥 Flame Drone permanently upgraded! Now:", RewardManager.perm_drone_flame_level)
+	return true
 
-func upgrade_perm_drone_frost():
+func upgrade_perm_drone_frost() -> bool:
+	if not RewardManager.owns_drone("frost"):
+		print("❌ Frost Drone not owned! Purchase it first.")
+		return false
+	if RewardManager.perm_drone_frost_level >= PERM_DRONE_MAX_LEVEL:
+		print("❌ Frost Drone already at max level!")
+		return false
 	var cost = get_perm_drone_upgrade_cost(RewardManager.perm_drone_frost_level)
 	if RewardManager.fragments < cost:
 		print("❌ Not enough Fragments to upgrade Frost Drone.")
-		return
+		return false
 	RewardManager.fragments -= cost
 	RewardManager.perm_drone_frost_level += 1
 	RewardManager.save_permanent_upgrades()
 	print("❄️ Frost Drone permanently upgraded! Now:", RewardManager.perm_drone_frost_level)
+	return true
 
-func upgrade_perm_drone_poison():
+func upgrade_perm_drone_poison() -> bool:
+	if not RewardManager.owns_drone("poison"):
+		print("❌ Poison Drone not owned! Purchase it first.")
+		return false
+	if RewardManager.perm_drone_poison_level >= PERM_DRONE_MAX_LEVEL:
+		print("❌ Poison Drone already at max level!")
+		return false
 	var cost = get_perm_drone_upgrade_cost(RewardManager.perm_drone_poison_level)
 	if RewardManager.fragments < cost:
 		print("❌ Not enough Fragments to upgrade Poison Drone.")
-		return
+		return false
 	RewardManager.fragments -= cost
 	RewardManager.perm_drone_poison_level += 1
 	RewardManager.save_permanent_upgrades()
 	print("🟣 Poison Drone permanently upgraded! Now:", RewardManager.perm_drone_poison_level)
+	return true
 
-func upgrade_perm_drone_shock():
+func upgrade_perm_drone_shock() -> bool:
+	if not RewardManager.owns_drone("shock"):
+		print("❌ Shock Drone not owned! Purchase it first.")
+		return false
+	if RewardManager.perm_drone_shock_level >= PERM_DRONE_MAX_LEVEL:
+		print("❌ Shock Drone already at max level!")
+		return false
 	var cost = get_perm_drone_upgrade_cost(RewardManager.perm_drone_shock_level)
 	if RewardManager.fragments < cost:
 		print("❌ Not enough Fragments to upgrade Shock Drone.")
-		return
+		return false
 	RewardManager.fragments -= cost
 	RewardManager.perm_drone_shock_level += 1
 	RewardManager.save_permanent_upgrades()
 	print("⚡ Shock Drone permanently upgraded! Now:", RewardManager.perm_drone_shock_level)
+	return true
 
 # --- WAVE-END FREE UPGRADE SYSTEM (unchanged) ---
 func maybe_grant_free_upgrade():
