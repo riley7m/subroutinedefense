@@ -6,7 +6,10 @@ var drone_level: int = 1
 # Drone-specific constants (NOT affected by tower upgrades)
 const BASE_FIRE_RATE: float = 1.0  # Base attacks per second
 const FIRE_RATE_PER_LEVEL: float = 0.1  # +0.1 attacks/sec per level
-const HORIZONTAL_RANGE: float = 200.0  # Horizontal distance from tower
+const MAX_FIRE_RATE: float = 4.0  # Hard cap at 4.0 attacks/sec
+const BASE_HORIZONTAL_RANGE: float = 200.0  # Base horizontal distance from tower
+const RANGE_PER_LEVEL: float = 10.0  # +10px range per level
+const MAX_HORIZONTAL_RANGE: float = 400.0  # Hard cap at 400px range
 
 @onready var fire_timer: Timer = $FireTimer
 
@@ -25,6 +28,7 @@ func _ready() -> void:
 func _update_fire_rate() -> void:
 	# Drones use their own fire rate based on level (independent of tower)
 	var attacks_per_sec = BASE_FIRE_RATE + (drone_level * FIRE_RATE_PER_LEVEL)
+	attacks_per_sec = min(attacks_per_sec, MAX_FIRE_RATE)  # Cap at 4.0 attacks/sec
 	fire_timer.wait_time = 1.0 / max(attacks_per_sec, 0.1)
 
 func _on_fire_timer_timeout() -> void:
@@ -39,6 +43,12 @@ func pick_target() -> Node2D:
 	# Override in child classes for different targeting strategies
 	return pick_lowest_hp_enemy()
 
+# Helper: Get current horizontal range based on level
+func get_horizontal_range() -> float:
+	var range_bonus = drone_level * RANGE_PER_LEVEL
+	var total_range = BASE_HORIZONTAL_RANGE + range_bonus
+	return min(total_range, MAX_HORIZONTAL_RANGE)  # Cap at 400px
+
 # Helper: Check if enemy is within horizontal range of tower
 func is_in_range(enemy: Node2D) -> bool:
 	var tower = get_tree().get_first_node_in_group("Tower")
@@ -47,7 +57,7 @@ func is_in_range(enemy: Node2D) -> bool:
 
 	# Check horizontal distance only (ignore vertical)
 	var horizontal_dist = abs(tower.global_position.x - enemy.global_position.x)
-	return horizontal_dist <= HORIZONTAL_RANGE
+	return horizontal_dist <= get_horizontal_range()
 
 # Helper: Pick enemy with lowest HP (used by flame and poison drones)
 func pick_lowest_hp_enemy() -> Node2D:

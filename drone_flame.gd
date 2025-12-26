@@ -18,6 +18,7 @@ func fire_at(target: Node2D) -> void:
 	var crit_multiplier = 1.0  # No crit for drones
 
 	if target.has_method("apply_burn"):
+		# Apply burn with level scaling (enemy.gd handles power/duration scaling internally)
 		target.apply_burn(drone_level, base_damage, crit_multiplier)
 		#print("🔥 Drone Flame: Applied burn to", target.name)
 	else:

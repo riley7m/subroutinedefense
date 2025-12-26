@@ -208,8 +208,14 @@ func purchase_drone_permanent(drone_type: String, cost: int) -> bool:
 
 func get_drone_purchase_cost(drone_type: String) -> int:
 	# Cost to permanently unlock a drone (one-time ever)
-	# Balanced around: Boss gives ~11-20 fragments, drone upgrades cost 3500+ fragments
-	return 5000  # Significant investment - about 250-500 boss kills
+	# Exponential cost: 3x multiplier per tier (5k, 15k, 45k, 135k)
+	var base_costs = {
+		"flame": 5000,      # First drone (500 boss kills)
+		"frost": 15000,     # Second drone (1500 boss kills)
+		"poison": 45000,    # Third drone (4500 boss kills)
+		"shock": 135000     # Fourth drone (13500 boss kills)
+	}
+	return base_costs.get(drone_type, 5000)
 
 # === RUN PERFORMANCE TRACKING ===
 func start_run_tracking(starting_wave: int = 1) -> void:
