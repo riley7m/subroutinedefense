@@ -330,34 +330,46 @@ func _generate_uuid() -> String:
 
 func _validate_save_data(data: Dictionary) -> bool:
 	# Validate that all values are within reasonable bounds
-	# Prevents save file tampering/exploits
+	# Prevents save file tampering/exploits while allowing late-game progression
 
-	# Validate currency bounds (max 1 billion AT, 10 million fragments)
+	# Validate currency bounds
+	# AT can reach 10^18+ in late game (level 300+ perm upgrades cost ~10^18 AT)
+	# Using conservative limits that still allow multi-year progression
 	var at = data.get("archive_tokens", 0)
 	var fragments = data.get("fragments", 0)
 
-	if at < 0 or at > 1000000000:
-		print("⚠️ Invalid AT value: %d" % at)
-		return false
-	if fragments < 0 or fragments > 10000000:
-		print("⚠️ Invalid fragments value: %d" % fragments)
+	# AT limit: 10^18 (1 quintillion) - allows for extreme late-game costs
+	# Level 200 perm upgrade: ~10^12 AT, Level 300: ~10^18 AT
+	if at < 0 or at > 1000000000000000000:  # 10^18
+		print("⚠️ Invalid AT value: %d (max 10^18)" % at)
 		return false
 
-	# Validate permanent upgrade levels (max 1000 per stat)
+	# Fragments limit: 10^12 (1 trillion) - premium currency but accumulates over years
+	# Boss Rush + daily activities over 3+ years can reach high amounts
+	if fragments < 0 or fragments > 1000000000000:  # 10^12
+		print("⚠️ Invalid fragments value: %d (max 10^12)" % fragments)
+		return false
+
+	# Validate permanent upgrade STAT VALUES (not costs)
+	# These are actual damage/fire rate numbers, not currency
 	var perm_damage = data.get("perm_projectile_damage", 0)
 	var perm_fire_rate = data.get("perm_projectile_fire_rate", 0)
 
-	if perm_damage < 0 or perm_damage > 100000:
-		print("⚠️ Invalid perm damage: %d" % perm_damage)
+	# Damage stats can get very high with many upgrades
+	if perm_damage < 0 or perm_damage > 1000000000:  # 10^9 (1 billion damage)
+		print("⚠️ Invalid perm damage: %d (max 10^9)" % perm_damage)
 		return false
-	if perm_fire_rate < 0 or perm_fire_rate > 1000:
-		print("⚠️ Invalid perm fire rate: %f" % perm_fire_rate)
+
+	# Fire rate is a smaller stat value
+	if perm_fire_rate < 0 or perm_fire_rate > 100000:  # 100k shots/sec max
+		print("⚠️ Invalid perm fire rate: %f (max 100k)" % perm_fire_rate)
 		return false
 
 	# Validate lifetime stats aren't absurdly high
+	# Over 3 years of heavy play, could reach billions of waves
 	var total_waves = data.get("total_waves_completed", 0)
-	if total_waves < 0 or total_waves > 100000000:  # 100 million waves max
-		print("⚠️ Invalid total waves: %d" % total_waves)
+	if total_waves < 0 or total_waves > 1000000000:  # 10^9 (1 billion waves)
+		print("⚠️ Invalid total waves: %d (max 10^9)" % total_waves)
 		return false
 
 	# All checks passed

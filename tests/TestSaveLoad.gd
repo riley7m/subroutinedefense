@@ -60,13 +60,15 @@ func test_currency_bounds() -> void:
 
 func test_currency_max_values() -> void:
 	# Test that currency values don't overflow
-	# Max safe value from CloudSaveManager validation: 1 billion AT, 10 million fragments
-	var max_at = 1000000000
-	var max_frags = 10000000
+	# Max safe values from CloudSaveManager validation:
+	# - AT: 10^18 (allows level 300+ perm upgrades)
+	# - Fragments: 10^12 (1 trillion, multi-year accumulation)
+	var max_at = 1000000000000000000  # 10^18
+	var max_frags = 1000000000000  # 10^12
 
 	# These are validation limits, actual values should be less
-	assert_less_equal(RewardManager.archive_tokens, max_at, "AT should not exceed validation limit")
-	assert_less_equal(RewardManager.fragments, max_frags, "Fragments should not exceed validation limit")
+	assert_less_equal(RewardManager.archive_tokens, max_at, "AT should not exceed validation limit (10^18)")
+	assert_less_equal(RewardManager.fragments, max_frags, "Fragments should not exceed validation limit (10^12)")
 
 	log_info("Currency values within validation limits")
 
@@ -76,10 +78,11 @@ func test_currency_max_values() -> void:
 
 func test_permanent_upgrade_bounds() -> void:
 	# Test that permanent upgrade levels are reasonable
+	# Limit: 10^9 (1 billion damage) - stat values can get very high with many upgrades
 	var perm_damage = RewardManager.perm_projectile_damage
 
 	assert_greater_equal(perm_damage, 0, "Permanent damage should be non-negative")
-	assert_less_equal(perm_damage, 100000, "Permanent damage should not exceed 100,000")
+	assert_less_equal(perm_damage, 1000000000, "Permanent damage should not exceed 1 billion (10^9)")
 
 	log_info("Permanent damage value: %d" % perm_damage)
 
@@ -215,10 +218,11 @@ func test_save_data_validation() -> void:
 	}
 
 	# These are the validation limits from CloudSaveManager._validate_save_data()
-	assert_less_equal(save_data["archive_tokens"], 1000000000, "AT should pass validation")
-	assert_less_equal(save_data["fragments"], 10000000, "Fragments should pass validation")
-	assert_less_equal(save_data["perm_projectile_damage"], 100000, "Perm damage should pass validation")
-	assert_less_equal(save_data["total_waves_completed"], 100000000, "Total waves should pass validation")
+	# Updated to support late-game progression (level 300+ perm upgrades)
+	assert_less_equal(save_data["archive_tokens"], 1000000000000000000, "AT should pass validation (max 10^18)")
+	assert_less_equal(save_data["fragments"], 1000000000000, "Fragments should pass validation (max 10^12)")
+	assert_less_equal(save_data["perm_projectile_damage"], 1000000000, "Perm damage should pass validation (max 10^9)")
+	assert_less_equal(save_data["total_waves_completed"], 1000000000, "Total waves should pass validation (max 10^9)")
 
 	log_info("Current save data passes validation checks")
 
