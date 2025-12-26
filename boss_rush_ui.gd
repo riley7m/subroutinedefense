@@ -1,10 +1,12 @@
 extends Control
 
 # Boss Rush UI - Tournament mode with leaderboards
+# Available Mon/Thu/Sat for 24 hours (UTC 00:00-00:00)
 
 # UI Nodes
 var panel: Panel
 var title_label: Label
+var availability_label: Label
 var info_text: RichTextLabel
 var start_button: Button
 var exit_button: Button
@@ -12,6 +14,7 @@ var clear_leaderboard_button: Button
 var leaderboard_scroll: ScrollContainer
 var leaderboard_list: VBoxContainer
 var close_button: Button
+var availability_timer: Timer
 
 func _ready() -> void:
 	_create_ui()
@@ -24,6 +27,14 @@ func _ready() -> void:
 
 	# Initial refresh
 	_refresh_leaderboard()
+	_update_availability()
+
+	# Set up timer to check availability every minute
+	availability_timer = Timer.new()
+	availability_timer.wait_time = 60.0  # Check every minute
+	availability_timer.timeout.connect(_update_availability)
+	availability_timer.autostart = true
+	add_child(availability_timer)
 
 	# Apply theme
 	if Engine.has_singleton("UIStyler"):
@@ -45,9 +56,18 @@ func _create_ui() -> void:
 	title_label.custom_minimum_size = Vector2(320, 30)
 	panel.add_child(title_label)
 
+	# Availability label
+	availability_label = Label.new()
+	availability_label.text = "✅ AVAILABLE NOW!"
+	availability_label.position = Vector2(20, 48)
+	availability_label.add_theme_font_size_override("font_size", 14)
+	availability_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	availability_label.custom_minimum_size = Vector2(320, 25)
+	panel.add_child(availability_label)
+
 	# Info text (rules)
 	info_text = RichTextLabel.new()
-	info_text.position = Vector2(20, 55)
+	info_text.position = Vector2(20, 78)
 	info_text.custom_minimum_size = Vector2(320, 140)
 	info_text.bbcode_enabled = true
 	info_text.fit_content = true
@@ -66,7 +86,7 @@ func _create_ui() -> void:
 	# Start button
 	start_button = Button.new()
 	start_button.text = "🎮 START BOSS RUSH"
-	start_button.position = Vector2(20, 205)
+	start_button.position = Vector2(20, 228)
 	start_button.custom_minimum_size = Vector2(200, 45)
 	start_button.pressed.connect(_on_start_pressed)
 	panel.add_child(start_button)
@@ -74,7 +94,7 @@ func _create_ui() -> void:
 	# Exit button (only visible during boss rush)
 	exit_button = Button.new()
 	exit_button.text = "🚪 Exit Boss Rush"
-	exit_button.position = Vector2(230, 205)
+	exit_button.position = Vector2(230, 228)
 	exit_button.custom_minimum_size = Vector2(110, 45)
 	exit_button.pressed.connect(_on_exit_pressed)
 	exit_button.visible = false
@@ -175,7 +195,31 @@ func _refresh_leaderboard() -> void:
 		bottom_line.custom_minimum_size = Vector2(280, 18)
 		vbox.add_child(bottom_line)
 
+func _update_availability() -> void:
+	if not BossRushManager:
+		return
+
+	var is_available = BossRushManager.is_tournament_available()
+
+	if is_available:
+		availability_label.text = "✅ TOURNAMENT ACTIVE!"
+		availability_label.modulate = Color(0.0, 1.0, 0.0)  # Green
+		start_button.disabled = false
+	else:
+		var next_time = BossRushManager.get_next_tournament_time()
+		availability_label.text = "🔒 Next: %s (%dh)" % [next_time["day_name"], next_time["hours_until"]]
+		availability_label.modulate = Color(1.0, 0.5, 0.0)  # Orange
+		start_button.disabled = true
+
 func _on_start_pressed() -> void:
+	if not BossRushManager:
+		return
+
+	# Check if tournament is available
+	if not BossRushManager.is_tournament_available():
+		print("⚠️ Boss Rush is not available right now!")
+		return
+
 	if BossRushManager.is_boss_rush_active():
 		print("⚠️ Boss Rush already active!")
 		return

@@ -145,6 +145,7 @@ var tier_label: Label = null  # Created programmatically
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
 
 @onready var death_screen = null  # Will be set in _ready()
+@onready var boss_rush_death_screen = null  # Will be set in _ready()
 @onready var spawner: Node = $Spawner
 @onready var tower: Node = $tower
 
@@ -155,6 +156,12 @@ func _ready() -> void:
 	var current = get_tree().current_scene
 	if current:
 		death_screen = current.get_node_or_null("DeathScreen")
+
+	# Add boss rush death screen
+	boss_rush_death_screen = preload("res://boss_rush_death_screen.gd").new()
+	boss_rush_death_screen.name = "BossRushDeathScreen"
+	boss_rush_death_screen.visible = false
+	add_child(boss_rush_death_screen)
 
 	# Add offline progress popup (highest z-index)
 	var offline_popup = preload("res://offline_progress_popup.gd").new()

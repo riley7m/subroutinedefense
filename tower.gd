@@ -188,17 +188,29 @@ func take_damage(amount: int, attacker: Node2D = null) -> void:
 		#print("💥 Tower hit! Remaining HP:", tower_hp)
 
 		# Check for death
-		if tower_hp <= 0 and death_screen:
+		if tower_hp <= 0:
 			_cleanup_before_death()
 
-			# End boss rush if active
-			if BossRushManager.is_boss_rush_active():
+			# Check if boss rush is active - use custom death screen
+			if BossRushManager and BossRushManager.is_boss_rush_active():
 				var spawner = get_tree().current_scene.get_node_or_null("Spawner")
 				if spawner and spawner.has_method("end_boss_rush"):
 					spawner.end_boss_rush()
 
-			ScreenEffects.death_transition()
-			death_screen.show_death()
+				# Show boss rush death screen instead of normal death screen
+				var boss_rush_death = get_tree().current_scene.get_node_or_null("BossRushDeathScreen")
+				if boss_rush_death and boss_rush_death.has_method("show_boss_rush_death"):
+					ScreenEffects.death_transition()
+					boss_rush_death.show_boss_rush_death(RunStats.damage_dealt, spawner.current_wave)
+				else:
+					print("⚠️ Boss rush death screen not found!")
+					if death_screen:
+						ScreenEffects.death_transition()
+						death_screen.show_death()
+			elif death_screen:
+				# Normal death
+				ScreenEffects.death_transition()
+				death_screen.show_death()
 
 	update_bars()
 
