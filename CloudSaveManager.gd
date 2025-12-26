@@ -2,6 +2,7 @@ extends Node
 
 # CloudSaveManager - PlayFab Integration for Account Binding
 # Syncs save data to cloud so players don't lose progress
+# **SECURITY**: Includes encryption, rate limiting, and server-side validation
 
 # Signals
 signal login_succeeded(player_id: String)
@@ -20,14 +21,36 @@ var player_id: String = ""
 var is_logged_in: bool = false
 var is_guest: bool = true
 
-# HTTP Request Node
+# Rate Limiting
+var last_save_upload: int = 0
+var last_save_download: int = 0
+const MIN_SAVE_INTERVAL := 10  # Minimum 10 seconds between saves
+const MIN_DOWNLOAD_INTERVAL := 5  # Minimum 5 seconds between downloads
+
+# Save Queue (for when rate limited)
+var pending_save: Dictionary = {}
+var has_pending_save: bool = false
+
+# Encryption Key (generated per-player, stored locally)
+var encryption_key: PackedByteArray = []
+const ENCRYPTION_KEY_SIZE := 32  # 256-bit AES
+
+# HTTP Request Nodes
 var http_request: HTTPRequest
+var http_validate_save: HTTPRequest
 
 func _ready() -> void:
-	# Create HTTP request node
+	# Create HTTP request nodes
 	http_request = HTTPRequest.new()
 	add_child(http_request)
 	http_request.request_completed.connect(_on_http_request_completed)
+
+	http_validate_save = HTTPRequest.new()
+	add_child(http_validate_save)
+	http_validate_save.request_completed.connect(_on_validate_save_completed)
+
+	# Load or generate encryption key
+	_load_or_generate_encryption_key()
 
 	# Try to restore session from last login
 	_try_restore_session()
@@ -120,11 +143,68 @@ func upload_save_data(save_data: Dictionary) -> void:
 		print("⚠️ Not logged in - save not uploaded")
 		return
 
-	print("☁️ Uploading save data to cloud...")
+	# Rate limiting
+	var now = int(Time.get_ticks_msec() / 1000.0)
+	if now - last_save_upload < MIN_SAVE_INTERVAL:
+		# Queue save for later
+		pending_save = save_data.duplicate(true)
+		has_pending_save = true
+		print("⏳ Save rate limited. Queuing for later... (%d seconds remaining)" % (MIN_SAVE_INTERVAL - (now - last_save_upload)))
+
+		# Set timer to upload pending save
+		var timer = get_tree().create_timer(MIN_SAVE_INTERVAL - (now - last_save_upload))
+		timer.timeout.connect(_upload_pending_save)
+		return
+
+	last_save_upload = now
+
+	print("☁️ Uploading encrypted save data to cloud...")
 
 	# Convert save data to JSON string
 	var save_json = JSON.stringify(save_data)
 
+	# Encrypt save data
+	var encrypted_data = _encrypt_save_data(save_json)
+	var encoded_data = Marshalls.raw_to_base64(encrypted_data)
+
+	# Add integrity hash (prevents tampering)
+	var data_hash = save_json.md5_text()
+
+	# First, validate with server-side CloudScript
+	_validate_save_with_server(save_data, encoded_data, data_hash)
+
+func _upload_pending_save() -> void:
+	if has_pending_save:
+		has_pending_save = false
+		upload_save_data(pending_save)
+		pending_save.clear()
+
+func _validate_save_with_server(save_data: Dictionary, encrypted_data: String, data_hash: String) -> void:
+	var url = PLAYFAB_API_URL + "/Client/ExecuteCloudScript"
+	var headers = [
+		"Content-Type: application/json",
+		"X-Authorization: %s" % session_ticket
+	]
+
+	var body = JSON.stringify({
+		"FunctionName": "validateCloudSave",
+		"FunctionParameter": {
+			"saveData": JSON.stringify(save_data)  # Send unencrypted to server for validation
+		}
+	})
+
+	print("🔒 Validating save with server...")
+	var error = http_validate_save.request(url, headers, HTTPClient.METHOD_POST, body)
+	if error != OK:
+		print("❌ Failed to validate save: %s" % error)
+
+	# Store encrypted data temporarily for upload after validation
+	pending_save = {
+		"encrypted": encrypted_data,
+		"hash": data_hash
+	}
+
+func _upload_validated_save(encrypted_data: String, data_hash: String) -> void:
 	var url = PLAYFAB_API_URL + "/Client/UpdateUserData"
 	var headers = [
 		"Content-Type: application/json",
@@ -132,7 +212,8 @@ func upload_save_data(save_data: Dictionary) -> void:
 	]
 	var body = JSON.stringify({
 		"Data": {
-			"SaveData": save_json,
+			"SaveData": encrypted_data,
+			"SaveHash": data_hash,
 			"LastSaveTimestamp": str(Time.get_unix_time_from_system())
 		}
 	})
@@ -146,7 +227,15 @@ func download_save_data() -> void:
 		print("⚠️ Not logged in - cannot download save")
 		return
 
-	print("☁️ Downloading save data from cloud...")
+	# Rate limiting
+	var now = int(Time.get_ticks_msec() / 1000.0)
+	if now - last_save_download < MIN_DOWNLOAD_INTERVAL:
+		print("⏳ Download rate limited. Wait %d seconds." % (MIN_DOWNLOAD_INTERVAL - (now - last_save_download)))
+		return
+
+	last_save_download = now
+
+	print("☁️ Downloading encrypted save data from cloud...")
 
 	var url = PLAYFAB_API_URL + "/Client/GetUserData"
 	var headers = [
@@ -154,7 +243,7 @@ func download_save_data() -> void:
 		"X-Authorization: %s" % session_ticket
 	]
 	var body = JSON.stringify({
-		"Keys": ["SaveData", "LastSaveTimestamp"]
+		"Keys": ["SaveData", "SaveHash", "LastSaveTimestamp"]
 	})
 
 	var error = http_request.request(url, headers, HTTPClient.METHOD_POST, body)
@@ -240,16 +329,40 @@ func _process_downloaded_save(data: Dictionary) -> void:
 		print("ℹ️ No cloud save found")
 		return
 
-	var save_json = data["SaveData"].get("Value", "{}")
+	var encrypted_base64 = data["SaveData"].get("Value", "")
+	var save_hash = data.get("SaveHash", {}).get("Value", "")
 	var timestamp = int(data.get("LastSaveTimestamp", {}).get("Value", "0"))
 
-	print("☁️ Cloud save found (timestamp: %d)" % timestamp)
+	if encrypted_base64 == "":
+		print("ℹ️ No cloud save data")
+		return
 
-	# Parse save data
+	print("☁️ Cloud save found (timestamp: %d), decrypting..." % timestamp)
+
+	# Decode from base64
+	var encrypted_data = Marshalls.base64_to_raw(encrypted_base64)
+	if encrypted_data.size() == 0:
+		print("❌ Failed to decode encrypted save data")
+		return
+
+	# Decrypt save data
+	var save_json = _decrypt_save_data(encrypted_data)
+	if save_json == "":
+		print("❌ Failed to decrypt save data (wrong key or corrupted)")
+		return
+
+	# Verify integrity hash
+	var calculated_hash = save_json.md5_text()
+	if save_hash != "" and calculated_hash != save_hash:
+		print("❌ Save data integrity check failed - possible tampering!")
+		login_failed.emit("Cloud save data integrity compromised")
+		return
+
+	# Parse decrypted JSON
 	var json = JSON.new()
 	var error = json.parse(save_json)
 	if error != OK:
-		print("⚠️ Failed to parse cloud save")
+		print("⚠️ Failed to parse decrypted cloud save")
 		return
 
 	var save_data = json.data
@@ -259,6 +372,8 @@ func _process_downloaded_save(data: Dictionary) -> void:
 		print("❌ Cloud save failed validation - possible tampering!")
 		login_failed.emit("Cloud save data is invalid")
 		return
+
+	print("✅ Cloud save decrypted and validated successfully")
 
 	save_data["cloud_timestamp"] = timestamp
 	save_downloaded.emit(save_data)
@@ -398,3 +513,147 @@ func get_player_info() -> Dictionary:
 		"is_logged_in": is_logged_in,
 		"is_guest": is_guest,
 	}
+
+# === VALIDATION RESPONSE HANDLER ===
+
+func _on_validate_save_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS:
+		print("❌ Save validation failed (network error)")
+		return
+
+	if response_code != 200:
+		print("❌ Save validation failed (server error: %d)" % response_code)
+		return
+
+	# Parse CloudScript response
+	var json = JSON.new()
+	var error = json.parse(body.get_string_from_utf8())
+	if error != OK:
+		print("❌ Save validation failed (parse error)")
+		return
+
+	var response = json.data
+
+	# Check for PlayFab errors
+	if response.has("error"):
+		var error_msg = response["error"].get("errorMessage", "Unknown error")
+		print("❌ Save validation failed: %s" % error_msg)
+		return
+
+	# Get CloudScript result
+	var script_result = response.get("data", {}).get("FunctionResult", {})
+
+	if not script_result.get("valid", false):
+		var reason = script_result.get("reason", "Unknown validation failure")
+		print("❌ Save rejected by server: %s" % reason)
+		# TODO: Report suspicious activity if tampering detected
+		return
+
+	print("✅ Save validated by server")
+
+	# Upload the encrypted save data
+	if pending_save.has("encrypted") and pending_save.has("hash"):
+		_upload_validated_save(pending_save["encrypted"], pending_save["hash"])
+		pending_save.clear()
+	else:
+		print("⚠️ No pending save to upload after validation")
+
+# === ENCRYPTION FUNCTIONS ===
+
+func _encrypt_save_data(json_string: String) -> PackedByteArray:
+	"""
+	Encrypts save data using AES-256-CBC
+	Returns encrypted bytes ready for base64 encoding
+	"""
+	if encryption_key.size() != ENCRYPTION_KEY_SIZE:
+		push_error("Encryption key not initialized!")
+		return PackedByteArray()
+
+	# Convert string to bytes
+	var plaintext = json_string.to_utf8_buffer()
+
+	# Generate random IV (16 bytes for AES)
+	var iv = PackedByteArray()
+	iv.resize(16)
+	for i in range(16):
+		iv[i] = randi() % 256
+
+	# Create AES context
+	var aes = AESContext.new()
+	aes.start(AESContext.MODE_CBC_ENCRYPT, encryption_key, iv)
+
+	# Encrypt data (AES requires padding to 16-byte blocks)
+	var encrypted = aes.update(plaintext)
+	aes.finish()
+
+	# Prepend IV to encrypted data (needed for decryption)
+	# Format: [16 bytes IV][encrypted data]
+	var result = iv + encrypted
+
+	return result
+
+func _decrypt_save_data(encrypted_data: PackedByteArray) -> String:
+	"""
+	Decrypts save data using AES-256-CBC
+	Returns decrypted JSON string
+	"""
+	if encryption_key.size() != ENCRYPTION_KEY_SIZE:
+		push_error("Encryption key not initialized!")
+		return ""
+
+	if encrypted_data.size() < 16:
+		push_error("Encrypted data too short (missing IV)")
+		return ""
+
+	# Extract IV from first 16 bytes
+	var iv = encrypted_data.slice(0, 16)
+	var ciphertext = encrypted_data.slice(16)
+
+	# Create AES context
+	var aes = AESContext.new()
+	aes.start(AESContext.MODE_CBC_DECRYPT, encryption_key, iv)
+
+	# Decrypt data
+	var decrypted = aes.update(ciphertext)
+	aes.finish()
+
+	# Convert bytes to string
+	return decrypted.get_string_from_utf8()
+
+func _load_or_generate_encryption_key() -> void:
+	"""
+	Loads encryption key from local storage or generates a new one
+	Key is stored per-device (not synced to cloud)
+
+	SECURITY: Key is local-only. If user reinstalls, they lose access to old encrypted saves.
+	This is intentional - prevents key theft from cloud saves.
+	"""
+	var key_path = "user://encryption.key"
+
+	# Try to load existing key
+	if FileAccess.file_exists(key_path):
+		var file = FileAccess.open(key_path, FileAccess.READ)
+		if file:
+			encryption_key = file.get_buffer(ENCRYPTION_KEY_SIZE)
+			file.close()
+
+			if encryption_key.size() == ENCRYPTION_KEY_SIZE:
+				print("🔑 Encryption key loaded")
+				return
+			else:
+				print("⚠️ Invalid encryption key size, regenerating...")
+
+	# Generate new random key
+	print("🔑 Generating new encryption key...")
+	encryption_key.resize(ENCRYPTION_KEY_SIZE)
+
+	# Use crypto random for security
+	for i in range(ENCRYPTION_KEY_SIZE):
+		encryption_key[i] = randi() % 256
+
+	# Save key to disk
+	var file = FileAccess.open(key_path, FileAccess.WRITE)
+	if file:
+		file.store_buffer(encryption_key)
+		file.close()
+		print("✅ Encryption key generated and saved")

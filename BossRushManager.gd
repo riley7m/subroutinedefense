@@ -7,16 +7,35 @@ extends Node
 # - Leaderboard based on damage dealt, not waves survived
 # - Available Mon/Thu/Sat for 24 hours (UTC 00:00 to 00:00)
 # - Rewards fragments based on rank
+# - **ONLINE**: Syncs with PlayFab global leaderboards
 
 # Signals
 signal boss_rush_started()
 signal boss_rush_ended(damage_dealt: int, waves_survived: int)
 signal leaderboard_updated()
+signal online_leaderboard_loaded(entries: Array)
+signal score_submitted(success: bool, rank: int)
 
 # Boss Rush State
 var is_active: bool = false
 var current_run_damage: int = 0
 var current_run_wave: int = 0
+
+# Online state
+var is_online: bool = true
+var last_online_fetch: int = 0
+var last_score_submit: int = 0
+const MIN_FETCH_INTERVAL := 60  # Fetch global leaderboard max once per minute
+const MIN_SUBMIT_INTERVAL := 300  # Max 1 submission per 5 minutes (prevent spam)
+
+# HTTP Nodes for PlayFab
+var http_submit_score: HTTPRequest
+var http_fetch_leaderboard: HTTPRequest
+var http_validate_score: HTTPRequest
+
+# PlayFab Configuration
+const PLAYFAB_TITLE_ID := "1DEAD6"
+const LEADERBOARD_NAME := "BossRushDamage"
 
 # Boss Rush Configuration
 const BOSS_HP_SCALING_BASE := 1.13  # 13% per wave (vs 2% normal)
@@ -41,12 +60,29 @@ const FRAGMENT_REWARDS := {
 const PARTICIPATION_REWARD := 100  # For runs not in top 10
 
 # Leaderboard (top 10 runs sorted by damage)
-# Each entry: {"damage": int, "waves": int, "tier": int, "timestamp": int}
+# Local cache + fallback if offline
+# Each entry: {"damage": int, "waves": int, "tier": int, "timestamp": int, "player_id": String}
 var leaderboard: Array = []
 const MAX_LEADERBOARD_ENTRIES := 10
 
 func _ready() -> void:
+	# Create HTTP nodes for PlayFab
+	http_submit_score = HTTPRequest.new()
+	add_child(http_submit_score)
+	http_submit_score.request_completed.connect(_on_submit_score_completed)
+
+	http_fetch_leaderboard = HTTPRequest.new()
+	add_child(http_fetch_leaderboard)
+	http_fetch_leaderboard.request_completed.connect(_on_fetch_leaderboard_completed)
+
+	http_validate_score = HTTPRequest.new()
+	add_child(http_validate_score)
+	http_validate_score.request_completed.connect(_on_validate_score_completed)
+
 	load_leaderboard()
+
+	# Try to fetch online leaderboard on startup
+	fetch_online_leaderboard()
 
 # === TOURNAMENT AVAILABILITY ===
 
@@ -108,16 +144,17 @@ func end_boss_rush(final_damage: int, final_wave: int) -> void:
 
 	print("🏆 Boss Rush ended! Damage: %d, Waves: %d" % [final_damage, final_wave])
 
-	# Calculate rank and award fragments
-	var rank = get_rank_for_damage(final_damage)
-	var fragments = get_fragment_reward_for_rank(rank)
-
-	if fragments > 0 and RewardManager:
-		RewardManager.add_fragments(fragments)
-		print("💎 Awarded %d fragments for rank #%d!" % [fragments, rank])
-
-	# Add to leaderboard
+	# Add to local leaderboard (cache/fallback)
 	add_leaderboard_entry(final_damage, final_wave)
+
+	# Submit to online leaderboard (with server-side validation)
+	if is_online and CloudSaveManager and CloudSaveManager.is_logged_in:
+		submit_score_online(final_damage, final_wave)
+	else:
+		# Offline mode: just use local leaderboard for rank
+		var rank = get_rank_for_damage(final_damage)
+		_award_fragments_for_rank(rank)
+		print("📡 Offline mode: Score saved locally only")
 
 	boss_rush_ended.emit(final_damage, final_wave)
 
@@ -156,7 +193,227 @@ func get_boss_rush_speed_multiplier() -> float:
 	# Bosses move at 3x speed
 	return 3.0
 
-# === LEADERBOARD ===
+# === ONLINE LEADERBOARD (PlayFab) ===
+
+## Submit score to PlayFab with server-side validation
+func submit_score_online(damage: int, waves: int) -> void:
+	# Rate limiting: prevent spam submissions
+	var now = int(Time.get_unix_time_from_system())
+	if now - last_score_submit < MIN_SUBMIT_INTERVAL:
+		print("⚠️ Score submission too frequent. Wait %d seconds." % (MIN_SUBMIT_INTERVAL - (now - last_score_submit)))
+		# Still award fragments based on local rank
+		var rank = get_rank_for_damage(damage)
+		_award_fragments_for_rank(rank)
+		return
+
+	last_score_submit = now
+
+	# Step 1: Validate with CloudScript (server-side anti-cheat)
+	validate_score_with_server(damage, waves)
+
+## Validate score with PlayFab CloudScript (server-side anti-cheat)
+func validate_score_with_server(damage: int, waves: int) -> void:
+	if not CloudSaveManager or not CloudSaveManager.session_ticket:
+		print("❌ Not logged in to PlayFab")
+		return
+
+	var url = "https://%s.playfabapi.com/Client/ExecuteCloudScript" % PLAYFAB_TITLE_ID
+	var headers = [
+		"Content-Type: application/json",
+		"X-Authorization: %s" % CloudSaveManager.session_ticket
+	]
+
+	var body = JSON.stringify({
+		"FunctionName": "validateBossRushScore",
+		"FunctionParameter": {
+			"damage": damage,
+			"waves": waves,
+			"tier": TierManager.get_current_tier() if TierManager else 1,
+			"timestamp": int(Time.get_unix_time_from_system())
+		}
+	})
+
+	print("🔒 Validating score with server...")
+	var err = http_validate_score.request(url, headers, HTTPClient.METHOD_POST, body)
+	if err != OK:
+		print("❌ Failed to send validation request: %d" % err)
+		is_online = false
+
+## Submit validated score to PlayFab leaderboard
+func _submit_validated_score(damage: int, waves: int) -> void:
+	if not CloudSaveManager or not CloudSaveManager.session_ticket:
+		return
+
+	var url = "https://%s.playfabapi.com/Client/UpdatePlayerStatistics" % PLAYFAB_TITLE_ID
+	var headers = [
+		"Content-Type: application/json",
+		"X-Authorization: %s" % CloudSaveManager.session_ticket
+	]
+
+	var body = JSON.stringify({
+		"Statistics": [
+			{
+				"StatisticName": LEADERBOARD_NAME,
+				"Value": damage
+			},
+			{
+				"StatisticName": "BossRushWaves",
+				"Value": waves
+			}
+		]
+	})
+
+	print("📊 Submitting score to global leaderboard...")
+	var err = http_submit_score.request(url, headers, HTTPClient.METHOD_POST, body)
+	if err != OK:
+		print("❌ Failed to submit score: %d" % err)
+		is_online = false
+
+## Fetch global leaderboard from PlayFab
+func fetch_online_leaderboard() -> void:
+	# Rate limiting
+	var now = int(Time.get_unix_time_from_system())
+	if now - last_online_fetch < MIN_FETCH_INTERVAL:
+		print("⏳ Leaderboard fetch too frequent. Using cache.")
+		return
+
+	last_online_fetch = now
+
+	if not CloudSaveManager or not CloudSaveManager.session_ticket:
+		print("📡 Not logged in, using local leaderboard")
+		is_online = false
+		return
+
+	var url = "https://%s.playfabapi.com/Client/GetLeaderboard" % PLAYFAB_TITLE_ID
+	var headers = [
+		"Content-Type: application/json",
+		"X-Authorization: %s" % CloudSaveManager.session_ticket
+	]
+
+	var body = JSON.stringify({
+		"StatisticName": LEADERBOARD_NAME,
+		"StartPosition": 0,
+		"MaxResultsCount": MAX_LEADERBOARD_ENTRIES
+	})
+
+	print("📡 Fetching global leaderboard...")
+	var err = http_fetch_leaderboard.request(url, headers, HTTPClient.METHOD_POST, body)
+	if err != OK:
+		print("❌ Failed to fetch leaderboard: %d" % err)
+		is_online = false
+
+# === HTTP RESPONSE HANDLERS ===
+
+func _on_validate_score_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		print("❌ Score validation failed: HTTP %d" % response_code)
+		is_online = false
+		# Award fragments based on local rank anyway
+		var rank = get_rank_for_damage(current_run_damage)
+		_award_fragments_for_rank(rank)
+		return
+
+	var json = JSON.new()
+	var parse_result = json.parse(body.get_string_from_utf8())
+	if parse_result != OK:
+		print("❌ Failed to parse validation response")
+		return
+
+	var response = json.data
+	if not response.has("data") or not response["data"].has("FunctionResult"):
+		print("❌ Invalid validation response format")
+		return
+
+	var validation_result = response["data"]["FunctionResult"]
+
+	if validation_result.get("valid", false):
+		print("✅ Score validated by server!")
+		# Now submit the score
+		_submit_validated_score(current_run_damage, current_run_wave)
+	else:
+		var reason = validation_result.get("reason", "Unknown")
+		print("❌ Server rejected score: %s" % reason)
+		# Award participation fragments only
+		_award_fragments_for_rank(999)
+
+func _on_submit_score_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		print("❌ Score submission failed: HTTP %d" % response_code)
+		is_online = false
+		# Award fragments based on local rank as fallback
+		var rank = get_rank_for_damage(current_run_damage)
+		_award_fragments_for_rank(rank)
+		return
+
+	print("✅ Score submitted successfully!")
+
+	# Fetch updated leaderboard to get player's rank
+	fetch_online_leaderboard()
+
+func _on_fetch_leaderboard_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		print("❌ Leaderboard fetch failed: HTTP %d" % response_code)
+		is_online = false
+		return
+
+	var json = JSON.new()
+	var parse_result = json.parse(body.get_string_from_utf8())
+	if parse_result != OK:
+		print("❌ Failed to parse leaderboard response")
+		return
+
+	var response = json.data
+	if not response.has("data") or not response["data"].has("Leaderboard"):
+		print("❌ Invalid leaderboard response format")
+		return
+
+	var entries = response["data"]["Leaderboard"]
+	print("📊 Global leaderboard fetched: %d entries" % entries.size())
+
+	# Convert PlayFab entries to local format
+	leaderboard.clear()
+	var player_rank = 0
+	for i in range(entries.size()):
+		var entry = entries[i]
+		var player_id = entry.get("PlayFabId", "")
+		var damage_val = entry.get("StatValue", 0)
+
+		leaderboard.append({
+			"damage": damage_val,
+			"waves": 0,  # Would need separate call to get this
+			"tier": 0,
+			"timestamp": 0,
+			"player_id": player_id,
+			"position": entry.get("Position", i)
+		})
+
+		# Check if this is the current player
+		if CloudSaveManager and player_id == CloudSaveManager.player_id:
+			player_rank = entry.get("Position", 0) + 1  # Position is 0-indexed
+
+	save_leaderboard()
+	online_leaderboard_loaded.emit(leaderboard)
+	leaderboard_updated.emit()
+
+	# Award fragments based on global rank
+	if player_rank > 0:
+		_award_fragments_for_rank(player_rank)
+		score_submitted.emit(true, player_rank)
+		print("🏆 Global rank: #%d" % player_rank)
+	elif current_run_damage > 0:
+		# Player not in top 10, award participation
+		_award_fragments_for_rank(999)
+		score_submitted.emit(true, 999)
+
+## Helper: Award fragments based on rank
+func _award_fragments_for_rank(rank: int) -> void:
+	var fragments = get_fragment_reward_for_rank(rank)
+
+	if fragments > 0 and RewardManager:
+		RewardManager.add_fragments(fragments)
+		print("💎 Awarded %d fragments for rank #%d!" % [fragments, rank])
+
+# === LOCAL LEADERBOARD (Fallback/Cache) ===
 
 func add_leaderboard_entry(damage: int, waves: int) -> void:
 	var entry = {
