@@ -78,13 +78,18 @@ func test_currency_max_values() -> void:
 
 func test_permanent_upgrade_bounds() -> void:
 	# Test that permanent upgrade levels are reasonable
-	# Limit: 10^9 (1 billion damage) - stat values can get very high with many upgrades
+	# Damage: int64 max (~10^18 quintillions) for big number satisfaction
+	# Fire rate: 1,000 max (actual shots/sec, not a "big number" stat)
 	var perm_damage = RewardManager.perm_projectile_damage
+	var perm_fire_rate = RewardManager.perm_projectile_fire_rate
 
 	assert_greater_equal(perm_damage, 0, "Permanent damage should be non-negative")
-	assert_less_equal(perm_damage, 1000000000, "Permanent damage should not exceed 1 billion (10^9)")
+	assert_less_equal(perm_damage, 9223372036854775807, "Permanent damage should not exceed int64 max (~10^18)")
 
-	log_info("Permanent damage value: %d" % perm_damage)
+	assert_greater_equal(perm_fire_rate, 0, "Permanent fire rate should be non-negative")
+	assert_less_equal(perm_fire_rate, 1000, "Permanent fire rate should not exceed 1000 shots/sec")
+
+	log_info("Permanent damage: %d, Fire rate: %f" % [perm_damage, perm_fire_rate])
 
 func test_in_run_upgrade_bounds() -> void:
 	# Test that in-run upgrade levels are reasonable
@@ -218,10 +223,10 @@ func test_save_data_validation() -> void:
 	}
 
 	# These are the validation limits from CloudSaveManager._validate_save_data()
-	# Updated to support late-game progression (level 300+ perm upgrades)
+	# Updated to support late-game progression + big number satisfaction
 	assert_less_equal(save_data["archive_tokens"], 1000000000000000000, "AT should pass validation (max 10^18)")
 	assert_less_equal(save_data["fragments"], 1000000000000, "Fragments should pass validation (max 10^12)")
-	assert_less_equal(save_data["perm_projectile_damage"], 1000000000, "Perm damage should pass validation (max 10^9)")
+	assert_less_equal(save_data["perm_projectile_damage"], 9223372036854775807, "Perm damage should pass validation (max int64)")
 	assert_less_equal(save_data["total_waves_completed"], 1000000000, "Total waves should pass validation (max 10^9)")
 
 	log_info("Current save data passes validation checks")

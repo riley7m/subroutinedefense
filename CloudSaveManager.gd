@@ -355,14 +355,17 @@ func _validate_save_data(data: Dictionary) -> bool:
 	var perm_damage = data.get("perm_projectile_damage", 0)
 	var perm_fire_rate = data.get("perm_projectile_fire_rate", 0)
 
-	# Damage stats can get very high with many upgrades
-	if perm_damage < 0 or perm_damage > 1000000000:  # 10^9 (1 billion damage)
-		print("⚠️ Invalid perm damage: %d (max 10^9)" % perm_damage)
+	# Damage can reach extreme values for "big number" player satisfaction
+	# Limited to int64 max: 9.22e18 (9.22 quintillion)
+	# Note: For octillions (10^27) display, would need big number system (coefficient + exponent)
+	# Current int64 storage caps at quintillions, but that's still satisfyingly huge
+	if perm_damage < 0 or perm_damage > 9223372036854775807:  # int64 max (~10^18)
+		print("⚠️ Invalid perm damage: %d (max int64)" % perm_damage)
 		return false
 
-	# Fire rate is a smaller stat value
-	if perm_fire_rate < 0 or perm_fire_rate > 100000:  # 100k shots/sec max
-		print("⚠️ Invalid perm fire rate: %f (max 100k)" % perm_fire_rate)
+	# Fire rate is actual shots/second, not a "big number" stat
+	if perm_fire_rate < 0 or perm_fire_rate > 1000:  # 1k shots/sec is plenty
+		print("⚠️ Invalid perm fire rate: %f (max 1000)" % perm_fire_rate)
 		return false
 
 	# Validate lifetime stats aren't absurdly high
