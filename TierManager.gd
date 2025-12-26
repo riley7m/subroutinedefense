@@ -10,7 +10,7 @@ signal tier_unlocked(tier: int)
 const MAX_TIERS := 10
 const WAVES_PER_TIER := 5000  # Waves needed to unlock next tier
 const ENEMY_MULTIPLIER_BASE := 10.0  # 10x per tier
-const REWARD_MULTIPLIER_BASE := 10.0  # 10x per tier
+const REWARD_MULTIPLIER_BASE := 5.0  # 5x per tier (1x, 5x, 25x, 125x...)
 
 # Current tier (1-10)
 var current_tier: int = 1

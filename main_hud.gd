@@ -70,6 +70,10 @@ const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
 var software_upgrade_panel: Control = null
 var software_upgrade_button: Button = null
 
+# Tier selection panel
+var tier_selection_panel: Control = null
+var tier_selection_button: Button = null
+
 # Statistics panel
 var statistics_panel: Panel = null
 var statistics_button: Button = null
@@ -100,6 +104,7 @@ var current_speed_index := 0
 @onready var dc_label: Label = $TopBanner/DCLabel
 @onready var at_label: Label = $TopBanner/ATLabel
 var fragments_label: Label = null  # Created programmatically
+var tier_label: Label = null  # Created programmatically
 
 # Upgrade UI – Damage label
 @onready var damage_label: Label = $UpgradesBox/DamageUpgradeLabel
@@ -163,10 +168,22 @@ func _ready() -> void:
 	software_upgrade_button.pressed.connect(_on_software_upgrade_button_pressed)
 	add_child(software_upgrade_button)
 
+	# Add Tier Selection panel and button
+	tier_selection_panel = preload("res://tier_selection_ui.gd").new()
+	tier_selection_panel.visible = false
+	add_child(tier_selection_panel)
+
+	tier_selection_button = Button.new()
+	tier_selection_button.text = "🎖️ Tiers"
+	tier_selection_button.position = Vector2(170, 900)
+	tier_selection_button.custom_minimum_size = Vector2(120, 40)
+	tier_selection_button.pressed.connect(_on_tier_selection_button_pressed)
+	add_child(tier_selection_button)
+
 	# Add Statistics button
 	statistics_button = Button.new()
 	statistics_button.text = "📊 Stats"
-	statistics_button.position = Vector2(170, 900)
+	statistics_button.position = Vector2(300, 900)
 	statistics_button.custom_minimum_size = Vector2(120, 40)
 	statistics_button.pressed.connect(_on_statistics_button_pressed)
 	add_child(statistics_button)
@@ -203,6 +220,15 @@ func _ready() -> void:
 		fragments_label.size = Vector2(150, 20)
 		top_banner.add_child(fragments_label)
 		UIStyler.apply_theme_to_node(fragments_label)
+
+		# Create tier label in TopBanner
+		tier_label = Label.new()
+		tier_label.name = "TierLabel"
+		tier_label.text = "🎖️ Tier: 1"
+		tier_label.position = Vector2(6, 70)  # Position below Fragments label
+		tier_label.size = Vector2(150, 20)
+		top_banner.add_child(tier_label)
+		UIStyler.apply_theme_to_node(tier_label)
 
 	# Connect upgrade and toggle buttons
 	offense_button.pressed.connect(_on_offense_button_pressed)
@@ -306,6 +332,8 @@ func update_labels() -> void:
 	dc_label.text = "DC: %d" % RewardManager.data_credits
 	if fragments_label:
 		fragments_label.text = "💎: %d" % RewardManager.fragments
+	if tier_label:
+		tier_label.text = "🎖️ Tier: %d" % TierManager.get_current_tier()
 
 func update_damage_label() -> void:
 	var dmg = UpgradeManager.get_projectile_damage()
@@ -802,7 +830,72 @@ func _on_software_upgrade_button_pressed():
 			defense_panel.visible = false
 			economy_panel.visible = false
 			perm_panel.visible = false
+			if tier_selection_panel:
+				tier_selection_panel.visible = false
+
+func _on_tier_selection_button_pressed():
+	if tier_selection_panel:
+		tier_selection_panel.visible = not tier_selection_panel.visible
+		if tier_selection_panel.visible:
+			# Hide other panels
+			offense_panel.visible = false
+			defense_panel.visible = false
+			economy_panel.visible = false
+			perm_panel.visible = false
+			if software_upgrade_panel:
+				software_upgrade_panel.visible = false
 		
+func reset_to_wave_1():
+	# Called when entering a new tier - resets to wave 1 but keeps permanent upgrades
+	print("🔄 Resetting to Wave 1 for new tier...")
+
+	# 1. Reset in-run upgrades
+	if Engine.has_singleton("UpgradeManager"):
+		UpgradeManager.reset_run_upgrades()
+
+	# 2. Reset run currency (keep AT/Fragments, reset DC)
+	if Engine.has_singleton("RewardManager"):
+		RewardManager.reset_run_currency()
+
+	# 3. Reset wave and clear enemies
+	if spawner.has_method("reset_wave_timers"):
+		spawner.reset_wave_timers()
+	spawner.wave_spawning = false
+	spawner.current_wave = 1
+	spawner.enemies_to_spawn = 0
+	spawner.spawned_enemies = 0
+
+	# Remove any enemy nodes
+	for e in spawner.get_children():
+		if is_instance_valid(e) and e.is_in_group("enemies"):
+			e.queue_free()
+
+	# 4. Reset the tower
+	tower.tower_hp = 1000
+	tower.refresh_shield_stats()
+	tower.current_shield = tower.max_shield
+	tower.update_bars()
+
+	# 5. Hide all upgrade panels
+	offense_panel.visible = false
+	defense_panel.visible = false
+	economy_panel.visible = false
+	perm_panel.visible = false
+	if software_upgrade_panel:
+		software_upgrade_panel.visible = false
+	if tier_selection_panel:
+		tier_selection_panel.visible = false
+
+	# 6. Start wave 1
+	wave_timer = 0.0
+	spawner.start_wave(1)
+	update_labels()
+
+	# 7. Start tracking this run's performance
+	RewardManager.start_run_tracking(1)
+
+	print("✅ Reset complete! Starting Wave 1 in Tier %d" % TierManager.get_current_tier())
+
 func _on_quit_button_pressed():
 	# Record run performance before quitting
 	if Engine.has_singleton("RewardManager") and spawner:
