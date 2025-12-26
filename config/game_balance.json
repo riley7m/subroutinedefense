@@ -1,0 +1,296 @@
+{
+  "_comment": "Subroutine Defense - Game Balance Configuration",
+  "_version": "1.0.0",
+  "_last_updated": "2025-12-26",
+
+  "permanent_upgrades": {
+    "cost_scaling": 1.13,
+    "base_costs": {
+      "projectile_damage": 5000,
+      "fire_rate": 8000,
+      "crit_chance": 7500,
+      "crit_damage": 9000,
+      "shield_integrity": 7000,
+      "damage_reduction": 8500,
+      "shield_regen": 8000,
+      "block_chance": 12000,
+      "block_amount": 13000,
+      "boss_resistance": 15000,
+      "overshield": 18000
+    },
+    "cost_increments": {
+      "projectile_damage": 250,
+      "fire_rate": 500,
+      "crit_chance": 500,
+      "crit_damage": 500,
+      "shield_integrity": 300,
+      "damage_reduction": 400,
+      "shield_regen": 400,
+      "block_chance": 750,
+      "block_amount": 850,
+      "boss_resistance": 1000,
+      "overshield": 1200
+    }
+  },
+
+  "in_run_upgrades": {
+    "cost_scaling": 1.15,
+    "base_costs": {
+      "damage": 50,
+      "fire_rate": 30,
+      "crit_chance": 40,
+      "crit_damage": 60,
+      "shield_integrity": 35,
+      "damage_reduction": 45,
+      "shield_regen": 40,
+      "dc_multiplier": 100,
+      "at_multiplier": 150,
+      "wave_skip": 200,
+      "free_upgrade": 175,
+      "piercing": 150,
+      "overkill": 200,
+      "projectile_speed": 75,
+      "block_chance": 150,
+      "block_amount": 100,
+      "boss_resistance": 250,
+      "overshield": 125,
+      "boss_bonus": 200,
+      "lucky_drops": 175,
+      "ricochet_chance": 300,
+      "ricochet_max_targets": 400,
+      "multi_target_unlock": 500,
+      "multi_target_increase": 300
+    },
+    "per_level_bonuses": {
+      "damage": 10,
+      "fire_rate": 0.05,
+      "crit_chance": 1,
+      "crit_damage": 0.1,
+      "shield_integrity": 20,
+      "damage_reduction": 0.5,
+      "shield_regen": 0.25,
+      "dc_multiplier": 0.1,
+      "at_multiplier": 0.1,
+      "wave_skip": 1.0,
+      "free_upgrade": 1.0,
+      "piercing": 1,
+      "overkill": 0.05,
+      "projectile_speed": 0.1,
+      "block_chance": 1.0,
+      "block_amount": 5,
+      "boss_resistance": 1.0,
+      "overshield": 15,
+      "boss_bonus": 0.05,
+      "lucky_drops": 0.5,
+      "ricochet_chance": 1.0,
+      "ricochet_max_targets": 1
+    },
+    "caps": {
+      "crit_chance": 60,
+      "wave_skip": 25,
+      "free_upgrade": 50,
+      "block_chance": 75,
+      "boss_resistance": 50,
+      "lucky_drops": 25,
+      "ricochet_chance": 50
+    },
+    "damage_milestone_scaling": {
+      "levels_per_milestone": 100,
+      "multiplier_per_milestone": 1.5,
+      "max_milestones": 200
+    }
+  },
+
+  "currency_rewards": {
+    "wave_scaling_percent": 0.02,
+    "wave_at_bonus": {
+      "coefficient": 0.25,
+      "exponent": 1.15
+    },
+    "enemy_base_dc": {
+      "Breacher": 10,
+      "Slicer": 15,
+      "Sentinel": 25,
+      "Signal Runner": 20,
+      "Null Walker": 30,
+      "Override": 100
+    },
+    "enemy_base_at": {
+      "Breacher": 1,
+      "Slicer": 2,
+      "Sentinel": 3,
+      "Signal Runner": 2,
+      "Null Walker": 4,
+      "Override": 15
+    },
+    "lucky_drops_multiplier": 1.5
+  },
+
+  "tier_system": {
+    "total_tiers": 10,
+    "waves_per_tier": 5000,
+    "reward_multiplier_base": 5,
+    "reward_multiplier_exponent": "tier"
+  },
+
+  "boss_rush": {
+    "hp_scaling_base": 1.13,
+    "enemy_multiplier": 5.0,
+    "speed_multiplier": 3.0,
+    "bosses_per_wave_divisor": 10,
+    "max_bosses_per_wave": 10,
+    "fragment_rewards": {
+      "rank_1": 5000,
+      "rank_2": 3000,
+      "rank_3": 2000,
+      "rank_4": 1500,
+      "rank_5": 1000,
+      "rank_6": 750,
+      "rank_7": 500,
+      "rank_8": 300,
+      "rank_9": 150,
+      "rank_10": 100
+    },
+    "schedule": {
+      "days": ["Monday", "Thursday", "Saturday"],
+      "utc_hour": 0
+    }
+  },
+
+  "software_labs": {
+    "max_concurrent_slots": 2,
+    "tier_1_labs": {
+      "max_level": 100,
+      "cost_scaling": 1.08,
+      "duration_scaling": 1.05
+    },
+    "tier_2_labs": {
+      "max_level": 50,
+      "cost_scaling": 1.08,
+      "duration_scaling": 1.05
+    },
+    "tier_3_labs": {
+      "max_level": 30,
+      "cost_scaling": 1.08,
+      "duration_scaling": 1.08
+    },
+    "lab_acceleration_scaling": 1.20
+  },
+
+  "drones": {
+    "types": ["flame", "frost", "poison", "shock"],
+    "max_level": 30,
+    "base_upgrade_cost": 2500,
+    "cost_increment_per_level": 1000,
+    "base_stats": {
+      "flame": {
+        "fire_rate": 1.0,
+        "range": 200,
+        "burn_damage": 5,
+        "burn_duration": 3.0
+      },
+      "frost": {
+        "fire_rate": 1.5,
+        "range": 250,
+        "slow_percent": 30,
+        "slow_duration": 2.0
+      },
+      "poison": {
+        "fire_rate": 0.8,
+        "range": 180,
+        "poison_damage": 3,
+        "poison_duration": 5.0
+      },
+      "shock": {
+        "fire_rate": 2.0,
+        "range": 150,
+        "stun_duration": 1.0
+      }
+    }
+  },
+
+  "offline_progress": {
+    "base_efficiency": 0.25,
+    "ad_efficiency": 0.50,
+    "max_duration_hours": 24,
+    "min_duration_minutes": 1,
+    "max_at_reward": 1000000,
+    "dc_to_at_ratio": 10,
+    "waves_to_at_ratio": 0.2
+  },
+
+  "fragments": {
+    "boss_kill_base": 10,
+    "boss_kill_wave_divisor": 10,
+    "boss_rush_participation": 100
+  },
+
+  "game_speed": {
+    "options": [1, 2, 3, 4],
+    "default": 1
+  },
+
+  "enemy_types": {
+    "Breacher": {
+      "base_hp": 100,
+      "base_damage": 10,
+      "base_speed": 50,
+      "spawn_weight": 40
+    },
+    "Slicer": {
+      "base_hp": 75,
+      "base_damage": 8,
+      "base_speed": 80,
+      "spawn_weight": 30
+    },
+    "Sentinel": {
+      "base_hp": 200,
+      "base_damage": 15,
+      "base_speed": 30,
+      "spawn_weight": 15
+    },
+    "Signal Runner": {
+      "base_hp": 50,
+      "base_damage": 5,
+      "base_speed": 120,
+      "spawn_weight": 10
+    },
+    "Null Walker": {
+      "base_hp": 300,
+      "base_damage": 20,
+      "base_speed": 25,
+      "spawn_weight": 4
+    },
+    "Override": {
+      "base_hp": 1000,
+      "base_damage": 50,
+      "base_speed": 40,
+      "spawn_weight": 1,
+      "is_boss": true
+    }
+  },
+
+  "wave_progression": {
+    "base_hp_scaling": 1.02,
+    "enemies_per_wave_base": 10,
+    "enemies_per_wave_growth": 1.05,
+    "boss_wave_interval": 10
+  },
+
+  "constants": {
+    "base_fire_rate": 1.0,
+    "base_shield": 100,
+    "base_crit_multiplier": 2.0,
+    "tower_range": 400,
+    "viewport_size": {
+      "width": 390,
+      "height": 844
+    }
+  },
+
+  "save_system": {
+    "backup_count": 3,
+    "autosave_interval_seconds": 10,
+    "cloud_sync_on_save": true
+  }
+}

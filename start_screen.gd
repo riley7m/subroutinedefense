@@ -33,13 +33,12 @@ func _on_login_completed():
 
 func _on_start_button_pressed():
 	# Change to your main gameplay scene
-	print("test")
 	get_tree().change_scene_to_file("res://main_hud.tscn")  # Adjust path as needed
 
 func _on_settings_button_pressed() -> void:
 		# Change to settings scene (implement this scene later)
 	# get_tree().change_scene_to_file("res://SettingsScreen.tscn")  # Placeholder
-	print("test")
+	pass
 
 func _on_permanent_upgrades_button_pressed() -> void:
-		print("test")
+	pass

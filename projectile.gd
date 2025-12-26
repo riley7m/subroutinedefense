@@ -181,7 +181,8 @@ func _spread_overkill_damage(damage: int, origin: Node2D) -> void:
 
 	# Split damage among nearby enemies
 	if nearby_enemies.size() > 0:
-		var split_damage = max(1, damage / nearby_enemies.size())
+		# Use explicit float conversion to prevent division issues
+		var split_damage = max(1, int(float(damage) / float(nearby_enemies.size())))
 		for enemy in nearby_enemies:
 			if enemy.has_method("take_damage"):
 				enemy.take_damage(split_damage)

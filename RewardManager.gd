@@ -151,6 +151,18 @@ func get_data_credit_multiplier() -> float:
 func get_archive_token_multiplier() -> float:
 	return 1.0 + perm_archive_token_multiplier # Ditto
 
+# Archive Token (AT) reward calculation with multi-layer scaling
+# Formula: base_at * (1.0 + wave * 0.02) * at_multiplier * tier_mult * lucky_bonus
+#
+# Scaling components:
+# - Wave scaling: (1.0 + wave * 0.02) = 2% increase per wave
+#   - Wave 1: 1.02x, Wave 50: 2.0x, Wave 100: 3.0x, Wave 500: 11.0x
+# - AT multiplier: From in-run upgrades (starts at 1.0, upgradeable)
+# - Tier multiplier: 5^tier exponential (Tier 1: 5x, Tier 2: 25x, Tier 10: 9.77M x)
+# - Lucky drops: 50% bonus with chance from upgrade (max 25% proc chance)
+#
+# This creates a smooth exponential curve where late game rewards scale dramatically
+# while early game remains accessible to new players
 func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 	var base_at = get_at_reward_for_enemy(enemy_type)
 	var tier_mult = TierManager.get_reward_multiplier()
@@ -167,6 +179,11 @@ func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 	emit_signal("archive_tokens_changed")
 	#print("📦 AT from", enemy_type, "→", scaled_at, "→ Total:", archive_tokens)
 
+# Data Credit (DC) reward calculation - identical scaling to AT
+# Formula: base_dc * (1.0 + wave * 0.02) * dc_multiplier * tier_mult * lucky_bonus
+#
+# See reward_enemy_at() for detailed scaling explanation
+# DC is in-run currency that resets on death, while AT is permanent
 func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	var base_dc = get_dc_reward_for_enemy(enemy_type)
 	var tier_mult = TierManager.get_reward_multiplier()
@@ -182,6 +199,19 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	RunStats.add_dc_earned(scaled_dc)  # Track lifetime DC
 	#print("🪙 DC from", enemy_type, "→", scaled_dc, "→ Total:", data_credits)
 
+# Wave completion AT bonus - polynomial scaling
+# Formula: floor(0.25 * (wave ^ 1.15)) * at_multiplier
+#
+# This provides a significant bonus for completing waves:
+# - Wave 1: 0 AT (floor(0.25 * 1^1.15) = 0)
+# - Wave 10: 3 AT (floor(0.25 * 12.11) = 3)
+# - Wave 50: 25 AT (floor(0.25 * 101.59) = 25)
+# - Wave 100: 63 AT (floor(0.25 * 251.19) = 63)
+# - Wave 500: 778 AT (floor(0.25 * 3113.69) = 778)
+# - Wave 1000: 1,995 AT (floor(0.25 * 7980.79) = 1,995)
+#
+# The 1.15 exponent creates super-linear growth, rewarding deep runs
+# Note: Multiplier applied BEFORE floor to maintain precision
 func get_wave_at_reward(wave_number: int) -> int:
 	# Apply multiplier BEFORE floor to maintain canonical formula precision
 	return int(floor(0.25 * pow(wave_number, 1.15) * at_multiplier))
@@ -332,6 +362,25 @@ func get_best_run_last_week() -> Dictionary:
 	return best_run
 
 # === OFFLINE PROGRESS CALCULATION ===
+# Calculates rewards earned while player was offline
+# Formula: best_run_at_per_hour * efficiency * hours_away
+#
+# Efficiency tiers:
+# - Base (no ad): 25% of best run performance
+# - With ad: 50% of best run performance
+#
+# Best run calculation:
+# - Uses best run from last 7 days (most recent 100 runs tracked)
+# - AT/hour = total_at_earned / (run_duration_seconds / 3600)
+# - Ensures offline rewards reflect actual player skill/progression
+#
+# Caps and limits:
+# - Maximum absence: 24 hours (86,400 seconds)
+# - Minimum absence: 1 minute (60 seconds) to avoid spam
+# - Maximum AT reward: 1,000,000 (prevents exploits/bugs)
+#
+# This system rewards consistent play (builds better baseline) while
+# still providing value to casual players who can't play daily
 func calculate_offline_progress(watched_ad: bool = false) -> void:
 	if last_play_time == 0:
 		last_play_time = Time.get_unix_time_from_system()

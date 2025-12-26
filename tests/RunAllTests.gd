@@ -35,7 +35,10 @@ func run_all_test_suites() -> void:
 		"res://tests/TestCombat.gd",
 		"res://tests/TestStatusEffects.gd",
 		"res://tests/TestUpgrades.gd",
-		"res://tests/TestResources.gd"
+		"res://tests/TestResources.gd",
+		"res://tests/TestEconomy.gd",
+		"res://tests/TestConfig.gd",
+		"res://tests/TestSaveLoad.gd"
 	]
 
 	for test_script_path in test_scripts:

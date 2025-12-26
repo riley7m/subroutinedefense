@@ -340,6 +340,23 @@ func get_duration_for_level(lab_id: String, level: int) -> int:
 
 	return int(duration)
 
+# Software lab cost calculation with exponential scaling
+# Formula: base_at * (scaling ^ (level - 1))
+#
+# Scaling factors by tier:
+# - Tier 1 labs (100 levels): 1.08 scaling (8% increase per level)
+# - Tier 2 labs (50 levels): 1.08-1.20 scaling (varies by lab importance)
+# - Tier 3 labs (30 levels): 1.08 scaling
+#
+# Example progression for base_at=100, scaling=1.08:
+# - Level 1: 100 AT (1.08^0 = 1.0x)
+# - Level 10: 200 AT (1.08^9 = 2.0x)
+# - Level 25: 584 AT (1.08^24 = 5.84x)
+# - Level 50: 4,390 AT (1.08^49 = 43.9x)
+# - Level 100: 192,854 AT (1.08^99 = 1,929x)
+#
+# Higher scaling (1.20) for meta-progression labs like Lab Acceleration
+# creates steeper costs to balance their compounding benefits
 func get_cost_for_level(lab_id: String, level: int) -> int:
 	if not labs.has(lab_id):
 		return 0

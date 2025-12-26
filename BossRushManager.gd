@@ -131,7 +131,21 @@ func get_boss_count_for_wave(wave: int) -> int:
 	return mini(1 + int(wave / 10.0), 10)
 
 func get_boss_rush_hp_multiplier(wave: int) -> float:
-	# Exponential HP scaling: 5% per wave
+	# Exponential HP scaling for Boss Rush tournament
+	# Formula: (1.13 ^ wave) * 5.0
+	#
+	# - Base scaling: 1.13^wave (13% increase per wave, vs 2% in normal mode)
+	# - Enemy multiplier: 5x base HP for all bosses
+	#
+	# This creates rapid difficulty scaling:
+	# - Wave 1: 1.13^1 * 5 = 5.65x base HP
+	# - Wave 5: 1.13^5 * 5 = 9.24x base HP
+	# - Wave 10: 1.13^10 * 5 = 16.97x base HP
+	# - Wave 20: 1.13^20 * 5 = 57.59x base HP
+	# - Wave 50: 1.13^50 * 5 = 2,249x base HP
+	#
+	# This aggressive scaling ensures Boss Rush ends quickly (5-15 minutes)
+	# and rewards top-tier builds for leaderboard competition
 	return pow(BOSS_HP_SCALING_BASE, wave) * BOSS_ENEMY_MULTIPLIER
 
 func get_boss_rush_damage_multiplier() -> float:

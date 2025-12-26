@@ -248,12 +248,20 @@ func _process_downloaded_save(data: Dictionary) -> void:
 	# Parse save data
 	var json = JSON.new()
 	var error = json.parse(save_json)
-	if error == OK:
-		var save_data = json.data
-		save_data["cloud_timestamp"] = timestamp
-		save_downloaded.emit(save_data)
-	else:
+	if error != OK:
 		print("⚠️ Failed to parse cloud save")
+		return
+
+	var save_data = json.data
+
+	# SECURITY: Validate save data before applying
+	if not _validate_save_data(save_data):
+		print("❌ Cloud save failed validation - possible tampering!")
+		login_failed.emit("Cloud save data is invalid")
+		return
+
+	save_data["cloud_timestamp"] = timestamp
+	save_downloaded.emit(save_data)
 
 # === SESSION PERSISTENCE ===
 
@@ -317,6 +325,43 @@ func _generate_uuid() -> String:
 		(randi() & 0x3fff) | 0x8000,
 		(randi() << 32) | randi()
 	]
+
+# === SAVE DATA VALIDATION ===
+
+func _validate_save_data(data: Dictionary) -> bool:
+	# Validate that all values are within reasonable bounds
+	# Prevents save file tampering/exploits
+
+	# Validate currency bounds (max 1 billion AT, 10 million fragments)
+	var at = data.get("archive_tokens", 0)
+	var fragments = data.get("fragments", 0)
+
+	if at < 0 or at > 1000000000:
+		print("⚠️ Invalid AT value: %d" % at)
+		return false
+	if fragments < 0 or fragments > 10000000:
+		print("⚠️ Invalid fragments value: %d" % fragments)
+		return false
+
+	# Validate permanent upgrade levels (max 1000 per stat)
+	var perm_damage = data.get("perm_projectile_damage", 0)
+	var perm_fire_rate = data.get("perm_projectile_fire_rate", 0)
+
+	if perm_damage < 0 or perm_damage > 100000:
+		print("⚠️ Invalid perm damage: %d" % perm_damage)
+		return false
+	if perm_fire_rate < 0 or perm_fire_rate > 1000:
+		print("⚠️ Invalid perm fire rate: %f" % perm_fire_rate)
+		return false
+
+	# Validate lifetime stats aren't absurdly high
+	var total_waves = data.get("total_waves_completed", 0)
+	if total_waves < 0 or total_waves > 100000000:  # 100 million waves max
+		print("⚠️ Invalid total waves: %d" % total_waves)
+		return false
+
+	# All checks passed
+	return true
 
 # === UTILITY ===
 

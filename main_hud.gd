@@ -368,9 +368,7 @@ func _on_offense_button_pressed() -> void:
 	perm_panel.visible = false
 
 func _on_damage_upgrade_pressed() -> void:
-	print("DEBUG: DC before:", RewardManager.data_credits)
 	var amount = get_current_buy_amount()
-	print("DEBUG: Buy amount is", amount)
 	if amount == -1:
 		while UpgradeManager.upgrade_projectile_damage():
 			print("Bought one (Max mode)")
@@ -590,7 +588,6 @@ func _on_perm_upgrade_pressed(key):
 func _on_buy_x_button_pressed():
 	current_buy_index = (current_buy_index + 1) % buy_x_options.size()
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
-	print("DEBUG: New buy index is", current_buy_index, "Amount is", buy_x_options[current_buy_index])
 
 
 

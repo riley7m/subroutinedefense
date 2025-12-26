@@ -194,6 +194,22 @@ var multi_target_unlocked := false
 const PERM_DRONE_MAX_LEVEL := 30  # Max level for permanent drone upgrades
 
 # --- PERMANENT UPGRADE COSTS ---
+# Exponential cost scaling for permanent upgrades (AT-based)
+# Formula: base * (1.13 ^ level)
+#
+# This creates a 3-year progression timeline where:
+# - Early levels: affordable with basic gameplay (1-50)
+# - Mid levels: require focused farming (50-200)
+# - Late levels: endgame grind (200-500)
+#
+# Example costs for base=5000:
+# - Level 1: 5,650 AT (1.13x)
+# - Level 10: 16,946 AT (3.39x)
+# - Level 50: 423,063 AT (84.6x)
+# - Level 100: 35,847,267 AT (7,169x)
+# - Level 200: 1.03e12 AT (206 billion)
+#
+# Note: The 'increment' parameter is legacy and not used
 func get_perm_cost(base: int, increment: int, level: int) -> int:
 	return int(base * pow(1.13, level))
 
@@ -201,14 +217,35 @@ func get_perm_drone_upgrade_cost(level: int) -> int:
 	return 2500 + level * 1000
 
 # --- UPGRADE GETTERS (add permanent bonuses!) ---
+# In-run damage calculation with milestone multipliers
+# Formula: (base + polynomial_growth) * (1.5 ^ milestone) + permanent_damage
+#
+# Base calculation: 100 + floor(5 * level^1.12 + 5)
+# - Provides smooth polynomial scaling within each milestone tier
+#
+# Milestone multiplier: 1.5 ^ (level / 100)
+# - Every 100 levels doubles damage (1.5x per milestone ≈ 2x per 100 levels)
+# - Example: Level 200 = 1.5^2 = 2.25x, Level 300 = 1.5^3 = 3.375x
+#
+# Safety caps:
+# - Milestone capped at 200 to prevent overflow (1.5^200 ≈ 4.6e14)
+# - Total capped at max int32 before adding permanent damage
+#
+# This dual-scaling system ensures:
+# - Smooth progression within tiers (polynomial)
+# - Significant jumps at milestones (exponential)
+# - Safe integer math at extreme levels
 func get_projectile_damage() -> int:
 	var level = projectile_damage_level
 	var base = 100 + (floor(5 * pow(level, 1.12) + 5))
 	var milestones = floor(level / 100)
-	# Cap milestones at 500 to prevent overflow (pow(1.5, 500) ≈ 10^88)
-	# Beyond this, only base scaling continues to grow
-	var multiplier = pow(1.5, min(milestones, 500))
-	return int(base * multiplier) + RewardManager.perm_projectile_damage
+	# Cap at milestone 200 for safer range (pow(1.5, 200) ≈ 4.6e14)
+	# Prevents integer overflow at extreme levels
+	var multiplier = pow(1.5, min(milestones, 200))
+	var total = base * multiplier
+	# Cap at max int to prevent overflow when adding perm damage
+	total = min(total, 2147483647 - max(0, RewardManager.perm_projectile_damage))
+	return int(total) + RewardManager.perm_projectile_damage
 
 func get_projectile_fire_rate() -> float:
 	return base_fire_rate + projectile_fire_rate_level * FIRE_RATE_PER_UPGRADE + RewardManager.perm_projectile_fire_rate
