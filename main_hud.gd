@@ -70,6 +70,10 @@ const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
 var software_upgrade_panel: Control = null
 var software_upgrade_button: Button = null
 
+# Drone purchase UI (in perm panel)
+var drone_purchase_containers: Dictionary = {}
+var drone_purchase_buttons: Dictionary = {}
+var drone_status_labels: Dictionary = {}
 
 var drone_scenes = {
 	"flame": DRONE_FLAME_SCENE,
@@ -91,6 +95,7 @@ var current_speed_index := 0
 @onready var wave_label: Label = $TopBanner/WaveLabel
 @onready var dc_label: Label = $TopBanner/DCLabel
 @onready var at_label: Label = $TopBanner/ATLabel
+var fragments_label: Label = null  # Created programmatically
 
 # Upgrade UI – Damage label
 @onready var damage_label: Label = $UpgradesBox/DamageUpgradeLabel
@@ -173,6 +178,17 @@ func _ready() -> void:
 	var holo_ui = preload("res://HolographicUI.gd").new()
 	add_child(holo_ui)
 
+	# Create fragments label in TopBanner
+	var top_banner = get_node_or_null("TopBanner")
+	if top_banner:
+		fragments_label = Label.new()
+		fragments_label.name = "FragmentsLabel"
+		fragments_label.text = "💎: 0"
+		fragments_label.position = Vector2(450, 5)  # Position after AT label
+		fragments_label.size = Vector2(150, 20)
+		top_banner.add_child(fragments_label)
+		UIStyler.apply_theme_to_node(fragments_label)
+
 	# Connect upgrade and toggle buttons
 	offense_button.pressed.connect(_on_offense_button_pressed)
 	damage_upgrade.pressed.connect(_on_damage_upgrade_pressed)
@@ -220,6 +236,9 @@ func _ready() -> void:
 	randomize()
 	RewardManager.load_permanent_upgrades()
 	update_all_perm_upgrade_ui()
+
+	# Create drone purchase UI in permanent upgrades panel
+	_create_drone_purchase_ui()
 
 	# Start tracking this run's performance
 	RewardManager.start_run_tracking(wave)
@@ -270,6 +289,8 @@ func update_labels() -> void:
 	wave_label.text = "Wave: %d" % spawner.current_wave
 	at_label.text = "AT: %d" % RewardManager.archive_tokens
 	dc_label.text = "DC: %d" % RewardManager.data_credits
+	if fragments_label:
+		fragments_label.text = "💎: %d" % RewardManager.fragments
 
 func update_damage_label() -> void:
 	var dmg = UpgradeManager.get_projectile_damage()
@@ -650,7 +671,98 @@ func get_perm_max_affordable(key: String) -> Array:
 		push_error("get_perm_max_affordable: Hit safety limit! Possible infinite loop prevented.")
 
 	return [max_count, total_cost]
-	
+
+# === DRONE PURCHASE UI (IN PERM PANEL) ===
+
+func _create_drone_purchase_ui() -> void:
+	var perm_list = get_node_or_null("PermUpgradesPanel/PermUpgradesList")
+	if not perm_list:
+		print("⚠️ PermUpgradesList not found!")
+		return
+
+	# Add separator before drones section
+	var separator = HSeparator.new()
+	perm_list.add_child(separator)
+
+	# Add drones section title
+	var title_container = HBoxContainer.new()
+	perm_list.add_child(title_container)
+
+	var title = Label.new()
+	title.text = "=== DRONES (Purchase with 💎 Fragments) ==="
+	title.custom_minimum_size = Vector2(400, 25)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_container.add_child(title)
+
+	# Drone types and info
+	var drone_info = {
+		"flame": {"name": "🔥 Flame", "desc": "Burns enemies"},
+		"frost": {"name": "❄️ Frost", "desc": "Slows fastest"},
+		"poison": {"name": "🟣 Poison", "desc": "Poisons enemies"},
+		"shock": {"name": "⚡ Shock", "desc": "Stuns closest"}
+	}
+
+	for drone_type in ["flame", "frost", "poison", "shock"]:
+		var info = drone_info[drone_type]
+
+		# Create container
+		var container = HBoxContainer.new()
+		container.custom_minimum_size = Vector2(400, 30)
+		drone_purchase_containers[drone_type] = container
+		perm_list.add_child(container)
+
+		# Name label
+		var name_label = Label.new()
+		name_label.text = info["name"]
+		name_label.custom_minimum_size = Vector2(80, 30)
+		container.add_child(name_label)
+
+		# Status label
+		var status_label = Label.new()
+		status_label.text = "Not Owned"
+		status_label.custom_minimum_size = Vector2(120, 30)
+		drone_status_labels[drone_type] = status_label
+		container.add_child(status_label)
+
+		# Purchase button
+		var button = Button.new()
+		button.text = "Purchase (5000 💎)"
+		button.custom_minimum_size = Vector2(180, 30)
+		button.pressed.connect(_on_drone_purchase_button_pressed.bind(drone_type))
+		drone_purchase_buttons[drone_type] = button
+		container.add_child(button)
+
+	# Initial UI update
+	_update_drone_purchase_ui()
+
+func _on_drone_purchase_button_pressed(drone_type: String) -> void:
+	var cost = RewardManager.get_drone_purchase_cost(drone_type)
+	if RewardManager.purchase_drone_permanent(drone_type, cost):
+		_update_drone_purchase_ui()
+		print("💎 Successfully purchased", drone_type, "drone!")
+
+func _update_drone_purchase_ui() -> void:
+	for drone_type in ["flame", "frost", "poison", "shock"]:
+		if not drone_status_labels.has(drone_type) or not drone_purchase_buttons.has(drone_type):
+			continue
+
+		var status_label = drone_status_labels[drone_type]
+		var button = drone_purchase_buttons[drone_type]
+		var is_owned = RewardManager.owns_drone(drone_type)
+		var cost = RewardManager.get_drone_purchase_cost(drone_type)
+
+		# Update status
+		if is_owned:
+			status_label.text = "✅ Owned"
+			button.text = "Owned"
+			button.disabled = true
+		else:
+			status_label.text = "Not Owned"
+			button.text = "Purchase (%d 💎)" % cost
+			button.disabled = RewardManager.fragments < cost
+
+# === PERM PANEL FUNCTIONS ===
+
 func _on_perm_panel_toggle_button_pressed():
 	perm_panel.visible = not perm_panel.visible
 	if perm_panel.visible:
@@ -661,6 +773,8 @@ func _on_perm_panel_toggle_button_pressed():
 		economy_panel.visible = false
 		if software_upgrade_panel:
 			software_upgrade_panel.visible = false
+		# Update drone purchase UI when opening perm panel
+		_update_drone_purchase_ui()
 	else:
 		perm_panel_toggle_button.text = "Show Upgrades"
 
