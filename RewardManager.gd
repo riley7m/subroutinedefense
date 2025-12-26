@@ -149,7 +149,8 @@ func get_archive_token_multiplier() -> float:
 
 func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 	var base_at = get_at_reward_for_enemy(enemy_type)
-	var scaled_at = int(base_at * (1.0 + wave_number * 0.02) * get_archive_token_multiplier())
+	var tier_mult = TierManager.get_reward_multiplier()
+	var scaled_at = int(base_at * (1.0 + wave_number * 0.02) * get_archive_token_multiplier() * tier_mult)
 
 	# Apply lucky drops bonus
 	var lucky_chance = UpgradeManager.get_lucky_drops()
@@ -164,7 +165,8 @@ func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 
 func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	var base_dc = get_dc_reward_for_enemy(enemy_type)
-	var scaled_dc = int(base_dc * (1.0 + wave_number * 0.02) * get_data_credit_multiplier())
+	var tier_mult = TierManager.get_reward_multiplier()
+	var scaled_dc = int(base_dc * (1.0 + wave_number * 0.02) * get_data_credit_multiplier() * tier_mult)
 
 	# Apply lucky drops bonus
 	var lucky_chance = UpgradeManager.get_lucky_drops()
@@ -462,6 +464,8 @@ func save_permanent_upgrades() -> bool:
 		"owned_drones": owned_drones,
 		"last_play_time": last_play_time,
 		"run_history": run_history,
+		# Tier system data
+		"tier_data": TierManager.save_tier_data(),
 		# Lifetime statistics
 		"lifetime_dc_earned": RunStats.lifetime_dc_earned,
 		"lifetime_at_earned": RunStats.lifetime_at_earned,
@@ -588,6 +592,11 @@ func _apply_save_data(data: Dictionary) -> void:
 	owned_drones = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
 	last_play_time = data.get("last_play_time", 0)
 	run_history = data.get("run_history", [])
+
+	# Load tier system data
+	var tier_data = data.get("tier_data", {})
+	if tier_data and not tier_data.is_empty():
+		TierManager.load_tier_data(tier_data)
 
 	# Load lifetime statistics
 	RunStats.lifetime_dc_earned = data.get("lifetime_dc_earned", 0)

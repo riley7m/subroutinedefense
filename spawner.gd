@@ -62,6 +62,7 @@ func start_wave(wave_number: int) -> int:
 
 	current_wave = actual_wave
 	RunStats.current_wave = actual_wave  # Track wave in RunStats for upgrade scaling
+	TierManager.update_highest_wave(current_wave)  # Track highest wave for tier unlocks
 	enemies_to_spawn = get_max_enemies_for_wave(current_wave)
 	spawned_enemies = 0
 	wave_spawning = true

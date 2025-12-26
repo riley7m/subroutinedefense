@@ -420,12 +420,16 @@ func _spawn_dissolve_particles() -> void:
 		)
 	
 func apply_wave_scaling():
+	# Get tier multiplier
+	var tier_mult = TierManager.get_enemy_multiplier()
+
+	# Apply tier multiplier to base stats, then wave scaling
 	# Exponential HP scaling for better late-game balance
-	hp = int(base_hp * pow(HP_SCALING_BASE, wave_number))
-	damage_to_tower = base_damage + int(wave_number * DAMAGE_PER_WAVE)
-	move_speed = (base_speed + wave_number * SPEED_PER_WAVE) / 2
+	hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
+	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
+	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)
-	#print("enemy hp:", hp)
+	#print("enemy hp:", hp, "tier mult:", tier_mult)
 	
 func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) -> void:
 	# 15% at level 1 → 150% at level 10 (linear)
@@ -434,7 +438,8 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) ->
 	burn_damage_per_tick = base_damage * percent * crit_multiplier
 
 	# Cap at 10% of max HP per second
-	var max_hp = int(base_hp * pow(HP_SCALING_BASE, wave_number))
+	var tier_mult = TierManager.get_enemy_multiplier()
+	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
 	var max_burn_per_tick = max_hp * BURN_HP_CAP_PERCENT
 	if burn_damage_per_tick > max_burn_per_tick:
 		burn_damage_per_tick = max_burn_per_tick
@@ -454,7 +459,8 @@ func apply_poison(level: int) -> void:
 	# Level 1 = 1% per sec, Level 10 = 10% per sec, capped at 10%
 	var percent_per_sec = POISON_MIN_PERCENT + (level - 1) * POISON_PERCENT_PER_LEVEL
 	percent_per_sec = clamp(percent_per_sec, POISON_MIN_PERCENT, POISON_MAX_PERCENT)
-	var max_hp = int(base_hp * pow(HP_SCALING_BASE, wave_number))
+	var tier_mult = TierManager.get_enemy_multiplier()
+	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
 	poison_damage_per_tick = max_hp * percent_per_sec
 
 	poison_duration = POISON_DURATION
