@@ -192,7 +192,7 @@ var multi_target_unlocked := false
 
 # --- PERMANENT UPGRADE COSTS ---
 func get_perm_cost(base: int, increment: int, level: int) -> int:
-	return base + (increment * level)
+	return int(base * pow(1.13, level))
 
 func get_perm_drone_upgrade_cost(level: int) -> int:
 	return 2500 + level * 1000
