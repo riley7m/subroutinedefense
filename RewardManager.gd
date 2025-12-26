@@ -82,6 +82,27 @@ func _ready() -> void:
 	if not get_tree().tree_exiting.is_connected(Callable(self, "save_permanent_upgrades")):
 		get_tree().connect("tree_exiting", Callable(self, "save_permanent_upgrades"))
 
+	# Add periodic auto-save timer (every 60 seconds)
+	var save_timer = Timer.new()
+	save_timer.name = "AutoSaveTimer"
+	save_timer.wait_time = 60.0
+	save_timer.autostart = true
+	save_timer.timeout.connect(_on_autosave_timer_timeout)
+	add_child(save_timer)
+	print("💾 Auto-save enabled (every 60 seconds)")
+
+func _notification(what: int) -> void:
+	# Save when app is paused/backgrounded (critical for mobile)
+	if what == NOTIFICATION_APPLICATION_PAUSED:
+		print("📱 App paused - auto-saving...")
+		save_permanent_upgrades()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		print("📱 App lost focus - auto-saving...")
+		save_permanent_upgrades()
+
+func _on_autosave_timer_timeout() -> void:
+	save_permanent_upgrades()
+
 
 # === Reward Functions ===
 func add_archive_tokens(amount: int) -> void:
@@ -392,11 +413,17 @@ func apply_offline_rewards() -> void:
 	print("🌙 Offline rewards applied: %d DC, %d AT" % [offline_dc, offline_at])
 
 # === PERSISTENCE: Save/Load All Permanent Upgrades and Currency ===
-func save_permanent_upgrades():
+const SAVE_VERSION = 1
+const SAVE_FILE = "user://perm_upgrades.save"
+const SAVE_FILE_TEMP = "user://perm_upgrades.save.tmp"
+const SAVE_FILE_BACKUP = "user://perm_upgrades.save.backup"
+
+func save_permanent_upgrades() -> bool:
 	# Update last play time on save
 	last_play_time = Time.get_unix_time_from_system()
 
 	var data = {
+		"version": SAVE_VERSION,
 		"perm_projectile_damage": perm_projectile_damage,
 		"perm_projectile_fire_rate": perm_projectile_fire_rate,
 		"perm_crit_chance": perm_crit_chance,
@@ -438,31 +465,89 @@ func save_permanent_upgrades():
 		"lifetime_at_spent_perm_upgrades": RunStats.lifetime_at_spent_perm_upgrades,
 		"lifetime_kills": RunStats.lifetime_kills,
 	}
-	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.WRITE)
+
+	# ATOMIC SAVE WITH BACKUP
+	# Step 1: Backup existing save file
+	if FileAccess.file_exists(SAVE_FILE):
+		var dir = DirAccess.open("user://")
+		if dir:
+			if FileAccess.file_exists(SAVE_FILE_BACKUP):
+				dir.remove(SAVE_FILE_BACKUP)
+			var copy_err = dir.copy(SAVE_FILE, SAVE_FILE_BACKUP)
+			if copy_err != OK:
+				print("⚠️ Failed to create backup (error %d), continuing anyway..." % copy_err)
+
+	# Step 2: Write to temporary file
+	var file = FileAccess.open(SAVE_FILE_TEMP, FileAccess.WRITE)
 	if file == null:
-		push_error("Failed to open save file for writing: " + str(FileAccess.get_open_error()))
-		return
+		push_error("❌ Failed to open temp save file: " + str(FileAccess.get_open_error()))
+		return false
 	file.store_var(data)
 	file.close()
-	print("💾 Permanent upgrades saved.")
 
-func load_permanent_upgrades():
-	if not FileAccess.file_exists("user://perm_upgrades.save"):
-		print("No permanent upgrades save found.")
-		return
-
-	var file = FileAccess.open("user://perm_upgrades.save", FileAccess.READ)
+	# Step 3: Verify temporary file
+	file = FileAccess.open(SAVE_FILE_TEMP, FileAccess.READ)
 	if file == null:
-		push_error("Failed to open save file for reading: " + str(FileAccess.get_open_error()))
-		return
-
-	var data = file.get_var()
+		push_error("❌ Failed to verify temp save file!")
+		return false
+	var verification = file.get_var()
 	file.close()
 
-	# Validate data is a dictionary
-	if typeof(data) != TYPE_DICTIONARY:
-		push_error("Save file corrupted: Invalid data type")
+	if typeof(verification) != TYPE_DICTIONARY:
+		push_error("❌ Save verification failed: Invalid data type!")
+		var dir = DirAccess.open("user://")
+		if dir:
+			dir.remove(SAVE_FILE_TEMP)
+		return false
+
+	# Step 4: Atomic rename (replace old save with new)
+	var dir = DirAccess.open("user://")
+	if not dir:
+		push_error("❌ Failed to access save directory!")
+		return false
+
+	if FileAccess.file_exists(SAVE_FILE):
+		dir.remove(SAVE_FILE)
+
+	var rename_err = dir.rename(SAVE_FILE_TEMP, SAVE_FILE)
+	if rename_err != OK:
+		push_error("❌ Failed to finalize save file (error %d)!" % rename_err)
+		return false
+
+	print("💾 Permanent upgrades saved (atomic write successful)")
+	return true
+
+func load_permanent_upgrades():
+	# Try loading from main save, then backup if corrupted
+	var files_to_try = [SAVE_FILE, SAVE_FILE_BACKUP]
+
+	for save_file_path in files_to_try:
+		if not FileAccess.file_exists(save_file_path):
+			continue
+
+		var file = FileAccess.open(save_file_path, FileAccess.READ)
+		if file == null:
+			push_error("Failed to open %s for reading: %s" % [save_file_path, str(FileAccess.get_open_error())])
+			continue
+
+		var data = file.get_var()
+		file.close()
+
+		# Validate data is a dictionary
+		if typeof(data) != TYPE_DICTIONARY:
+			push_error("Save file %s corrupted: Invalid data type" % save_file_path)
+			continue
+
+		# Successfully loaded save
+		if save_file_path == SAVE_FILE_BACKUP:
+			print("⚠️ Main save corrupted, loaded from backup!")
+
+		_apply_save_data(data)
 		return
+
+	print("❌ All save files corrupted or missing. Starting fresh.")
+
+func _apply_save_data(data: Dictionary) -> void:
 
 	# Load with validation (clamp to reasonable ranges)
 	perm_projectile_damage = clamp(data.get("perm_projectile_damage", 0), 0, 100000)
