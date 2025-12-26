@@ -110,9 +110,6 @@ var current_speed_index := 0
 var fragments_label: Label = null  # Created programmatically
 var tier_label: Label = null  # Created programmatically
 
-# Upgrade UI – Damage label
-@onready var damage_label: Label = $UpgradesBox/DamageUpgradeLabel
-
 # Offense Menu Root + Toggle
 @onready var offense_button: Button = $UpgradeUI/ButtonBar/OffenseButton
 @onready var offense_panel: VBoxContainer = $UpgradeUI/OffensePanel
@@ -359,8 +356,8 @@ func update_labels() -> void:
 		tier_label.text = "🎖️ Tier: %d" % TierManager.get_current_tier()
 
 func update_damage_label() -> void:
-	var dmg = UpgradeManager.get_projectile_damage()
-	print("Projectile Damage: %d" % dmg)
+	# Debug function - no UI update needed (damage_label node removed)
+	pass
 
 # --- Offense Panel Logic ---
 func _on_offense_button_pressed() -> void:

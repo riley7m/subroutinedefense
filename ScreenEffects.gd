@@ -344,8 +344,17 @@ func fragment_notification(amount: int, position: Vector2 = Vector2.ZERO, parent
 		notification.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		notification.set_anchors_preset(Control.PRESET_FULL_RECT)
 	else:
-		# Position at given world position
-		notification.global_position = position - Vector2(50, 50)
+		# Convert world position to screen position
+		var viewport = parent.get_viewport()
+		var camera = viewport.get_camera_2d() if viewport else null
+
+		if camera:
+			# Camera exists - convert world to screen coordinates
+			var screen_pos = position - camera.global_position + viewport.get_visible_rect().size / 2
+			notification.position = screen_pos - Vector2(50, 50)
+		else:
+			# No camera - use world position directly (fallback)
+			notification.position = position - Vector2(50, 50)
 
 	parent.add_child(notification)
 

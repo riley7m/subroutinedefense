@@ -11,6 +11,12 @@ func _ready():
 	settings_button.pressed.connect(_on_settings_button_pressed)
 	permanent_upgrades_button.pressed.connect(_on_permanent_upgrades_button_pressed)
 
+	# Disable non-functional buttons (not yet implemented)
+	settings_button.disabled = true
+	settings_button.tooltip_text = "Coming Soon!"
+	permanent_upgrades_button.disabled = true
+	permanent_upgrades_button.tooltip_text = "Coming Soon!"
+
 	# Show login UI if not logged in
 	if CloudSaveManager and not CloudSaveManager.is_logged_in:
 		_show_login_screen()
