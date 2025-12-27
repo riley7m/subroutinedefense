@@ -245,6 +245,239 @@ const DATA_DISK_TYPES := {
 		"value": 1.0,  # Special multi-stat disk
 		"icon": "⚔️",
 		"rarity": "epic"
+	},
+	# --- Additional Duplicate Disks (for milestone rewards) ---
+	# More Damage variants
+	"power_core": {
+		"name": "Power Core Disk",
+		"description": "+3% Projectile Damage",
+		"stat": "projectile_damage",
+		"value": 0.03,
+		"icon": "🔥",
+		"rarity": "common"
+	},
+	"assault_protocol": {
+		"name": "Assault Protocol Disk",
+		"description": "+3% Projectile Damage",
+		"stat": "projectile_damage",
+		"value": 0.03,
+		"icon": "💢",
+		"rarity": "common"
+	},
+	"annihilation_matrix": {
+		"name": "Annihilation Matrix Disk",
+		"description": "+3% Projectile Damage",
+		"stat": "projectile_damage",
+		"value": 0.03,
+		"icon": "☄️",
+		"rarity": "uncommon"
+	},
+	# More Fire Rate variants
+	"hypervelocity": {
+		"name": "Hypervelocity Disk",
+		"description": "+2% Fire Rate",
+		"stat": "fire_rate",
+		"value": 0.02,
+		"icon": "⚡",
+		"rarity": "common"
+	},
+	"cascade_trigger": {
+		"name": "Cascade Trigger Disk",
+		"description": "+2% Fire Rate",
+		"stat": "fire_rate",
+		"value": 0.02,
+		"icon": "🌩️",
+		"rarity": "common"
+	},
+	"quantum_accelerator": {
+		"name": "Quantum Accelerator Disk",
+		"description": "+2% Fire Rate",
+		"stat": "fire_rate",
+		"value": 0.02,
+		"icon": "⚡",
+		"rarity": "uncommon"
+	},
+	# More Crit variants
+	"tactical_scanner": {
+		"name": "Tactical Scanner Disk",
+		"description": "+1% Crit Chance",
+		"stat": "crit_chance",
+		"value": 1.0,
+		"icon": "🔍",
+		"rarity": "uncommon"
+	},
+	"weakpoint_finder": {
+		"name": "Weakpoint Finder Disk",
+		"description": "+1% Crit Chance",
+		"stat": "crit_chance",
+		"value": 1.0,
+		"icon": "🎯",
+		"rarity": "uncommon"
+	},
+	"lethal_strike": {
+		"name": "Lethal Strike Disk",
+		"description": "+5% Crit Damage Multiplier",
+		"stat": "crit_damage",
+		"value": 0.05,
+		"icon": "💥",
+		"rarity": "uncommon"
+	},
+	"execution_protocol": {
+		"name": "Execution Protocol Disk",
+		"description": "+5% Crit Damage Multiplier",
+		"stat": "crit_damage",
+		"value": 0.05,
+		"icon": "⚔️",
+		"rarity": "rare"
+	},
+	# More Defense variants
+	"barrier_matrix": {
+		"name": "Barrier Matrix Disk",
+		"description": "+5% Shield Integrity",
+		"stat": "shield_integrity",
+		"value": 0.05,
+		"icon": "🛡️",
+		"rarity": "common"
+	},
+	"reactive_plating": {
+		"name": "Reactive Plating Disk",
+		"description": "+5% Shield Integrity",
+		"stat": "shield_integrity",
+		"value": 0.05,
+		"icon": "🔷",
+		"rarity": "uncommon"
+	},
+	"regenerative_field": {
+		"name": "Regenerative Field Disk",
+		"description": "+3% Shield Regen",
+		"stat": "shield_regen",
+		"value": 0.03,
+		"icon": "✨",
+		"rarity": "common"
+	},
+	"nano_repair": {
+		"name": "Nano Repair Disk",
+		"description": "+3% Shield Regen",
+		"stat": "shield_regen",
+		"value": 0.03,
+		"icon": "🌀",
+		"rarity": "uncommon"
+	},
+	"hardened_shell": {
+		"name": "Hardened Shell Disk",
+		"description": "+2% Damage Reduction",
+		"stat": "damage_reduction",
+		"value": 0.02,
+		"icon": "💠",
+		"rarity": "uncommon"
+	},
+	# More Currency variants
+	"credit_optimizer": {
+		"name": "Credit Optimizer Disk",
+		"description": "+0.05x DC Multiplier (5%)",
+		"stat": "dc_multiplier",
+		"value": 0.05,
+		"icon": "💰",
+		"rarity": "uncommon"
+	},
+	"loot_algorithm": {
+		"name": "Loot Algorithm Disk",
+		"description": "+0.05x DC Multiplier (5%)",
+		"stat": "dc_multiplier",
+		"value": 0.05,
+		"icon": "💾",
+		"rarity": "rare"
+	},
+	"archive_compiler": {
+		"name": "Archive Compiler Disk",
+		"description": "+0.05x AT Multiplier (5%)",
+		"stat": "at_multiplier",
+		"value": 0.05,
+		"icon": "📚",
+		"rarity": "uncommon"
+	},
+	"data_synthesizer": {
+		"name": "Data Synthesizer Disk",
+		"description": "+0.05x AT Multiplier (5%)",
+		"stat": "at_multiplier",
+		"value": 0.05,
+		"icon": "📦",
+		"rarity": "rare"
+	},
+	"crystal_collector": {
+		"name": "Crystal Collector Disk",
+		"description": "+10% Fragment Drop Rate",
+		"stat": "fragment_drop_rate",
+		"value": 0.10,
+		"icon": "💎",
+		"rarity": "rare"
+	},
+	# More Boss variants
+	"titan_bane": {
+		"name": "Titan Bane Disk",
+		"description": "-2% Boss HP",
+		"stat": "boss_hp_reduction",
+		"value": 0.02,
+		"icon": "👑",
+		"rarity": "rare"
+	},
+	"colossus_killer": {
+		"name": "Colossus Killer Disk",
+		"description": "-2% Boss HP",
+		"stat": "boss_hp_reduction",
+		"value": 0.02,
+		"icon": "⚔️",
+		"rarity": "rare"
+	},
+	# More Special variants
+	"time_dilation": {
+		"name": "Time Dilation Disk",
+		"description": "+1% Wave Skip Chance",
+		"stat": "wave_skip_chance",
+		"value": 1.0,
+		"icon": "⏱️",
+		"rarity": "rare"
+	},
+	"probability_matrix": {
+		"name": "Probability Matrix Disk",
+		"description": "+2% Free Upgrade Chance",
+		"stat": "free_upgrade_chance",
+		"value": 2.0,
+		"icon": "🎲",
+		"rarity": "rare"
+	},
+	# More Epic multi-stat variants
+	"warlord_core": {
+		"name": "Warlord Core Disk",
+		"description": "+10% Damage + 10% Crit Damage",
+		"stat": "devastator",
+		"value": 1.0,
+		"icon": "🔴",
+		"rarity": "epic"
+	},
+	"juggernaut_plating": {
+		"name": "Juggernaut Plating Disk",
+		"description": "+8% Overshield Capacity",
+		"stat": "overshield_capacity",
+		"value": 0.08,
+		"icon": "🔵",
+		"rarity": "epic"
+	},
+	"phantom_matrix": {
+		"name": "Phantom Matrix Disk",
+		"description": "+3% Crit Chance + 5% Crit Damage",
+		"stat": "precision",
+		"value": 1.0,
+		"icon": "👻",
+		"rarity": "rare"
+	},
+	"wealth_amplifier": {
+		"name": "Wealth Amplifier Disk",
+		"description": "+8% ALL Currency Drops",
+		"stat": "all_currency",
+		"value": 0.08,
+		"icon": "💵",
+		"rarity": "epic"
 	}
 }
 

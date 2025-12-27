@@ -17,6 +17,62 @@ const FRAGMENTS_BASE := 50000     # Total fragments per tier (both tracks combin
 const QUANTUM_CORES_SCALING := 1.10  # 10% increase per tier
 const FRAGMENTS_SCALING := 1.15      # 15% increase per tier
 
+# --- DATA DISK REWARDS PER TIER ---
+# Format: { tier: { 1000: "disk_id", 3000: "disk_id", 5000: "disk_id" } }
+# Wave 1000 = paid track, Wave 3000 & 5000 = free track
+const DATA_DISK_REWARDS := {
+	1: {
+		1000: "power_core",           # Paid: Damage boost
+		3000: "hypervelocity",        # Free: Fire rate boost
+		5000: "barrier_matrix"        # Free: Defense boost
+	},
+	2: {
+		1000: "assault_protocol",     # Paid: Damage boost
+		3000: "tactical_scanner",     # Free: Crit chance boost
+		5000: "regenerative_field"    # Free: Shield regen
+	},
+	3: {
+		1000: "annihilation_matrix",  # Paid: Damage boost
+		3000: "cascade_trigger",      # Free: Fire rate boost
+		5000: "credit_optimizer"      # Free: DC multiplier
+	},
+	4: {
+		1000: "quantum_accelerator",  # Paid: Fire rate boost
+		3000: "lethal_strike",        # Free: Crit damage boost
+		5000: "reactive_plating"      # Free: Shield integrity
+	},
+	5: {
+		1000: "weakpoint_finder",     # Paid: Crit chance boost
+		3000: "nano_repair",          # Free: Shield regen
+		5000: "archive_compiler"      # Free: AT multiplier
+	},
+	6: {
+		1000: "execution_protocol",   # Paid: Crit damage (rare)
+		3000: "hardened_shell",       # Free: Damage reduction
+		5000: "loot_algorithm"        # Free: DC multiplier (rare)
+	},
+	7: {
+		1000: "phantom_matrix",       # Paid: Precision multi-stat (rare)
+		3000: "crystal_collector",    # Free: Fragment drop rate (rare)
+		5000: "data_synthesizer"      # Free: AT multiplier (rare)
+	},
+	8: {
+		1000: "titan_bane",           # Paid: Boss HP reduction (rare)
+		3000: "colossus_killer",      # Free: Boss HP reduction (rare)
+		5000: "time_dilation"         # Free: Wave skip chance (rare)
+	},
+	9: {
+		1000: "warlord_core",         # Paid: Devastator multi-stat (epic)
+		3000: "juggernaut_plating",   # Free: Overshield capacity (epic)
+		5000: "probability_matrix"    # Free: Free upgrade chance (rare)
+	},
+	10: {
+		1000: "devastator_core",      # Paid: Devastator multi-stat (epic)
+		3000: "wealth_amplifier",     # Free: All currency boost (epic)
+		5000: "boss_slayer"           # Free: Boss slayer multi-stat (epic)
+	}
+}
+
 # --- MILESTONE REWARDS TEMPLATE (Tier 1) ---
 # Format: { "free": {...}, "paid": {...} }
 # Rewards scale exponentially - higher waves give MUCH bigger rewards
@@ -168,13 +224,15 @@ func _give_rewards(rewards: Dictionary) -> void:
 		RewardManager.add_fragments(rewards["fragments"])
 		print("💎 +%d Fragments" % rewards["fragments"])
 
-	# Data Disk
+	# Data Disk (should always be a specific ID, never "random")
 	if rewards.has("data_disk"):
 		var disk_id = rewards["data_disk"]
 		if disk_id == "random":
-			disk_id = DataDiskManager.get_random_disk_id()
+			push_error("❌ Data disk should not be 'random' - check DATA_DISK_REWARDS mapping")
+			return
 		DataDiskManager.add_data_disk(disk_id)
-		print("📀 +1 Data Disk: %s" % disk_id)
+		var disk_name = DataDiskManager.DATA_DISK_TYPES.get(disk_id, {}).get("name", disk_id)
+		print("📀 +1 Data Disk: %s" % disk_name)
 
 	# Lab Unlock
 	if rewards.has("lab_unlock"):
@@ -210,6 +268,15 @@ func get_rewards_for_milestone(tier: int, wave: int, is_paid: bool) -> Dictionar
 		if rewards.has("lab_unlock"):
 			var base_lab = rewards["lab_unlock"]
 			rewards["lab_unlock"] = base_lab.replace("tier1", "tier%d" % tier)
+
+	# Replace "random" data disk with specific disk ID for this tier
+	if rewards.has("data_disk") and rewards["data_disk"] == "random":
+		if DATA_DISK_REWARDS.has(tier) and DATA_DISK_REWARDS[tier].has(wave):
+			rewards["data_disk"] = DATA_DISK_REWARDS[tier][wave]
+		else:
+			# Fallback to first disk if mapping not found
+			push_warning("⚠️ No data disk mapping for tier %d wave %d, using fallback" % [tier, wave])
+			rewards["data_disk"] = "damage_amplifier"
 
 	return rewards
 
