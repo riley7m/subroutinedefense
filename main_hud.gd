@@ -140,6 +140,7 @@ var tier_label: Label = null  # Created programmatically
 @onready var wave_skip_chance: Button = $UpgradeUI/EconomyPanel/WaveSkipChanceButton
 
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
+@onready var quit_button: Button = $QuitButton
 
 @onready var death_screen = null  # Will be set in _ready()
 @onready var boss_rush_death_screen = null  # Will be set in _ready()
@@ -267,6 +268,8 @@ func _ready() -> void:
 	wave_skip_chance.pressed.connect(_on_wave_skip_chance_pressed)
 	speed_button.pressed.connect(_on_speed_button_pressed)
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
+	buy_x_button.pressed.connect(_on_buy_x_button_pressed)
+	quit_button.pressed.connect(_on_quit_button_pressed)
 	perm_panel_toggle_button.pressed.connect(_on_perm_panel_toggle_button_pressed)
 	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
 	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
