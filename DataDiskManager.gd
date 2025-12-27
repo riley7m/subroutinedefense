@@ -113,14 +113,147 @@ const DATA_DISK_TYPES := {
 		"value": 2.0,  # +2% absolute
 		"icon": "🍀",
 		"rarity": "rare"
+	},
+	# --- Additional Common Disks ---
+	"velocity_core": {
+		"name": "Velocity Core Disk",
+		"description": "+4% Projectile Speed",
+		"stat": "projectile_speed",
+		"value": 0.04,
+		"icon": "🚀",
+		"rarity": "common"
+	},
+	"multi_strike": {
+		"name": "Multi-Strike Disk",
+		"description": "+3% Multi-Target Damage",
+		"stat": "multi_target_damage",
+		"value": 0.03,
+		"icon": "🎯",
+		"rarity": "common"
+	},
+	"economy_boost": {
+		"name": "Economy Boost Disk",
+		"description": "+2% Starting Currency",
+		"stat": "starting_currency",
+		"value": 0.02,
+		"icon": "💰",
+		"rarity": "common"
+	},
+	# --- Additional Uncommon Disks ---
+	"piercing_edge": {
+		"name": "Piercing Edge Disk",
+		"description": "+1 Piercing",
+		"stat": "piercing",
+		"value": 1.0,  # +1 pierce per disk
+		"icon": "🗡️",
+		"rarity": "uncommon"
+	},
+	"overkill_amplifier": {
+		"name": "Overkill Amplifier Disk",
+		"description": "+10% Overkill Damage",
+		"stat": "overkill_damage",
+		"value": 0.10,
+		"icon": "💢",
+		"rarity": "uncommon"
+	},
+	"boss_hunter": {
+		"name": "Boss Hunter Disk",
+		"description": "+5% Damage vs Bosses",
+		"stat": "boss_damage",
+		"value": 0.05,
+		"icon": "🎯",
+		"rarity": "uncommon"
+	},
+	"quantum_efficiency": {
+		"name": "Quantum Efficiency Disk",
+		"description": "+0.03x QC Multiplier (3%)",
+		"stat": "qc_multiplier",
+		"value": 0.03,
+		"icon": "🔮",
+		"rarity": "uncommon"
+	},
+	"lab_accelerator": {
+		"name": "Lab Accelerator Disk",
+		"description": "+5% Lab Speed",
+		"stat": "lab_speed",
+		"value": 0.05,
+		"icon": "🔬",
+		"rarity": "uncommon"
+	},
+	# --- Additional Rare Disks ---
+	"ricochet_core": {
+		"name": "Ricochet Core Disk",
+		"description": "+2% Ricochet Chance",
+		"stat": "ricochet_chance",
+		"value": 2.0,  # +2% absolute
+		"icon": "🔄",
+		"rarity": "rare"
+	},
+	"lucky_strike": {
+		"name": "Lucky Strike Disk",
+		"description": "+3% Lucky Drops",
+		"stat": "lucky_drops",
+		"value": 3.0,  # +3% absolute
+		"icon": "✨",
+		"rarity": "rare"
+	},
+	"offline_optimizer": {
+		"name": "Offline Optimizer Disk",
+		"description": "+10% Offline Progress",
+		"stat": "offline_progress",
+		"value": 0.10,
+		"icon": "🌙",
+		"rarity": "rare"
+	},
+	"block_master": {
+		"name": "Block Master Disk",
+		"description": "+1% Block Chance",
+		"stat": "block_chance",
+		"value": 1.0,  # +1% absolute
+		"icon": "🛡️",
+		"rarity": "rare"
+	},
+	# --- Epic Disks (Very Rare, Powerful) ---
+	"overshield_generator": {
+		"name": "Overshield Generator Disk",
+		"description": "+50 Max Overshield",
+		"stat": "overshield",
+		"value": 50.0,  # Flat amount
+		"icon": "💠",
+		"rarity": "epic"
+	},
+	"titan_core": {
+		"name": "Titan Core Disk",
+		"description": "+10% All Stats",
+		"stat": "all_stats",
+		"value": 0.10,
+		"icon": "⭐",
+		"rarity": "epic"
+	},
+	"resource_multiplier": {
+		"name": "Resource Multiplier Disk",
+		"description": "+8% ALL Currency Drops",
+		"stat": "all_currency",
+		"value": 0.08,
+		"icon": "💸",
+		"rarity": "epic"
+	},
+	"boss_slayer": {
+		"name": "Boss Slayer Disk",
+		"description": "-5% Boss HP + 10% Boss Damage",
+		"stat": "boss_slayer",
+		"value": 1.0,  # Special multi-stat disk
+		"icon": "⚔️",
+		"rarity": "epic"
 	}
 }
 
 # --- RARITY WEIGHTS (for random drops) ---
 const RARITY_WEIGHTS := {
-	"common": 50,    # 50% chance for common disks
+	"common": 45,    # 45% chance for common disks
 	"uncommon": 35,  # 35% chance for uncommon disks
-	"rare": 15       # 15% chance for rare disks
+	"rare": 17,      # 17% chance for rare disks
+	"epic": 3        # 3% chance for epic disks
 }
 
 # --- INVENTORY ---

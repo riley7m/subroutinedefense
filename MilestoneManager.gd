@@ -21,17 +21,18 @@ const FRAGMENTS_SCALING := 1.15      # 15% increase per tier
 # Format: { "free": {...}, "paid": {...} }
 # Rewards scale exponentially - higher waves give MUCH bigger rewards
 # Total per tier: 5,000 QC (2,250 free + 2,750 paid) + 50,000 Frag (22,500 free + 27,500 paid)
+# Only 2 Lab unlocks per tier (waves 500 and 1000 free track)
 const MILESTONE_REWARDS_TIER_1 := {
 	10: {
 		"free": {"quantum_cores": 15, "fragments": 150},
 		"paid": {"quantum_cores": 20, "fragments": 200}
 	},
 	50: {
-		"free": {"quantum_cores": 30, "fragments": 300, "lab_unlock": "tier1_lab1"},
+		"free": {"quantum_cores": 30, "fragments": 300},
 		"paid": {"quantum_cores": 40, "fragments": 400}
 	},
 	100: {
-		"free": {"quantum_cores": 50, "fragments": 500, "lab_unlock": "tier1_lab2"},
+		"free": {"quantum_cores": 50, "fragments": 500},
 		"paid": {"quantum_cores": 60, "fragments": 600}
 	},
 	250: {
@@ -39,15 +40,15 @@ const MILESTONE_REWARDS_TIER_1 := {
 		"paid": {"quantum_cores": 95, "fragments": 950}
 	},
 	500: {
-		"free": {"quantum_cores": 125, "fragments": 1250, "lab_unlock": "tier1_lab3"},
+		"free": {"quantum_cores": 125, "fragments": 1250, "lab_unlock": "tier1_lab1"},
 		"paid": {"quantum_cores": 155, "fragments": 1550}
 	},
 	1000: {
-		"free": {"quantum_cores": 205, "fragments": 2050, "lab_unlock": "tier1_lab4"},
+		"free": {"quantum_cores": 205, "fragments": 2050, "lab_unlock": "tier1_lab2"},
 		"paid": {"quantum_cores": 250, "fragments": 2500, "data_disk": "random"}
 	},
 	2000: {
-		"free": {"quantum_cores": 330, "fragments": 3300, "lab_unlock": "tier1_lab5"},
+		"free": {"quantum_cores": 330, "fragments": 3300},
 		"paid": {"quantum_cores": 410, "fragments": 4100}
 	},
 	3000: {
@@ -55,7 +56,7 @@ const MILESTONE_REWARDS_TIER_1 := {
 		"paid": {"quantum_cores": 660, "fragments": 6600}
 	},
 	5000: {
-		"free": {"quantum_cores": 875, "fragments": 8750, "lab_unlock": "tier1_lab6", "data_disk": "random"},
+		"free": {"quantum_cores": 875, "fragments": 8750, "data_disk": "random"},
 		"paid": {"quantum_cores": 1060, "fragments": 10600}
 	}
 }
