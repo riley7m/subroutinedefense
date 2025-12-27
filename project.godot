@@ -35,6 +35,7 @@ SoftwareUpgradeManager="*res://SoftwareUpgradeManager.gd"
 DataDiskManager="*res://DataDiskManager.gd"
 NotificationManager="*res://NotificationManager.gd"
 AchievementManager="*res://AchievementManager.gd"
+QuantumCoreShop="*res://QuantumCoreShop.gd"
 
 [display]
 
