@@ -105,7 +105,10 @@ func _notification(what: int) -> void:
 		save_permanent_upgrades()
 
 func _on_autosave_timer_timeout() -> void:
-	save_permanent_upgrades()
+	var success = save_permanent_upgrades()
+	if not success:
+		push_error("❌ Auto-save failed! Progress may not be saved.")
+		# Note: User should be notified via UI, but we don't have direct access to main_hud here
 
 
 # === Reward Functions ===

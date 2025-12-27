@@ -228,24 +228,35 @@ func get_perm_drone_upgrade_cost(level: int) -> int:
 # - Example: Level 200 = 1.5^2 = 2.25x, Level 300 = 1.5^3 = 3.375x
 #
 # Safety caps:
-# - Milestone capped at 200 to prevent overflow (1.5^200 ≈ 4.6e14)
-# - Total capped at max int32 before adding permanent damage
+# - Uses BigNumber for values > int64 max (supports up to 10^237 = 1az)
+# - Allows damage to reach octillions (10^27) and beyond
+# - Returns int64 max if value exceeds int64 range for backwards compatibility
 #
 # This dual-scaling system ensures:
 # - Smooth progression within tiers (polynomial)
 # - Significant jumps at milestones (exponential)
-# - Safe integer math at extreme levels
+# - No overflow at extreme levels (uses BigNumber)
 func get_projectile_damage() -> int:
 	var level = projectile_damage_level
 	var base = 100 + (floor(5 * pow(level, 1.12) + 5))
 	var milestones = floor(level / 100)
-	# Cap at milestone 200 for safer range (pow(1.5, 200) ≈ 4.6e14)
-	# Prevents integer overflow at extreme levels
-	var multiplier = pow(1.5, min(milestones, 200))
+
+	# Calculate multiplier (no cap - BigNumber handles it)
+	var multiplier = pow(1.5, milestones)
 	var total = base * multiplier
-	# Cap at max int to prevent overflow when adding perm damage
-	total = min(total, 2147483647 - max(0, RewardManager.perm_projectile_damage))
-	return int(total) + RewardManager.perm_projectile_damage
+
+	# Check if we need BigNumber (exponent > 18 = quintillions+)
+	if milestones > 120:  # pow(1.5, 120) ≈ 4.4e20 (exceeds int64)
+		# Use BigNumber for truly massive values
+		var bn = BigNumber.new(total)
+		var perm_bn = BigNumber.new(RewardManager.perm_projectile_damage)
+		bn = bn.add(perm_bn)
+		# Return int64 max if too large, otherwise convert
+		return bn.to_int()
+	else:
+		# Safe int64 range
+		var total_with_perm = total + RewardManager.perm_projectile_damage
+		return int(min(total_with_perm, 9223372036854775807))  # int64 max
 
 func get_projectile_fire_rate() -> float:
 	return base_fire_rate + projectile_fire_rate_level * FIRE_RATE_PER_UPGRADE + RewardManager.perm_projectile_fire_rate
