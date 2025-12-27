@@ -33,6 +33,7 @@ UpgradeManager="*res://UpgradeManager.gd"
 RunStats="*res://RunStats.gd"
 SoftwareUpgradeManager="*res://SoftwareUpgradeManager.gd"
 DataDiskManager="*res://DataDiskManager.gd"
+NotificationManager="*res://NotificationManager.gd"
 
 [display]
 

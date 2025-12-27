@@ -244,10 +244,19 @@ func _on_paid_track_unlocked(tier: int) -> void:
 	_refresh_ui()
 
 func _on_paid_unlock_pressed() -> void:
-	# TODO: Implement payment UI
-	# For now, just unlock it for testing
-	print("⚠️ Payment UI not implemented yet")
-	# MilestoneManager.unlock_paid_track(current_tier)
+	# Show payment UI
+	var payment_ui = load("res://paid_track_purchase_ui.gd").new()
+	get_parent().add_child(payment_ui)
+	payment_ui.purchase_confirmed.connect(_on_purchase_confirmed)
+	payment_ui.purchase_cancelled.connect(_on_purchase_cancelled)
+	payment_ui.show_purchase_dialog(current_tier)
+
+func _on_purchase_confirmed(tier: int) -> void:
+	print("✅ Paid track unlocked for tier %d" % tier)
+	_refresh_ui()
+
+func _on_purchase_cancelled() -> void:
+	print("❌ Purchase cancelled")
 
 func _on_close_pressed() -> void:
 	visible = false

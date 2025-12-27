@@ -5,6 +5,7 @@ extends Node
 
 # --- SIGNALS ---
 signal milestone_claimed(tier: int, wave: int, is_paid: bool)
+signal milestone_reached(tier: int, wave: int, rewards: Dictionary)
 signal paid_track_unlocked(tier: int)
 
 # --- MILESTONE WAVES ---
@@ -148,6 +149,9 @@ func claim_milestone(tier: int, wave: int, is_paid: bool) -> bool:
 
 	save_milestone_progress()
 	emit_signal("milestone_claimed", tier, wave, is_paid)
+
+	# Emit notification signal with rewards
+	emit_signal("milestone_reached", tier, wave, rewards)
 
 	print("✅ Claimed milestone tier %d wave %d (paid: %s)" % [tier, wave, is_paid])
 	return true

@@ -129,8 +129,15 @@ func add_archive_tokens(amount: int) -> void:
 		_last_ui_update_time = now
 
 func add_fragments(amount: int) -> void:
-	fragments += amount
-	RunStats.add_fragments_earned(amount)
+	# Apply fragment drop rate buff from data disks
+	var buff = DataDiskManager.get_fragment_drop_rate_buff()
+	var boosted_amount = int(amount * (1.0 + buff))
+	fragments += boosted_amount
+	RunStats.add_fragments_earned(boosted_amount)
+
+	# Log if buff was applied
+	if buff > 0 and boosted_amount > amount:
+		print("💎 Fragment boost: %d → %d (+%.1f%%)" % [amount, boosted_amount, buff * 100])
 
 func add_quantum_cores(amount: int) -> void:
 	quantum_cores += amount
