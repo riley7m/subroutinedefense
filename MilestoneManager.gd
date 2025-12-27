@@ -1,0 +1,292 @@
+extends Node
+
+# Milestone System - Battle Pass Style
+# Tracks wave milestones and distributes rewards (Quantum Cores, Fragments, Data Disks, Lab Unlocks)
+
+# --- SIGNALS ---
+signal milestone_claimed(tier: int, wave: int, is_paid: bool)
+signal paid_track_unlocked(tier: int)
+
+# --- MILESTONE WAVES ---
+const MILESTONE_WAVES := [10, 50, 100, 250, 500, 1000, 2000, 3000, 5000]
+
+# --- TIER SCALING ---
+const QUANTUM_CORES_BASE := 5000  # Total QC per tier (both tracks combined)
+const FRAGMENTS_BASE := 50000     # Total fragments per tier (both tracks combined)
+const QUANTUM_CORES_SCALING := 1.10  # 10% increase per tier
+const FRAGMENTS_SCALING := 1.15      # 15% increase per tier
+
+# --- MILESTONE REWARDS TEMPLATE (Tier 1) ---
+# Format: { "free": {...}, "paid": {...} }
+const MILESTONE_REWARDS_TIER_1 := {
+	10: {
+		"free": {"quantum_cores": 100, "fragments": 1000},
+		"paid": {"quantum_cores": 150, "fragments": 2000}
+	},
+	50: {
+		"free": {"quantum_cores": 150, "fragments": 1500, "lab_unlock": "tier1_lab1"},
+		"paid": {"quantum_cores": 200, "fragments": 3000}
+	},
+	100: {
+		"free": {"quantum_cores": 200, "fragments": 2000, "lab_unlock": "tier1_lab2"},
+		"paid": {"quantum_cores": 250, "fragments": 4000}
+	},
+	250: {
+		"free": {"quantum_cores": 250, "fragments": 2500},
+		"paid": {"quantum_cores": 300, "fragments": 5000}
+	},
+	500: {
+		"free": {"quantum_cores": 300, "fragments": 3000, "lab_unlock": "tier1_lab3"},
+		"paid": {"quantum_cores": 350, "fragments": 6000}
+	},
+	1000: {
+		"free": {"quantum_cores": 350, "fragments": 4000, "lab_unlock": "tier1_lab4"},
+		"paid": {"quantum_cores": 400, "fragments": 5000, "data_disk": "random"}
+	},
+	2000: {
+		"free": {"quantum_cores": 400, "fragments": 2000, "lab_unlock": "tier1_lab5"},
+		"paid": {"quantum_cores": 400, "fragments": 2000}
+	},
+	3000: {
+		"free": {"quantum_cores": 500, "fragments": 2000, "data_disk": "random"},
+		"paid": {"quantum_cores": 450, "fragments": 1000}
+	},
+	5000: {
+		"free": {"quantum_cores": 0, "fragments": 2000, "lab_unlock": "tier1_lab6", "data_disk": "random"},
+		"paid": {"quantum_cores": 250, "fragments": 2000}
+	}
+}
+
+# --- SAVE DATA ---
+# Format: { tier: { wave: { free: claimed, paid: claimed } } }
+var claimed_milestones: Dictionary = {}
+
+# Format: { tier: is_paid_unlocked }
+var paid_tracks_unlocked: Dictionary = {}
+
+# --- INITIALIZATION ---
+func _ready() -> void:
+	load_milestone_progress()
+
+# --- MILESTONE CHECKING ---
+func check_milestone_for_wave(tier: int, wave: int) -> void:
+	if wave not in MILESTONE_WAVES:
+		return
+
+	# Auto-claim free track if reached
+	if not has_claimed_milestone(tier, wave, false):
+		claim_milestone(tier, wave, false)
+
+func has_reached_milestone(tier: int, wave: int, current_wave: int) -> bool:
+	return current_wave >= wave
+
+func has_claimed_milestone(tier: int, wave: int, is_paid: bool) -> bool:
+	if tier not in claimed_milestones:
+		return false
+	if wave not in claimed_milestones[tier]:
+		return false
+
+	var track_key = "paid" if is_paid else "free"
+	return claimed_milestones[tier][wave].get(track_key, false)
+
+func can_claim_milestone(tier: int, wave: int, is_paid: bool, current_wave: int) -> bool:
+	# Must have reached the milestone wave
+	if not has_reached_milestone(tier, wave, current_wave):
+		return false
+
+	# Must not have already claimed it
+	if has_claimed_milestone(tier, wave, is_paid):
+		return false
+
+	# Paid track requires unlock
+	if is_paid and not is_paid_track_unlocked(tier):
+		return false
+
+	return true
+
+# --- PAID TRACK UNLOCK ---
+func is_paid_track_unlocked(tier: int) -> bool:
+	return paid_tracks_unlocked.get(tier, false)
+
+func unlock_paid_track(tier: int) -> bool:
+	if is_paid_track_unlocked(tier):
+		print("⚠️ Paid track already unlocked for tier %d" % tier)
+		return false
+
+	# TODO: Implement payment system (fragments, real money, etc.)
+	# For now, just unlock it
+	paid_tracks_unlocked[tier] = true
+	save_milestone_progress()
+	emit_signal("paid_track_unlocked", tier)
+	print("✅ Paid track unlocked for tier %d" % tier)
+	return true
+
+# --- REWARD CLAIMING ---
+func claim_milestone(tier: int, wave: int, is_paid: bool) -> bool:
+	if not can_claim_milestone(tier, wave, is_paid, TierManager.get_highest_wave_in_tier(tier)):
+		print("❌ Cannot claim milestone tier %d wave %d (paid: %s)" % [tier, wave, is_paid])
+		return false
+
+	var rewards = get_rewards_for_milestone(tier, wave, is_paid)
+	if rewards.is_empty():
+		print("⚠️ No rewards found for tier %d wave %d (paid: %s)" % [tier, wave, is_paid])
+		return false
+
+	# Give rewards
+	_give_rewards(rewards)
+
+	# Mark as claimed
+	if tier not in claimed_milestones:
+		claimed_milestones[tier] = {}
+	if wave not in claimed_milestones[tier]:
+		claimed_milestones[tier][wave] = {"free": false, "paid": false}
+
+	var track_key = "paid" if is_paid else "free"
+	claimed_milestones[tier][wave][track_key] = true
+
+	save_milestone_progress()
+	emit_signal("milestone_claimed", tier, wave, is_paid)
+
+	print("✅ Claimed milestone tier %d wave %d (paid: %s)" % [tier, wave, is_paid])
+	return true
+
+func _give_rewards(rewards: Dictionary) -> void:
+	# Quantum Cores
+	if rewards.has("quantum_cores") and rewards["quantum_cores"] > 0:
+		RewardManager.add_quantum_cores(rewards["quantum_cores"])
+		print("🔮 +%d Quantum Cores" % rewards["quantum_cores"])
+
+	# Fragments
+	if rewards.has("fragments") and rewards["fragments"] > 0:
+		RewardManager.add_fragments(rewards["fragments"])
+		print("💎 +%d Fragments" % rewards["fragments"])
+
+	# Data Disk
+	if rewards.has("data_disk"):
+		var disk_id = rewards["data_disk"]
+		if disk_id == "random":
+			disk_id = DataDiskManager.get_random_disk_id()
+		DataDiskManager.add_data_disk(disk_id)
+		print("📀 +1 Data Disk: %s" % disk_id)
+
+	# Lab Unlock
+	if rewards.has("lab_unlock"):
+		var lab_id = rewards["lab_unlock"]
+		SoftwareUpgradeManager.unlock_lab(lab_id)
+		print("🔬 Lab Unlocked: %s" % lab_id)
+
+# --- REWARD CALCULATION ---
+func get_rewards_for_milestone(tier: int, wave: int, is_paid: bool) -> Dictionary:
+	if wave not in MILESTONE_WAVES:
+		return {}
+
+	# Get base rewards from tier 1 template
+	var base_rewards = MILESTONE_REWARDS_TIER_1.get(wave, {})
+	var track_key = "paid" if is_paid else "free"
+	var rewards = base_rewards.get(track_key, {}).duplicate()
+
+	if rewards.is_empty():
+		return {}
+
+	# Scale rewards based on tier
+	if tier > 1:
+		var tier_multiplier_qc = pow(QUANTUM_CORES_SCALING, tier - 1)
+		var tier_multiplier_frag = pow(FRAGMENTS_SCALING, tier - 1)
+
+		if rewards.has("quantum_cores"):
+			rewards["quantum_cores"] = int(rewards["quantum_cores"] * tier_multiplier_qc)
+
+		if rewards.has("fragments"):
+			rewards["fragments"] = int(rewards["fragments"] * tier_multiplier_frag)
+
+		# Update lab IDs to match tier
+		if rewards.has("lab_unlock"):
+			var base_lab = rewards["lab_unlock"]
+			rewards["lab_unlock"] = base_lab.replace("tier1", "tier%d" % tier)
+
+	return rewards
+
+# --- SAVE/LOAD ---
+func save_milestone_progress() -> void:
+	var save_data = {
+		"claimed_milestones": claimed_milestones,
+		"paid_tracks_unlocked": paid_tracks_unlocked
+	}
+
+	var save_path = "user://milestone_progress.save"
+	var file = FileAccess.open(save_path, FileAccess.WRITE)
+	if file:
+		file.store_var(save_data)
+		file.close()
+		print("💾 Milestone progress saved")
+	else:
+		push_error("❌ Failed to save milestone progress")
+
+func load_milestone_progress() -> void:
+	var save_path = "user://milestone_progress.save"
+	if not FileAccess.file_exists(save_path):
+		print("📂 No milestone save file found, starting fresh")
+		return
+
+	var file = FileAccess.open(save_path, FileAccess.READ)
+	if file:
+		var save_data = file.get_var()
+		file.close()
+
+		claimed_milestones = save_data.get("claimed_milestones", {})
+		paid_tracks_unlocked = save_data.get("paid_tracks_unlocked", {})
+
+		print("✅ Milestone progress loaded")
+	else:
+		push_error("❌ Failed to load milestone progress")
+
+# --- UTILITY ---
+func get_all_milestones_for_tier(tier: int) -> Array:
+	var milestones = []
+	for wave in MILESTONE_WAVES:
+		milestones.append({
+			"wave": wave,
+			"free_rewards": get_rewards_for_milestone(tier, wave, false),
+			"paid_rewards": get_rewards_for_milestone(tier, wave, true),
+			"free_claimed": has_claimed_milestone(tier, wave, false),
+			"paid_claimed": has_claimed_milestone(tier, wave, true)
+		})
+	return milestones
+
+func get_total_rewards_for_tier(tier: int) -> Dictionary:
+	var total_free_qc = 0
+	var total_paid_qc = 0
+	var total_free_frag = 0
+	var total_paid_frag = 0
+	var total_free_disks = 0
+	var total_paid_disks = 0
+	var total_labs = 0
+
+	for wave in MILESTONE_WAVES:
+		var free_rewards = get_rewards_for_milestone(tier, wave, false)
+		var paid_rewards = get_rewards_for_milestone(tier, wave, true)
+
+		total_free_qc += free_rewards.get("quantum_cores", 0)
+		total_paid_qc += paid_rewards.get("quantum_cores", 0)
+		total_free_frag += free_rewards.get("fragments", 0)
+		total_paid_frag += paid_rewards.get("fragments", 0)
+
+		if free_rewards.has("data_disk"):
+			total_free_disks += 1
+		if paid_rewards.has("data_disk"):
+			total_paid_disks += 1
+		if free_rewards.has("lab_unlock"):
+			total_labs += 1
+
+	return {
+		"free_quantum_cores": total_free_qc,
+		"paid_quantum_cores": total_paid_qc,
+		"total_quantum_cores": total_free_qc + total_paid_qc,
+		"free_fragments": total_free_frag,
+		"paid_fragments": total_paid_frag,
+		"total_fragments": total_free_frag + total_paid_frag,
+		"free_data_disks": total_free_disks,
+		"paid_data_disks": total_paid_disks,
+		"total_data_disks": total_free_disks + total_paid_disks,
+		"lab_unlocks": total_labs
+	}

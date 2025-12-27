@@ -26,11 +26,13 @@ UIStyler="*res://UIStyler.gd"
 ObjectPool="*res://ObjectPool.gd"
 TierManager="*res://TierManager.gd"
 BossRushManager="*res://BossRushManager.gd"
+MilestoneManager="*res://MilestoneManager.gd"
 CloudSaveManager="*res://CloudSaveManager.gd"
 RewardManager="*res://RewardManager.gd"
 UpgradeManager="*res://UpgradeManager.gd"
 RunStats="*res://RunStats.gd"
 SoftwareUpgradeManager="*res://SoftwareUpgradeManager.gd"
+DataDiskManager="*res://DataDiskManager.gd"
 
 [display]
 

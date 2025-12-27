@@ -120,6 +120,10 @@ func update_highest_wave(wave: int) -> void:
 	if wave > current_highest:
 		highest_wave_per_tier[current_tier] = wave
 
+		# Check milestone rewards
+		if MilestoneManager:
+			MilestoneManager.check_milestone_for_wave(current_tier, wave)
+
 		# Check if this unlocks next tier
 		if wave >= WAVES_PER_TIER and current_tier < MAX_TIERS:
 			unlock_next_tier()
@@ -127,6 +131,10 @@ func update_highest_wave(wave: int) -> void:
 # Get highest wave reached in a specific tier
 func get_highest_wave(tier: int) -> int:
 	return highest_wave_per_tier.get(tier, 0)
+
+# Alias for milestone system consistency
+func get_highest_wave_in_tier(tier: int) -> int:
+	return get_highest_wave(tier)
 
 # Get current tier
 func get_current_tier() -> int:

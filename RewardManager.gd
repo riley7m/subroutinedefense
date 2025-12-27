@@ -4,6 +4,7 @@ extends Node
 var data_credits: int = 100000
 var archive_tokens: int = 100000
 var fragments: int = 0  # Premium currency: earned from boss kills, used for drone purchases/upgrades
+var quantum_cores: int = 0  # Premium currency: earned from milestones, used for premium upgrades
 
 # --- Drone Ownership (purchased out-of-run with fragments) ---
 var owned_drones: Dictionary = {
@@ -130,6 +131,10 @@ func add_archive_tokens(amount: int) -> void:
 func add_fragments(amount: int) -> void:
 	fragments += amount
 	RunStats.add_fragments_earned(amount)
+
+func add_quantum_cores(amount: int) -> void:
+	quantum_cores += amount
+	print("🔮 +%d Quantum Cores (Total: %d)" % [amount, quantum_cores])
 
 # === Flat Reward Lookup ===
 func get_dc_reward_for_enemy(enemy_type: String) -> int:
@@ -528,6 +533,7 @@ func save_permanent_upgrades() -> bool:
 		"perm_lab_speed": perm_lab_speed,
 		"archive_tokens": archive_tokens,
 		"fragments": fragments,
+		"quantum_cores": quantum_cores,
 		"owned_drones": owned_drones,
 		"last_play_time": last_play_time,
 		"run_history": run_history,
@@ -661,6 +667,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
 	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
 	fragments = clamp(data.get("fragments", 0), 0, 999999999)
+	quantum_cores = clamp(data.get("quantum_cores", 0), 0, 999999999)
 	owned_drones = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
 	last_play_time = data.get("last_play_time", 0)
 	run_history = data.get("run_history", [])
