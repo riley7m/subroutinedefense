@@ -18,42 +18,44 @@ const FRAGMENTS_SCALING := 1.15      # 15% increase per tier
 
 # --- MILESTONE REWARDS TEMPLATE (Tier 1) ---
 # Format: { "free": {...}, "paid": {...} }
+# Rewards scale exponentially - higher waves give MUCH bigger rewards
+# Total per tier: 5,000 QC (2,250 free + 2,750 paid) + 50,000 Frag (22,500 free + 27,500 paid)
 const MILESTONE_REWARDS_TIER_1 := {
 	10: {
-		"free": {"quantum_cores": 100, "fragments": 1000},
-		"paid": {"quantum_cores": 150, "fragments": 2000}
+		"free": {"quantum_cores": 15, "fragments": 150},
+		"paid": {"quantum_cores": 20, "fragments": 200}
 	},
 	50: {
-		"free": {"quantum_cores": 150, "fragments": 1500, "lab_unlock": "tier1_lab1"},
-		"paid": {"quantum_cores": 200, "fragments": 3000}
+		"free": {"quantum_cores": 30, "fragments": 300, "lab_unlock": "tier1_lab1"},
+		"paid": {"quantum_cores": 40, "fragments": 400}
 	},
 	100: {
-		"free": {"quantum_cores": 200, "fragments": 2000, "lab_unlock": "tier1_lab2"},
-		"paid": {"quantum_cores": 250, "fragments": 4000}
+		"free": {"quantum_cores": 50, "fragments": 500, "lab_unlock": "tier1_lab2"},
+		"paid": {"quantum_cores": 60, "fragments": 600}
 	},
 	250: {
-		"free": {"quantum_cores": 250, "fragments": 2500},
-		"paid": {"quantum_cores": 300, "fragments": 5000}
+		"free": {"quantum_cores": 80, "fragments": 800},
+		"paid": {"quantum_cores": 95, "fragments": 950}
 	},
 	500: {
-		"free": {"quantum_cores": 300, "fragments": 3000, "lab_unlock": "tier1_lab3"},
-		"paid": {"quantum_cores": 350, "fragments": 6000}
+		"free": {"quantum_cores": 125, "fragments": 1250, "lab_unlock": "tier1_lab3"},
+		"paid": {"quantum_cores": 155, "fragments": 1550}
 	},
 	1000: {
-		"free": {"quantum_cores": 350, "fragments": 4000, "lab_unlock": "tier1_lab4"},
-		"paid": {"quantum_cores": 400, "fragments": 5000, "data_disk": "random"}
+		"free": {"quantum_cores": 205, "fragments": 2050, "lab_unlock": "tier1_lab4"},
+		"paid": {"quantum_cores": 250, "fragments": 2500, "data_disk": "random"}
 	},
 	2000: {
-		"free": {"quantum_cores": 400, "fragments": 2000, "lab_unlock": "tier1_lab5"},
-		"paid": {"quantum_cores": 400, "fragments": 2000}
+		"free": {"quantum_cores": 330, "fragments": 3300, "lab_unlock": "tier1_lab5"},
+		"paid": {"quantum_cores": 410, "fragments": 4100}
 	},
 	3000: {
-		"free": {"quantum_cores": 500, "fragments": 2000, "data_disk": "random"},
-		"paid": {"quantum_cores": 450, "fragments": 1000}
+		"free": {"quantum_cores": 540, "fragments": 5400, "data_disk": "random"},
+		"paid": {"quantum_cores": 660, "fragments": 6600}
 	},
 	5000: {
-		"free": {"quantum_cores": 0, "fragments": 2000, "lab_unlock": "tier1_lab6", "data_disk": "random"},
-		"paid": {"quantum_cores": 250, "fragments": 2000}
+		"free": {"quantum_cores": 875, "fragments": 8750, "lab_unlock": "tier1_lab6", "data_disk": "random"},
+		"paid": {"quantum_cores": 1060, "fragments": 10600}
 	}
 }
 
