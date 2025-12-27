@@ -120,6 +120,10 @@ func update_highest_wave(wave: int) -> void:
 	if wave > current_highest:
 		highest_wave_per_tier[current_tier] = wave
 
+		# Track wave completion for achievements
+		if AchievementManager:
+			AchievementManager.add_wave_completed()
+
 		# Check milestone rewards
 		if MilestoneManager:
 			MilestoneManager.check_milestone_for_wave(current_tier, wave)

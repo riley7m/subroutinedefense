@@ -119,6 +119,7 @@ func _on_autosave_timer_timeout() -> void:
 # === Reward Functions ===
 func add_archive_tokens(amount: int) -> void:
 	archive_tokens += amount
+	AchievementManager.add_at_earned(amount)  # Track for achievements
 
 	# Throttle UI updates to max 2x per second (every 0.5s)
 	# Prevents excessive signal emissions during high kill rates (100+ kills/sec)
@@ -134,6 +135,7 @@ func add_fragments(amount: int) -> void:
 	var boosted_amount = int(amount * (1.0 + buff))
 	fragments += boosted_amount
 	RunStats.add_fragments_earned(boosted_amount)
+	AchievementManager.add_fragments_earned(boosted_amount)  # Track for achievements
 
 	# Log if buff was applied
 	if buff > 0 and boosted_amount > amount:
@@ -223,6 +225,7 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 
 	data_credits += scaled_dc
 	RunStats.add_dc_earned(scaled_dc)  # Track lifetime DC
+	AchievementManager.add_dc_earned(scaled_dc)  # Track for achievements
 	#print("🪙 DC from", enemy_type, "→", scaled_dc, "→ Total:", data_credits)
 
 # Wave completion AT bonus - polynomial scaling

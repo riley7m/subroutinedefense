@@ -520,6 +520,10 @@ func add_data_disk(disk_id: String) -> bool:
 	save_data_disks()
 	emit_signal("data_disk_acquired", disk_id)
 
+	# Update achievement tracking
+	if AchievementManager:
+		AchievementManager.update_data_disks_owned(get_unique_disk_count())
+
 	var disk_data = DATA_DISK_TYPES[disk_id]
 	print("📀 Acquired: %s (Total: %d)" % [disk_data["name"], data_disk_inventory[disk_id]])
 
