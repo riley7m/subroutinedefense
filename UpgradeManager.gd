@@ -256,9 +256,10 @@ func get_projectile_damage() -> int:
 	else:
 		# Safe int64 range
 		var total_with_perm = total + RewardManager.perm_projectile_damage
-		# Apply data disk buff (percentage boost)
+		# Apply data disk buffs (percentage boost)
 		var disk_buff = DataDiskManager.get_projectile_damage_buff()
-		total_with_perm = int(total_with_perm * (1.0 + disk_buff))
+		var devastator_buff = DataDiskManager.get_devastator_damage_buff()
+		total_with_perm = int(total_with_perm * (1.0 + disk_buff + devastator_buff))
 		return int(min(total_with_perm, 9223372036854775807))  # int64 max
 
 func get_projectile_fire_rate() -> float:
@@ -269,15 +270,18 @@ func get_projectile_fire_rate() -> float:
 
 func get_crit_chance() -> int:
 	var base_crit = crit_chance + RewardManager.perm_crit_chance
-	# Apply data disk buff (flat addition)
+	# Apply data disk buffs (flat addition)
 	var disk_buff = DataDiskManager.get_crit_chance_buff()
-	return int(base_crit + disk_buff)
+	var precision_buff = DataDiskManager.get_precision_crit_chance_buff()
+	return int(base_crit + disk_buff + precision_buff)
 
 func get_crit_damage_multiplier() -> float:
 	var base_crit_dmg = BASE_CRIT_MULTIPLIER + (crit_damage_level * CRIT_DAMAGE_PER_LEVEL) + RewardManager.perm_crit_damage
-	# Apply data disk buff (percentage boost)
+	# Apply data disk buffs (percentage boost)
 	var disk_buff = DataDiskManager.get_crit_damage_buff()
-	return base_crit_dmg * (1.0 + disk_buff)
+	var devastator_buff = DataDiskManager.get_devastator_crit_damage_buff()
+	var precision_buff = DataDiskManager.get_precision_crit_damage_buff()
+	return base_crit_dmg * (1.0 + disk_buff + devastator_buff + precision_buff)
 
 func get_shield_capacity() -> int:
 	var base_shield = BASE_SHIELD + (shield_integrity_level * SHIELD_PER_LEVEL) + RewardManager.perm_shield_integrity
@@ -342,7 +346,10 @@ func get_boss_resistance() -> float:
 
 # --- BATCH 2 UPGRADE GETTERS ---
 func get_overshield() -> int:
-	return overshield_level * OVERSHIELD_PER_LEVEL + RewardManager.perm_overshield
+	var base_overshield = overshield_level * OVERSHIELD_PER_LEVEL + RewardManager.perm_overshield
+	# Apply data disk buff (percentage boost)
+	var disk_buff = DataDiskManager.get_overshield_capacity_buff()
+	return int(base_overshield * (1.0 + disk_buff))
 
 func get_boss_bonus() -> float:
 	return 1.0 + (boss_bonus_level * BOSS_BONUS_PER_LEVEL) + RewardManager.perm_boss_bonus

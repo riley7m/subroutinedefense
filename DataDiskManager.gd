@@ -197,12 +197,12 @@ const DATA_DISK_TYPES := {
 		"icon": "✨",
 		"rarity": "rare"
 	},
-	"offline_optimizer": {
-		"name": "Offline Optimizer Disk",
-		"description": "+10% Offline Progress",
-		"stat": "offline_progress",
-		"value": 0.10,
-		"icon": "🌙",
+	"precision_matrix": {
+		"name": "Precision Matrix Disk",
+		"description": "+3% Crit Chance + 5% Crit Damage",
+		"stat": "precision",
+		"value": 1.0,  # Special multi-stat disk
+		"icon": "🎯",
 		"rarity": "rare"
 	},
 	"block_master": {
@@ -216,17 +216,17 @@ const DATA_DISK_TYPES := {
 	# --- Epic Disks (Very Rare, Powerful) ---
 	"overshield_generator": {
 		"name": "Overshield Generator Disk",
-		"description": "+50 Max Overshield",
-		"stat": "overshield",
-		"value": 50.0,  # Flat amount
+		"description": "+8% Overshield Capacity",
+		"stat": "overshield_capacity",
+		"value": 0.08,  # 8% multiplicative
 		"icon": "💠",
 		"rarity": "epic"
 	},
-	"titan_core": {
-		"name": "Titan Core Disk",
-		"description": "+10% All Stats",
-		"stat": "all_stats",
-		"value": 0.10,
+	"devastator_core": {
+		"name": "Devastator Core Disk",
+		"description": "+10% Damage + 10% Crit Damage",
+		"stat": "devastator",
+		"value": 1.0,  # Special multi-stat disk
 		"icon": "⭐",
 		"rarity": "epic"
 	},
@@ -386,6 +386,22 @@ func get_wave_skip_chance_buff() -> float:
 
 func get_free_upgrade_chance_buff() -> float:
 	return _calculate_buff("free_upgrade_chance")
+
+func get_overshield_capacity_buff() -> float:
+	return _calculate_buff("overshield_capacity")
+
+# Multi-stat disk support
+func get_devastator_damage_buff() -> float:
+	return _calculate_buff("devastator") * 0.10  # +10% damage per devastator disk
+
+func get_devastator_crit_damage_buff() -> float:
+	return _calculate_buff("devastator") * 0.10  # +10% crit damage per devastator disk
+
+func get_precision_crit_chance_buff() -> float:
+	return _calculate_buff("precision") * 3.0  # +3% crit chance per precision disk
+
+func get_precision_crit_damage_buff() -> float:
+	return _calculate_buff("precision") * 0.05  # +5% crit damage per precision disk
 
 func _calculate_buff(stat: String) -> float:
 	var total = 0.0
