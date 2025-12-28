@@ -802,23 +802,17 @@ func update_all_perm_upgrade_ui():
 		update_perm_upgrade_ui(key)
 
 func refresh_all_drones() -> void:
-	# Update all active drones with current permanent upgrade levels
+	# Update all active drones with current DroneUpgradeManager levels
 	for drone in active_drones:
 		if not is_instance_valid(drone):
 			continue
 
-		# Determine drone type and apply permanent upgrade level
+		# Determine drone type and apply DroneUpgradeManager level
 		if drone.has_method("apply_upgrade"):
 			var drone_type = drone.drone_type if drone.get("drone_type") else ""
-			match drone_type:
-				"flame":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
-				"frost":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
-				"poison":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
-				"shock":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+			if drone_type in DroneUpgradeManager.DRONE_TYPES:
+				var level = DroneUpgradeManager.get_drone_level(drone_type)
+				drone.apply_upgrade(level)
 			# Fire rate automatically updates in apply_upgrade()
 
 # === DRONE AUTO-SPAWN SYSTEM ===
@@ -846,16 +840,10 @@ func _spawn_owned_drones() -> void:
 		active_drones.append(drone)
 		add_child(drone)
 
-		# Apply permanent upgrade level
-		match drone_type:
-			"flame":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
-			"frost":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
-			"poison":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
-			"shock":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+		# Apply DroneUpgradeManager level
+		if drone_type in DroneUpgradeManager.DRONE_TYPES:
+			var level = DroneUpgradeManager.get_drone_level(drone_type)
+			drone.apply_upgrade(level)
 
 		# Position drone in horizontal line from tower
 		var horizontal_offsets = [-80.0, -40.0, 40.0, 80.0]

@@ -14,6 +14,9 @@ const MAX_HORIZONTAL_RANGE: float = 400.0  # Hard cap at 400px range
 @onready var fire_timer: Timer = $FireTimer
 
 func _ready() -> void:
+	# Add to drones group for upgrade management
+	add_to_group("drones")
+
 	# Drones have their own fire rate based on their level
 	_update_fire_rate()
 	var err = fire_timer.timeout.connect(_on_fire_timer_timeout)

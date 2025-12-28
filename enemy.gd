@@ -446,20 +446,21 @@ func apply_boss_rush_scaling():
 
 	#print("Boss rush wave:", wave_number, "HP:", hp, "Mult:", boss_rush_mult)
 
-func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) -> void:
+func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0, tick_interval: float = 1.0, hp_cap_percent: float = 0.10) -> void:
 	# 15% at level 1 → 150% at level 10 (linear)
 	var percent = BURN_MIN_PERCENT + ((level - 1) * (BURN_MAX_PERCENT - BURN_MIN_PERCENT) / 9)
 	percent = clamp(percent, BURN_MIN_PERCENT, BURN_MAX_PERCENT)
 	burn_damage_per_tick = base_damage * percent * crit_multiplier
 
-	# Cap at 10% of max HP per second
+	# Cap at upgraded HP cap percent (default 10%, upgradeable to 25%)
 	var tier_mult = TierManager.get_enemy_multiplier()
 	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
-	var max_burn_per_tick = max_hp * BURN_HP_CAP_PERCENT
+	var max_burn_per_tick = max_hp * hp_cap_percent
 	if burn_damage_per_tick > max_burn_per_tick:
 		burn_damage_per_tick = max_burn_per_tick
 
 	burn_duration = BURN_BASE_DURATION + level * BURN_DURATION_PER_LEVEL
+	burn_tick_interval = tick_interval  # Apply upgraded tick rate
 	burn_active = true
 	burn_timer = 0.0
 	burn_tick_timer = 0.0
@@ -467,48 +468,66 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0) ->
 	# Add visual effects
 	VisualFactory.create_status_effect_overlay("burn", self)
 	AdvancedVisuals.create_status_icon("burn", self)
-	#print("🔥", name, "burning for", burn_duration, "sec, burn tick:", burn_damage_per_tick, "every", burn_tick_interval, "s (capped at 10% max HP if exceeded)")
+	#print("🔥", name, "burning for", burn_duration, "sec, burn tick:", burn_damage_per_tick, "every", burn_tick_interval, "s (capped at", hp_cap_percent * 100, "% max HP)")
 
-func apply_poison(level: int) -> void:
+func apply_poison(level: int, duration: float = 4.0, max_stacks: int = 1) -> void:
 	#print("🟣 apply_poison CALLED on", name, "level", level)
-	# Level 1 = 1% per sec, Level 10 = 10% per sec, capped at 10%
+	# Level 1 = 1% per sec, Level 10 = 7.5% per sec (nerfed from 10%)
 	var percent_per_sec = POISON_MIN_PERCENT + (level - 1) * POISON_PERCENT_PER_LEVEL
 	percent_per_sec = clamp(percent_per_sec, POISON_MIN_PERCENT, POISON_MAX_PERCENT)
 	var tier_mult = TierManager.get_enemy_multiplier()
 	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
-	poison_damage_per_tick = max_hp * percent_per_sec
+	var new_poison_damage = max_hp * percent_per_sec
 
-	poison_duration = POISON_DURATION
+	# Stacking: if already poisoned and max_stacks > 1, add to existing damage
+	if poison_active and max_stacks > 1:
+		poison_damage_per_tick += new_poison_damage
+		poison_duration = max(poison_duration, duration)  # Extend duration if new application is longer
+		poison_timer = 0.0  # Reset timer
+	else:
+		poison_damage_per_tick = new_poison_damage
+		poison_duration = duration
+		poison_timer = 0.0
+		poison_tick_timer = 0.0
+
 	poison_active = true
-	poison_timer = 0.0
-	poison_tick_timer = 0.0
 
-	# Add visual effects
-	VisualFactory.create_status_effect_overlay("poison", self)
-	AdvancedVisuals.create_status_icon("poison", self)
+	# Add visual effects (only if not already present)
+	if not has_node("StatusOverlay_poison"):
+		VisualFactory.create_status_effect_overlay("poison", self)
+		AdvancedVisuals.create_status_icon("poison", self)
 	#print("🟣", name, "poisoned for", poison_duration, "sec at", poison_damage_per_tick, "DPS (" + str(round(percent_per_sec * 100.0)) + "%/s)")
 
-func apply_slow(level: int) -> void:
-	# Scaling: starts at 30%, up to 80% over 10 levels, 2 sec duration
+func apply_slow(level: int, duration: float = -1.0) -> void:
+	# Scaling: starts at 30%, up to 75% over 10 levels (nerfed from 80%)
 	slow_percent = clamp(SLOW_MIN_PERCENT + (level - 1) * SLOW_PERCENT_PER_LEVEL, SLOW_MIN_PERCENT, SLOW_MAX_PERCENT)
-	slow_duration = SLOW_BASE_DURATION + (level * SLOW_DURATION_PER_LEVEL)
+
+	# Use custom duration if provided, otherwise use default scaling
+	if duration > 0:
+		slow_duration = duration
+	else:
+		slow_duration = SLOW_BASE_DURATION + (level * SLOW_DURATION_PER_LEVEL)
+
 	slow_timer = 0.0
 	slow_active = true
 
-	# Add visual effects
-	VisualFactory.create_status_effect_overlay("slow", self)
-	AdvancedVisuals.create_status_icon("slow", self)
+	# Add visual effects (only if not already present)
+	if not has_node("StatusOverlay_slow"):
+		VisualFactory.create_status_effect_overlay("slow", self)
+		AdvancedVisuals.create_status_icon("slow", self)
 	#print("❄️", name, "slowed by", int(slow_percent * 100), "% for", slow_duration, "seconds")
 
-func apply_stun(level: int) -> void:
-	# Example scaling: 1 second base, +0.25s per drone level, max 2.0s
-	stun_duration = min(STUN_BASE_DURATION + (level * STUN_DURATION_PER_LEVEL), STUN_MAX_DURATION)
+func apply_stun(level: int, duration_bonus: float = 0.0) -> void:
+	# Base scaling: 1 second base, +0.25s per drone level, max 2.0s
+	# Plus optional bonus from upgrades
+	stun_duration = min(STUN_BASE_DURATION + (level * STUN_DURATION_PER_LEVEL) + duration_bonus, STUN_MAX_DURATION)
 	stun_timer = 0.0
 	stun_active = true
 
-	# Add visual effects
-	VisualFactory.create_status_effect_overlay("stun", self)
-	AdvancedVisuals.create_status_icon("stun", self)
+	# Add visual effects (only if not already present)
+	if not has_node("StatusOverlay_stun"):
+		VisualFactory.create_status_effect_overlay("stun", self)
+		AdvancedVisuals.create_status_icon("stun", self)
 	#print("⚡", name, "stunned for", stun_duration, "seconds!")
 
 func get_current_hp() -> int:
