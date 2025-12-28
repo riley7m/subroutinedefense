@@ -12,15 +12,15 @@ const BURN_HP_CAP_PERCENT: float = 0.10
 const BURN_BASE_DURATION: float = 3.0
 const BURN_DURATION_PER_LEVEL: float = 0.5
 
-# Poison Effect Constants
+# Poison Effect Constants (NERFED for balance)
 const POISON_MIN_PERCENT: float = 0.01
-const POISON_MAX_PERCENT: float = 0.10
-const POISON_PERCENT_PER_LEVEL: float = 0.01
-const POISON_DURATION: float = 4.0
+const POISON_MAX_PERCENT: float = 0.075  # 7.5% at level 10 (down from 10%)
+const POISON_PERCENT_PER_LEVEL: float = 0.00722  # (0.075 - 0.01) / 9
+const POISON_DURATION: float = 4.0  # Base duration (upgradeable to 6s)
 
-# Slow Effect Constants
+# Slow Effect Constants (NERFED for balance)
 const SLOW_MIN_PERCENT: float = 0.3
-const SLOW_MAX_PERCENT: float = 0.8
+const SLOW_MAX_PERCENT: float = 0.75  # 75% at level 10 (down from 80%)
 const SLOW_PERCENT_PER_LEVEL: float = 0.05
 const SLOW_BASE_DURATION: float = 2.0
 const SLOW_DURATION_PER_LEVEL: float = 0.1

@@ -36,6 +36,7 @@ DataDiskManager="*res://DataDiskManager.gd"
 NotificationManager="*res://NotificationManager.gd"
 AchievementManager="*res://AchievementManager.gd"
 QuantumCoreShop="*res://QuantumCoreShop.gd"
+DroneUpgradeManager="*res://DroneUpgradeManager.gd"
 
 [display]
 
