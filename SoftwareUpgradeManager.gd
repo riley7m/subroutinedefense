@@ -3,9 +3,14 @@ extends Node
 # Software Upgrade System - Ranked/Leveled Labs
 # Each lab has multiple levels (30-100) with incremental bonuses
 
-# Active upgrade slots
-const MAX_SLOTS = 2
+# Active upgrade slots (dynamic based on QuantumCoreShop)
 var active_upgrades: Array = [null, null]  # Each entry is a Dictionary with upgrade data
+
+# Get max slots from QuantumCoreShop (default 2, upgradeable to 5)
+func get_max_slots() -> int:
+	if QuantumCoreShop:
+		return QuantumCoreShop.get_max_lab_slots()
+	return 2  # Fallback to default
 
 # Current levels for each lab (0 = not started)
 var lab_levels: Dictionary = {
@@ -395,8 +400,11 @@ func can_start_upgrade(lab_id: String) -> bool:
 	return true
 
 func start_upgrade(lab_id: String, slot_index: int) -> bool:
-	if slot_index < 0 or slot_index >= MAX_SLOTS:
+	if slot_index < 0 or slot_index >= get_max_slots():
 		return false
+
+	# Ensure array is large enough
+	_ensure_slot_array_size()
 
 	if active_upgrades[slot_index] != null:
 		return false
@@ -428,11 +436,21 @@ func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	print("🔬 Started %s level %d (slot %d) - Cost: %d AT" % [lab["name"], next_level, slot_index, cost])
 	return true
 
+func _ensure_slot_array_size() -> void:
+	# Resize active_upgrades array to match max slots
+	var max_slots = get_max_slots()
+	while active_upgrades.size() < max_slots:
+		active_upgrades.append(null)
+
 func update_upgrades() -> void:
 	var now = Time.get_unix_time_from_system()
 	var any_completed = false
 
-	for i in range(MAX_SLOTS):
+	_ensure_slot_array_size()
+
+	for i in range(get_max_slots()):
+		if i >= active_upgrades.size():
+			break
 		var slot = active_upgrades[i]
 		if slot == null:
 			continue
@@ -521,7 +539,10 @@ func _apply_level_bonuses(lab: Dictionary) -> void:
 				RewardManager.perm_lab_speed += value  # +1% lab speed per level
 
 func get_upgrade_progress(slot_index: int) -> float:
-	if slot_index < 0 or slot_index >= MAX_SLOTS:
+	if slot_index < 0 or slot_index >= get_max_slots():
+		return 0.0
+
+	if slot_index >= active_upgrades.size():
 		return 0.0
 
 	var slot = active_upgrades[slot_index]
@@ -533,7 +554,10 @@ func get_upgrade_progress(slot_index: int) -> float:
 	return clamp(float(elapsed) / float(slot["duration"]), 0.0, 1.0)
 
 func get_upgrade_time_remaining(slot_index: int) -> int:
-	if slot_index < 0 or slot_index >= MAX_SLOTS:
+	if slot_index < 0 or slot_index >= get_max_slots():
+		return 0
+
+	if slot_index >= active_upgrades.size():
 		return 0
 
 	var slot = active_upgrades[slot_index]
@@ -557,6 +581,51 @@ func get_total_bonus(lab_id: String) -> Dictionary:
 		result[key] = bonus_per[key] * level
 
 	return result
+
+# === LAB RUSH (QC to speed up research) ===
+func rush_upgrade(slot_index: int, hours_to_rush: int) -> bool:
+	if slot_index < 0 or slot_index >= get_max_slots():
+		return false
+
+	if slot_index >= active_upgrades.size():
+		return false
+
+	var slot = active_upgrades[slot_index]
+	if slot == null:
+		print("❌ No active research in slot %d" % slot_index)
+		return false
+
+	# Calculate time to reduce
+	var seconds_to_rush = hours_to_rush * 3600
+
+	# Reduce the start time (effectively reducing remaining time)
+	slot["start_time"] -= seconds_to_rush
+
+	# Ensure we don't go negative
+	var now = Time.get_unix_time_from_system()
+	if slot["start_time"] + slot["duration"] < now:
+		slot["start_time"] = now - slot["duration"]  # Instant completion
+
+	save_upgrade_state()
+	emit_signal("upgrades_updated")
+
+	print("⏩ Rushed research by %d hours in slot %d" % [hours_to_rush, slot_index])
+	return true
+
+func get_active_lab_slot() -> int:
+	# Find the first active lab slot for rush purposes
+	_ensure_slot_array_size()
+	for i in range(active_upgrades.size()):
+		if active_upgrades[i] != null:
+			return i
+	return -1  # No active research
+
+func get_active_lab_time_remaining_hours() -> int:
+	var slot_index = get_active_lab_slot()
+	if slot_index == -1:
+		return 0
+	var seconds = get_upgrade_time_remaining(slot_index)
+	return ceili(seconds / 3600.0)  # Round up to nearest hour
 
 # === SAVE/LOAD ===
 const LAB_SAVE_FILE = "user://software_upgrades.save"

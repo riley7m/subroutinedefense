@@ -291,9 +291,18 @@ func _apply_item_effect(item_id: String, effect: Dictionary, hours_to_rush: int 
 		print("💎 +%d Fragments" % effect["fragments"])
 
 	# Lab Rush
-	if effect.has("lab_rush"):
-		# TODO: Integrate with SoftwareUpgradeManager
-		print("🔬 Lab research rushed by %d hours (TODO: implement)" % hours_to_rush)
+	if effect.has("lab_rush") and hours_to_rush > 0:
+		if SoftwareUpgradeManager:
+			var slot_index = SoftwareUpgradeManager.get_active_lab_slot()
+			if slot_index >= 0:
+				if SoftwareUpgradeManager.rush_upgrade(slot_index, hours_to_rush):
+					print("⏩ Lab research rushed by %d hours!" % hours_to_rush)
+				else:
+					print("❌ Failed to rush lab research")
+			else:
+				print("⚠️ No active lab research to rush")
+		else:
+			print("❌ SoftwareUpgradeManager not available")
 
 	# Lab slots tracked in purchased_permanent_items
 
