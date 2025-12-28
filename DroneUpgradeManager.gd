@@ -105,6 +105,43 @@ var shock_upgrades: Dictionary = {
 	"duration": 0    # 0-10
 }
 
+# --- PROPERTY ACCESSORS (for UI convenience) ---
+var active_drone_slots: int:
+	get:
+		return active_slots_unlocked
+
+var flame_tick_rate_level: int:
+	get:
+		return flame_upgrades["tick_rate"]
+
+var flame_hp_cap_level: int:
+	get:
+		return flame_upgrades["hp_cap"]
+
+var poison_duration_level: int:
+	get:
+		return poison_upgrades["duration"]
+
+var poison_stacking_level: int:
+	get:
+		return poison_upgrades["stacking"]
+
+var frost_aoe_level: int:
+	get:
+		return frost_upgrades["aoe"]
+
+var frost_duration_level: int:
+	get:
+		return frost_upgrades["duration"]
+
+var shock_chain_level: int:
+	get:
+		return shock_upgrades["chain"]
+
+var shock_duration_level: int:
+	get:
+		return shock_upgrades["duration"]
+
 # --- INITIALIZATION ---
 func _ready() -> void:
 	load_drone_upgrades()
