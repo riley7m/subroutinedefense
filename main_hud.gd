@@ -82,6 +82,22 @@ var boss_rush_button: Button = null
 var statistics_panel: Panel = null
 var statistics_button: Button = null
 
+# Drone upgrade panel
+var drone_upgrade_panel: Control = null
+var drone_upgrade_button: Button = null
+
+# QC Shop panel
+var qc_shop_panel: Control = null
+var qc_shop_button: Button = null
+
+# Milestone panel
+var milestone_panel: Control = null
+var milestone_button: Button = null
+
+# Achievement panel
+var achievement_panel: Control = null
+var achievement_button: Button = null
+
 # Drone purchase UI (in perm panel)
 var drone_purchase_containers: Dictionary = {}
 var drone_purchase_buttons: Dictionary = {}
@@ -211,6 +227,54 @@ func _ready() -> void:
 
 	# Create statistics panel
 	_create_statistics_panel()
+
+	# Add Drone Upgrade panel and button
+	drone_upgrade_panel = preload("res://drone_upgrade_ui.gd").new()
+	drone_upgrade_panel.visible = false
+	add_child(drone_upgrade_panel)
+
+	drone_upgrade_button = Button.new()
+	drone_upgrade_button.text = "🚁 Drones"
+	drone_upgrade_button.position = Vector2(390, 800)
+	drone_upgrade_button.custom_minimum_size = Vector2(95, 35)
+	drone_upgrade_button.pressed.connect(_on_drone_upgrade_button_pressed)
+	add_child(drone_upgrade_button)
+
+	# Add QC Shop panel and button
+	qc_shop_panel = preload("res://quantum_core_shop_ui.gd").new()
+	qc_shop_panel.visible = false
+	add_child(qc_shop_panel)
+
+	qc_shop_button = Button.new()
+	qc_shop_button.text = "💎 Shop"
+	qc_shop_button.position = Vector2(490, 800)
+	qc_shop_button.custom_minimum_size = Vector2(90, 35)
+	qc_shop_button.pressed.connect(_on_qc_shop_button_pressed)
+	add_child(qc_shop_button)
+
+	# Add Milestone panel and button
+	milestone_panel = preload("res://milestone_ui.gd").new()
+	milestone_panel.visible = false
+	add_child(milestone_panel)
+
+	milestone_button = Button.new()
+	milestone_button.text = "🎖️ Pass"
+	milestone_button.position = Vector2(585, 800)
+	milestone_button.custom_minimum_size = Vector2(90, 35)
+	milestone_button.pressed.connect(_on_milestone_button_pressed)
+	add_child(milestone_button)
+
+	# Add Achievement panel and button
+	achievement_panel = preload("res://achievement_ui.gd").new()
+	achievement_panel.visible = false
+	add_child(achievement_panel)
+
+	achievement_button = Button.new()
+	achievement_button.text = "🏆 Achieve"
+	achievement_button.position = Vector2(680, 800)
+	achievement_button.custom_minimum_size = Vector2(100, 35)
+	achievement_button.pressed.connect(_on_achievement_button_pressed)
+	add_child(achievement_button)
 
 	# Add matrix code rain (furthest back)
 	var matrix_rain = preload("res://MatrixCodeRain.gd").new()
@@ -1043,41 +1107,19 @@ func _on_software_upgrade_button_pressed():
 	if software_upgrade_panel:
 		software_upgrade_panel.visible = not software_upgrade_panel.visible
 		if software_upgrade_panel.visible:
-			# Hide other panels
-			offense_panel.visible = false
-			defense_panel.visible = false
-			economy_panel.visible = false
-			perm_panel.visible = false
-			if tier_selection_panel:
-				tier_selection_panel.visible = false
+			_hide_all_progression_panels_except("software_upgrade")
 
 func _on_tier_selection_button_pressed():
 	if tier_selection_panel:
 		tier_selection_panel.visible = not tier_selection_panel.visible
 		if tier_selection_panel.visible:
-			# Hide other panels
-			offense_panel.visible = false
-			defense_panel.visible = false
-			economy_panel.visible = false
-			perm_panel.visible = false
-			if software_upgrade_panel:
-				software_upgrade_panel.visible = false
-			if boss_rush_panel:
-				boss_rush_panel.visible = false
+			_hide_all_progression_panels_except("tier_selection")
 
 func _on_boss_rush_button_pressed():
 	if boss_rush_panel:
 		boss_rush_panel.visible = not boss_rush_panel.visible
 		if boss_rush_panel.visible:
-			# Hide other panels
-			offense_panel.visible = false
-			defense_panel.visible = false
-			economy_panel.visible = false
-			perm_panel.visible = false
-			if software_upgrade_panel:
-				software_upgrade_panel.visible = false
-			if tier_selection_panel:
-				tier_selection_panel.visible = false
+			_hide_all_progression_panels_except("boss_rush")
 
 func reset_to_wave_1():
 	# Called when entering a new tier - resets to wave 1 but keeps permanent upgrades
@@ -1455,10 +1497,7 @@ func _on_statistics_button_pressed() -> void:
 
 	if statistics_panel.visible:
 		_update_statistics_panel()
-		# Hide other panels
-		if software_upgrade_panel:
-			software_upgrade_panel.visible = false
-		perm_panel.visible = false
+		_hide_all_progression_panels_except("statistics")
 
 func _on_bind_account_pressed() -> void:
 	if not CloudSaveManager:
@@ -1588,3 +1627,58 @@ func _format_number(num: int) -> String:
 
 	# Fallback (shouldn't reach here)
 	return str(num)
+
+# === NEW PROGRESSION UI BUTTON HANDLERS ===
+
+func _on_drone_upgrade_button_pressed() -> void:
+	if drone_upgrade_panel:
+		drone_upgrade_panel.visible = not drone_upgrade_panel.visible
+		if drone_upgrade_panel.visible:
+			# Hide other panels
+			_hide_all_progression_panels_except("drone_upgrade")
+
+func _on_qc_shop_button_pressed() -> void:
+	if qc_shop_panel:
+		qc_shop_panel.visible = not qc_shop_panel.visible
+		if qc_shop_panel.visible:
+			# Hide other panels
+			_hide_all_progression_panels_except("qc_shop")
+
+func _on_milestone_button_pressed() -> void:
+	if milestone_panel:
+		milestone_panel.visible = not milestone_panel.visible
+		if milestone_panel.visible:
+			# Hide other panels
+			_hide_all_progression_panels_except("milestone")
+
+func _on_achievement_button_pressed() -> void:
+	if achievement_panel:
+		achievement_panel.visible = not achievement_panel.visible
+		if achievement_panel.visible:
+			# Hide other panels
+			_hide_all_progression_panels_except("achievement")
+
+func _hide_all_progression_panels_except(keep_visible: String) -> void:
+	# Hide in-run upgrade panels
+	offense_panel.visible = false
+	defense_panel.visible = false
+	economy_panel.visible = false
+	perm_panel.visible = false
+
+	# Hide other progression panels
+	if software_upgrade_panel and keep_visible != "software_upgrade":
+		software_upgrade_panel.visible = false
+	if tier_selection_panel and keep_visible != "tier_selection":
+		tier_selection_panel.visible = false
+	if boss_rush_panel and keep_visible != "boss_rush":
+		boss_rush_panel.visible = false
+	if statistics_panel and keep_visible != "statistics":
+		statistics_panel.visible = false
+	if drone_upgrade_panel and keep_visible != "drone_upgrade":
+		drone_upgrade_panel.visible = false
+	if qc_shop_panel and keep_visible != "qc_shop":
+		qc_shop_panel.visible = false
+	if milestone_panel and keep_visible != "milestone":
+		milestone_panel.visible = false
+	if achievement_panel and keep_visible != "achievement":
+		achievement_panel.visible = false
