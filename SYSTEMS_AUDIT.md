@@ -244,10 +244,20 @@ This document provides a complete audit of all progression and monetization syst
 ### 9. UI Integration & Accessibility
 **Critical Missing Pieces:**
 
+**Current State (Verified in main_hud.gd):**
+- ✅ **Labs Button EXISTS**: "🔬 Labs" button at position (5, 800) opens SoftwareUpgradeManager UI
+- ✅ **Pattern Established**: Button creates panel → toggles visibility → updates button text
+- ❌ **Missing Drone Upgrade Button**: No access to `drone_upgrade_ui.gd`
+- ❌ **Missing QC Shop Button**: No access to `quantum_core_shop_ui.gd`
+- ❌ **Missing Achievement Button**: No access (and UI doesn't exist)
+- ⚠️ **Milestone UI**: Exists but unclear if accessible from main_hud.gd
+
+**UI Integration Gaps:**
+
 1. **Main Menu Integration**
    - ❌ No buttons to access:
-     - Drone Upgrade UI
-     - QC Shop UI
+     - Drone Upgrade UI (`drone_upgrade_ui.gd` - ready but not integrated)
+     - QC Shop UI (`quantum_core_shop_ui.gd` - ready but not integrated)
      - Achievement UI (doesn't exist)
    - ⚠️ Unclear if milestone_ui.gd is accessible
 
@@ -257,9 +267,16 @@ This document provides a complete audit of all progression and monetization syst
    - ❌ No notification when achievements unlock
 
 3. **Navigation Flow**
-   - ❌ No clear menu structure for all systems
+   - ✅ Pattern exists for panel toggling
+   - ⚠️ Need unified menu bar for all progression systems
    - ❌ No breadcrumb navigation
    - ❌ No "back" button standardization
+
+**Solution Created:**
+- 📋 **UI_INTEGRATION_GUIDE.md** provides complete implementation plan
+- Includes full code for adding 3 new buttons (Drones, Shop, Pass)
+- Proposes menu bar layout at y=800 with proper spacing
+- Includes testing checklist and common issue solutions
 
 ---
 
@@ -315,17 +332,24 @@ This document provides a complete audit of all progression and monetization syst
 
 ---
 
-### 13. Tower Upgrade System (Beyond Labs)
-**Status:** ⚠️ UNCLEAR
+### 13. Tower Upgrade System (In-Run vs Permanent)
+**Status:** ✅ CLARIFIED
 
-**Questions:**
-- Are tower upgrades separate from labs?
-- Is there an in-run upgrade system vs out-of-run?
-- What's the difference between UpgradeManager and SoftwareUpgradeManager?
+**System Breakdown:**
+- **UpgradeManager.gd**: IN-RUN upgrades (purchased with Data Credits during active run)
+  - Damage, Fire Rate, Crit Chance, Crit Damage
+  - Shield, Damage Reduction, Shield Regen
+  - Multi-target, Piercing, Overkill, Block, etc.
+  - Purchases tracked, costs scale exponentially
+  - Resets after each run
 
-**Needs Investigation:**
-- Check `UpgradeManager.gd` for in-run upgrades
-- Check if tower has separate upgrade tree
+- **SoftwareUpgradeManager.gd**: OUT-OF-RUN upgrades (permanent, purchased with Archive Tokens)
+  - 22 lab research tracks
+  - Levels 1-100 per lab
+  - Permanent bonuses that persist across runs
+  - Time-based research system
+
+**Conclusion:** Two separate systems working together - in-run + permanent progression
 
 ---
 
