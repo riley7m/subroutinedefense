@@ -47,8 +47,9 @@ func _create_ui() -> void:
 	title_label.add_theme_font_size_override("font_size", 22)
 	panel.add_child(title_label)
 
-	# Upgrade Slots (2 slots)
-	for i in range(2):
+	# Upgrade Slots (dynamic based on purchased slots, max 5)
+	var max_slots = 5  # Maximum possible slots
+	for i in range(max_slots):
 		var slot_panel = Panel.new()
 		slot_panel.custom_minimum_size = Vector2(320, 100)
 		slot_panel.position = Vector2(20, 55 + i * 110)
@@ -59,7 +60,7 @@ func _create_ui() -> void:
 			"name_label": Label.new(),
 			"progress_bar": ProgressBar.new(),
 			"time_label": Label.new(),
-			"cancel_button": Button.new(),
+			"unlock_label": Label.new(),
 		}
 
 		# Slot name label
@@ -80,6 +81,15 @@ func _create_ui() -> void:
 		slot_dict["time_label"].position = Vector2(10, 60)
 		slot_dict["time_label"].add_theme_font_size_override("font_size", 12)
 		slot_panel.add_child(slot_dict["time_label"])
+
+		# Unlock label (for locked slots)
+		slot_dict["unlock_label"].text = "🔒 Unlock in QC Shop"
+		slot_dict["unlock_label"].position = Vector2(10, 35)
+		slot_dict["unlock_label"].add_theme_font_size_override("font_size", 12)
+		slot_dict["unlock_label"].horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		slot_dict["unlock_label"].custom_minimum_size = Vector2(300, 20)
+		slot_dict["unlock_label"].visible = false
+		slot_panel.add_child(slot_dict["unlock_label"])
 
 		slot_containers.append(slot_dict)
 
@@ -105,9 +115,25 @@ func _refresh_ui() -> void:
 	_update_completed_count()
 
 func _update_slots() -> void:
-	for i in range(2):
-		var slot = SoftwareUpgradeManager.active_upgrades[i]
+	var max_unlocked = SoftwareUpgradeManager.get_max_slots() if SoftwareUpgradeManager else 2
+
+	for i in range(slot_containers.size()):
 		var ui = slot_containers[i]
+		var is_unlocked = i < max_unlocked
+
+		# Show/hide locked state
+		ui["unlock_label"].visible = not is_unlocked
+		ui["progress_bar"].visible = is_unlocked
+		ui["time_label"].visible = is_unlocked
+
+		if not is_unlocked:
+			ui["name_label"].text = "Slot %d: 🔒 LOCKED" % (i + 1)
+			continue
+
+		# Handle unlocked slots
+		var slot = null
+		if i < SoftwareUpgradeManager.active_upgrades.size():
+			slot = SoftwareUpgradeManager.active_upgrades[i]
 
 		if slot == null:
 			ui["name_label"].text = "Slot %d: Empty" % (i + 1)
@@ -126,7 +152,12 @@ func _update_slots() -> void:
 			ui["time_label"].text = "Time: %s" % _format_time(time_left)
 
 func _update_progress_bars() -> void:
-	for i in range(2):
+	var max_unlocked = SoftwareUpgradeManager.get_max_slots() if SoftwareUpgradeManager else 2
+
+	for i in range(max_unlocked):
+		if i >= SoftwareUpgradeManager.active_upgrades.size():
+			break
+
 		var slot = SoftwareUpgradeManager.active_upgrades[i]
 		if slot != null:
 			var progress = SoftwareUpgradeManager.get_upgrade_progress(i)

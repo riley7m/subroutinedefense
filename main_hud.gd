@@ -140,6 +140,7 @@ var tier_label: Label = null  # Created programmatically
 @onready var wave_skip_chance: Button = $UpgradeUI/EconomyPanel/WaveSkipChanceButton
 
 @onready var buy_x_button: Button = $BottomBanner/BuyXButton
+@onready var quit_button: Button = $QuitButton
 
 @onready var death_screen = null  # Will be set in _ready()
 @onready var boss_rush_death_screen = null  # Will be set in _ready()
@@ -267,6 +268,8 @@ func _ready() -> void:
 	wave_skip_chance.pressed.connect(_on_wave_skip_chance_pressed)
 	speed_button.pressed.connect(_on_speed_button_pressed)
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
+	buy_x_button.pressed.connect(_on_buy_x_button_pressed)
+	quit_button.pressed.connect(_on_quit_button_pressed)
 	perm_panel_toggle_button.pressed.connect(_on_perm_panel_toggle_button_pressed)
 	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
 	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
@@ -313,6 +316,7 @@ func _ready() -> void:
 	RewardManager.archive_tokens_changed.connect(update_all_perm_upgrade_ui)
 	update_labels()
 	update_damage_label()
+	update_all_inrun_upgrade_ui()  # Initialize in-run upgrade button costs
 
 	# Apply cyber theme to all UI elements
 	UIStyler.apply_theme_to_node(self)
@@ -354,6 +358,9 @@ func update_labels() -> void:
 		fragments_label.text = "💎: %d" % RewardManager.fragments
 	if tier_label:
 		tier_label.text = "🎖️ Tier: %d" % TierManager.get_current_tier()
+
+	# Update in-run upgrade button costs (since DC changes frequently)
+	update_all_inrun_upgrade_ui()
 
 func update_damage_label() -> void:
 	# Debug function - no UI update needed (damage_label node removed)
@@ -460,6 +467,182 @@ func update_multi_target_ui():
 			upgrade_multi_target_button.disabled = RewardManager.data_credits < next_cost
 
 		multi_target_label.text = "Multi Target: %d" % targets
+
+# --- IN-RUN UPGRADE UI UPDATE FUNCTIONS ---
+# Update all in-run upgrade buttons with current costs and availability
+
+func update_all_inrun_upgrade_ui() -> void:
+	update_offense_upgrade_ui()
+	update_defense_upgrade_ui()
+	update_economy_upgrade_ui()
+	update_multi_target_ui()
+
+func update_offense_upgrade_ui() -> void:
+	var dc = RewardManager.data_credits
+	var buy_amount = get_current_buy_amount()
+
+	# Damage upgrade
+	var damage_cost: int
+	var damage_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.DAMAGE_UPGRADE_BASE_COST, UpgradeManager.damage_purchases)
+		damage_cost = arr[1]
+		damage_text = "Damage x%d (%s DC)" % [arr[0], NumberFormatter.format(damage_cost)]
+	else:
+		damage_cost = get_inrun_total_cost(UpgradeManager.DAMAGE_UPGRADE_BASE_COST, UpgradeManager.damage_purchases, buy_amount)
+		damage_text = "Damage x%d (%s DC)" % [buy_amount, NumberFormatter.format(damage_cost)]
+	damage_upgrade.text = damage_text
+	damage_upgrade.disabled = dc < damage_cost or damage_cost == 0
+
+	# Fire rate upgrade
+	var fire_rate_cost: int
+	var fire_rate_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.FIRE_RATE_UPGRADE_BASE_COST, UpgradeManager.fire_rate_purchases)
+		fire_rate_cost = arr[1]
+		fire_rate_text = "Fire Rate x%d (%s DC)" % [arr[0], NumberFormatter.format(fire_rate_cost)]
+	else:
+		fire_rate_cost = get_inrun_total_cost(UpgradeManager.FIRE_RATE_UPGRADE_BASE_COST, UpgradeManager.fire_rate_purchases, buy_amount)
+		fire_rate_text = "Fire Rate x%d (%s DC)" % [buy_amount, NumberFormatter.format(fire_rate_cost)]
+	fire_rate_upgrade.text = fire_rate_text
+	fire_rate_upgrade.disabled = dc < fire_rate_cost or fire_rate_cost == 0
+
+	# Crit chance upgrade
+	if UpgradeManager.get_crit_chance() >= UpgradeManager.CRIT_CHANCE_CAP:
+		crit_upgrade_button.text = "Crit Chance (MAX)"
+		crit_upgrade_button.disabled = true
+	else:
+		var crit_chance_cost: int
+		var crit_chance_text: String
+		if buy_amount == -1:
+			var arr = get_inrun_max_affordable(UpgradeManager.CRIT_CHANCE_UPGRADE_BASE_COST, UpgradeManager.crit_chance_purchases)
+			crit_chance_cost = arr[1]
+			crit_chance_text = "Crit Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(crit_chance_cost)]
+		else:
+			crit_chance_cost = get_inrun_total_cost(UpgradeManager.CRIT_CHANCE_UPGRADE_BASE_COST, UpgradeManager.crit_chance_purchases, buy_amount)
+			crit_chance_text = "Crit Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(crit_chance_cost)]
+		crit_upgrade_button.text = crit_chance_text
+		crit_upgrade_button.disabled = dc < crit_chance_cost or crit_chance_cost == 0
+
+	# Crit damage upgrade
+	var crit_damage_cost: int
+	var crit_damage_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.CRIT_DAMAGE_UPGRADE_BASE_COST, UpgradeManager.crit_damage_purchases)
+		crit_damage_cost = arr[1]
+		crit_damage_text = "Crit Damage x%d (%s DC)" % [arr[0], NumberFormatter.format(crit_damage_cost)]
+	else:
+		crit_damage_cost = get_inrun_total_cost(UpgradeManager.CRIT_DAMAGE_UPGRADE_BASE_COST, UpgradeManager.crit_damage_purchases, buy_amount)
+		crit_damage_text = "Crit Damage x%d (%s DC)" % [buy_amount, NumberFormatter.format(crit_damage_cost)]
+	crit_damage_upgrade.text = crit_damage_text
+	crit_damage_upgrade.disabled = dc < crit_damage_cost or crit_damage_cost == 0
+
+func update_defense_upgrade_ui() -> void:
+	var dc = RewardManager.data_credits
+	var buy_amount = get_current_buy_amount()
+
+	# Shield integrity upgrade
+	var shield_cost: int
+	var shield_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.SHIELD_UPGRADE_BASE_COST, UpgradeManager.shield_purchases)
+		shield_cost = arr[1]
+		shield_text = "Shield Integrity x%d (%s DC)" % [arr[0], NumberFormatter.format(shield_cost)]
+	else:
+		shield_cost = get_inrun_total_cost(UpgradeManager.SHIELD_UPGRADE_BASE_COST, UpgradeManager.shield_purchases, buy_amount)
+		shield_text = "Shield Integrity x%d (%s DC)" % [buy_amount, NumberFormatter.format(shield_cost)]
+	shield_upgrade.text = shield_text
+	shield_upgrade.disabled = dc < shield_cost or shield_cost == 0
+
+	# Damage reduction upgrade
+	var reduction_cost: int
+	var reduction_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.DAMAGE_REDUCTION_UPGRADE_BASE_COST, UpgradeManager.damage_reduction_purchases)
+		reduction_cost = arr[1]
+		reduction_text = "Damage Reduction x%d (%s DC)" % [arr[0], NumberFormatter.format(reduction_cost)]
+	else:
+		reduction_cost = get_inrun_total_cost(UpgradeManager.DAMAGE_REDUCTION_UPGRADE_BASE_COST, UpgradeManager.damage_reduction_purchases, buy_amount)
+		reduction_text = "Damage Reduction x%d (%s DC)" % [buy_amount, NumberFormatter.format(reduction_cost)]
+	reduction_upgrade.text = reduction_text
+	reduction_upgrade.disabled = dc < reduction_cost or reduction_cost == 0
+
+	# Shield regen upgrade
+	var regen_cost: int
+	var regen_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.SHIELD_REGEN_UPGRADE_BASE_COST, UpgradeManager.shield_regen_purchases)
+		regen_cost = arr[1]
+		regen_text = "Shield Regen x%d (%s DC)" % [arr[0], NumberFormatter.format(regen_cost)]
+	else:
+		regen_cost = get_inrun_total_cost(UpgradeManager.SHIELD_REGEN_UPGRADE_BASE_COST, UpgradeManager.shield_regen_purchases, buy_amount)
+		regen_text = "Shield Regen x%d (%s DC)" % [buy_amount, NumberFormatter.format(regen_cost)]
+	regen_upgrade.text = regen_text
+	regen_upgrade.disabled = dc < regen_cost or regen_cost == 0
+
+func update_economy_upgrade_ui() -> void:
+	var dc = RewardManager.data_credits
+	var buy_amount = get_current_buy_amount()
+
+	# Data credits multiplier upgrade
+	var dc_mult_cost: int
+	var dc_mult_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.DATA_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.data_multiplier_purchases)
+		dc_mult_cost = arr[1]
+		dc_mult_text = "Data Credits Multiplier x%d (%s DC)" % [arr[0], NumberFormatter.format(dc_mult_cost)]
+	else:
+		dc_mult_cost = get_inrun_total_cost(UpgradeManager.DATA_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.data_multiplier_purchases, buy_amount)
+		dc_mult_text = "Data Credits Multiplier x%d (%s DC)" % [buy_amount, NumberFormatter.format(dc_mult_cost)]
+	data_credits_upgrade.text = dc_mult_text
+	data_credits_upgrade.disabled = dc < dc_mult_cost or dc_mult_cost == 0
+
+	# Archive token multiplier upgrade
+	var at_mult_cost: int
+	var at_mult_text: String
+	if buy_amount == -1:
+		var arr = get_inrun_max_affordable(UpgradeManager.ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.archive_multiplier_purchases)
+		at_mult_cost = arr[1]
+		at_mult_text = "Archive Token Multiplier x%d (%s DC)" % [arr[0], NumberFormatter.format(at_mult_cost)]
+	else:
+		at_mult_cost = get_inrun_total_cost(UpgradeManager.ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.archive_multiplier_purchases, buy_amount)
+		at_mult_text = "Archive Token Multiplier x%d (%s DC)" % [buy_amount, NumberFormatter.format(at_mult_cost)]
+	archive_token_upgrade.text = at_mult_text
+	archive_token_upgrade.disabled = dc < at_mult_cost or at_mult_cost == 0
+
+	# Free upgrade chance
+	if UpgradeManager.get_free_upgrade_chance() >= UpgradeManager.FREE_UPGRADE_MAX_CHANCE:
+		free_upgrade_chance.text = "Free Upgrade Chance (MAX)"
+		free_upgrade_chance.disabled = true
+	else:
+		var free_cost: int
+		var free_text: String
+		if buy_amount == -1:
+			var arr = get_inrun_max_affordable(UpgradeManager.FREE_UPGRADE_BASE_COST, UpgradeManager.free_upgrade_purchases)
+			free_cost = arr[1]
+			free_text = "Free Upgrade Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(free_cost)]
+		else:
+			free_cost = get_inrun_total_cost(UpgradeManager.FREE_UPGRADE_BASE_COST, UpgradeManager.free_upgrade_purchases, buy_amount)
+			free_text = "Free Upgrade Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(free_cost)]
+		free_upgrade_chance.text = free_text
+		free_upgrade_chance.disabled = dc < free_cost or free_cost == 0
+
+	# Wave skip chance
+	if UpgradeManager.get_wave_skip_chance() >= UpgradeManager.WAVE_SKIP_MAX_CHANCE:
+		wave_skip_chance.text = "Wave Skip Chance (MAX)"
+		wave_skip_chance.disabled = true
+	else:
+		var skip_cost: int
+		var skip_text: String
+		if buy_amount == -1:
+			var arr = get_inrun_max_affordable(UpgradeManager.WAVE_SKIP_UPGRADE_BASE_COST, UpgradeManager.wave_skip_purchases)
+			skip_cost = arr[1]
+			skip_text = "Wave Skip Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(skip_cost)]
+		else:
+			skip_cost = get_inrun_total_cost(UpgradeManager.WAVE_SKIP_UPGRADE_BASE_COST, UpgradeManager.wave_skip_purchases, buy_amount)
+			skip_text = "Wave Skip Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(skip_cost)]
+		wave_skip_chance.text = skip_text
+		wave_skip_chance.disabled = dc < skip_cost or skip_cost == 0
 
 
 # --- Defense Panel Logic ---
@@ -619,23 +802,17 @@ func update_all_perm_upgrade_ui():
 		update_perm_upgrade_ui(key)
 
 func refresh_all_drones() -> void:
-	# Update all active drones with current permanent upgrade levels
+	# Update all active drones with current DroneUpgradeManager levels
 	for drone in active_drones:
 		if not is_instance_valid(drone):
 			continue
 
-		# Determine drone type and apply permanent upgrade level
+		# Determine drone type and apply DroneUpgradeManager level
 		if drone.has_method("apply_upgrade"):
 			var drone_type = drone.drone_type if drone.get("drone_type") else ""
-			match drone_type:
-				"flame":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
-				"frost":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
-				"poison":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
-				"shock":
-					drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+			if drone_type in DroneUpgradeManager.DRONE_TYPES:
+				var level = DroneUpgradeManager.get_drone_level(drone_type)
+				drone.apply_upgrade(level)
 			# Fire rate automatically updates in apply_upgrade()
 
 # === DRONE AUTO-SPAWN SYSTEM ===
@@ -663,16 +840,10 @@ func _spawn_owned_drones() -> void:
 		active_drones.append(drone)
 		add_child(drone)
 
-		# Apply permanent upgrade level
-		match drone_type:
-			"flame":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_flame_level())
-			"frost":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_frost_level())
-			"poison":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_poison_level())
-			"shock":
-				drone.apply_upgrade(UpgradeManager.get_perm_drone_shock_level())
+		# Apply DroneUpgradeManager level
+		if drone_type in DroneUpgradeManager.DRONE_TYPES:
+			var level = DroneUpgradeManager.get_drone_level(drone_type)
+			drone.apply_upgrade(level)
 
 		# Position drone in horizontal line from tower
 		var horizontal_offsets = [-80.0, -40.0, 40.0, 80.0]
@@ -722,6 +893,43 @@ func get_perm_max_affordable(key: String) -> Array:
 
 	if safety_counter >= MAX_ITERATIONS:
 		push_error("get_perm_max_affordable: Hit safety limit! Possible infinite loop prevented.")
+
+	return [max_count, total_cost]
+
+# --- IN-RUN UPGRADE BULK COST CALCULATION ---
+# Calculate total cost for buying X in-run upgrades (accounts for exponential scaling)
+
+func get_inrun_total_cost(base_cost: int, current_purchases: int, amount: int) -> int:
+	var total_cost = 0
+	for i in range(amount):
+		var cost = int(base_cost * pow(UpgradeManager.UPGRADE_COST_SCALING, current_purchases + i))
+		total_cost += cost
+	return total_cost
+
+func get_inrun_max_affordable(base_cost: int, current_purchases: int) -> Array:
+	var dc = RewardManager.data_credits
+	var total_cost = 0
+	var max_count = 0
+	var safety_counter = 0
+	const MAX_ITERATIONS = 10000
+
+	while safety_counter < MAX_ITERATIONS:
+		var this_cost = int(base_cost * pow(UpgradeManager.UPGRADE_COST_SCALING, current_purchases + max_count))
+
+		if this_cost <= 0:
+			push_warning("get_inrun_max_affordable: Invalid cost %d for purchase %d" % [this_cost, current_purchases + max_count])
+			break
+
+		if dc >= total_cost + this_cost:
+			total_cost += this_cost
+			max_count += 1
+		else:
+			break
+
+		safety_counter += 1
+
+	if safety_counter >= MAX_ITERATIONS:
+		push_error("get_inrun_max_affordable: Hit safety limit! Possible infinite loop prevented.")
 
 	return [max_count, total_cost]
 

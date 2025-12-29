@@ -228,54 +228,102 @@ func get_perm_drone_upgrade_cost(level: int) -> int:
 # - Example: Level 200 = 1.5^2 = 2.25x, Level 300 = 1.5^3 = 3.375x
 #
 # Safety caps:
-# - Milestone capped at 200 to prevent overflow (1.5^200 ≈ 4.6e14)
-# - Total capped at max int32 before adding permanent damage
+# - Uses BigNumber for values > int64 max (supports up to 10^237 = 1az)
+# - Allows damage to reach octillions (10^27) and beyond
+# - Returns int64 max if value exceeds int64 range for backwards compatibility
 #
 # This dual-scaling system ensures:
 # - Smooth progression within tiers (polynomial)
 # - Significant jumps at milestones (exponential)
-# - Safe integer math at extreme levels
+# - No overflow at extreme levels (uses BigNumber)
 func get_projectile_damage() -> int:
 	var level = projectile_damage_level
 	var base = 100 + (floor(5 * pow(level, 1.12) + 5))
 	var milestones = floor(level / 100)
-	# Cap at milestone 200 for safer range (pow(1.5, 200) ≈ 4.6e14)
-	# Prevents integer overflow at extreme levels
-	var multiplier = pow(1.5, min(milestones, 200))
+
+	# Calculate multiplier (no cap - BigNumber handles it)
+	var multiplier = pow(1.5, milestones)
 	var total = base * multiplier
-	# Cap at max int to prevent overflow when adding perm damage
-	total = min(total, 2147483647 - max(0, RewardManager.perm_projectile_damage))
-	return int(total) + RewardManager.perm_projectile_damage
+
+	# Check if we need BigNumber (exponent > 18 = quintillions+)
+	if milestones > 120:  # pow(1.5, 120) ≈ 4.4e20 (exceeds int64)
+		# Use BigNumber for truly massive values
+		var bn = BigNumber.new(total)
+		var perm_bn = BigNumber.new(RewardManager.perm_projectile_damage)
+		bn = bn.add(perm_bn)
+		# Return int64 max if too large, otherwise convert
+		return bn.to_int()
+	else:
+		# Safe int64 range
+		var total_with_perm = total + RewardManager.perm_projectile_damage
+		# Apply data disk buffs (percentage boost)
+		var disk_buff = DataDiskManager.get_projectile_damage_buff()
+		var devastator_buff = DataDiskManager.get_devastator_damage_buff()
+		total_with_perm = int(total_with_perm * (1.0 + disk_buff + devastator_buff))
+		return int(min(total_with_perm, 9223372036854775807))  # int64 max
 
 func get_projectile_fire_rate() -> float:
-	return base_fire_rate + projectile_fire_rate_level * FIRE_RATE_PER_UPGRADE + RewardManager.perm_projectile_fire_rate
+	var base_rate = base_fire_rate + projectile_fire_rate_level * FIRE_RATE_PER_UPGRADE + RewardManager.perm_projectile_fire_rate
+	# Apply data disk buff (percentage boost)
+	var disk_buff = DataDiskManager.get_fire_rate_buff()
+	return base_rate * (1.0 + disk_buff)
 
 func get_crit_chance() -> int:
-	return crit_chance + RewardManager.perm_crit_chance
+	var base_crit = crit_chance + RewardManager.perm_crit_chance
+	# Apply data disk buffs (flat addition)
+	var disk_buff = DataDiskManager.get_crit_chance_buff()
+	var precision_buff = DataDiskManager.get_precision_crit_chance_buff()
+	return int(base_crit + disk_buff + precision_buff)
 
 func get_crit_damage_multiplier() -> float:
-	return BASE_CRIT_MULTIPLIER + (crit_damage_level * CRIT_DAMAGE_PER_LEVEL) + RewardManager.perm_crit_damage
+	var base_crit_dmg = BASE_CRIT_MULTIPLIER + (crit_damage_level * CRIT_DAMAGE_PER_LEVEL) + RewardManager.perm_crit_damage
+	# Apply data disk buffs (percentage boost)
+	var disk_buff = DataDiskManager.get_crit_damage_buff()
+	var devastator_buff = DataDiskManager.get_devastator_crit_damage_buff()
+	var precision_buff = DataDiskManager.get_precision_crit_damage_buff()
+	return base_crit_dmg * (1.0 + disk_buff + devastator_buff + precision_buff)
 
 func get_shield_capacity() -> int:
-	return BASE_SHIELD + (shield_integrity_level * SHIELD_PER_LEVEL) + RewardManager.perm_shield_integrity
+	var base_shield = BASE_SHIELD + (shield_integrity_level * SHIELD_PER_LEVEL) + RewardManager.perm_shield_integrity
+	# Apply data disk buff (percentage boost)
+	var disk_buff = DataDiskManager.get_shield_integrity_buff()
+	return int(base_shield * (1.0 + disk_buff))
 
 func get_damage_reduction_level() -> float:
-	return damage_reduction_level * 0.5 + RewardManager.perm_damage_reduction
+	var base_reduction = damage_reduction_level * 0.5 + RewardManager.perm_damage_reduction
+	# Apply data disk buff (flat addition)
+	var disk_buff = DataDiskManager.get_damage_reduction_buff()
+	return base_reduction + disk_buff
 
 func get_shield_regen_rate() -> float:
-	return shield_regen_level * SHIELD_REGEN_PER_LEVEL + RewardManager.perm_shield_regen
+	var base_regen = shield_regen_level * SHIELD_REGEN_PER_LEVEL + RewardManager.perm_shield_regen
+	# Apply data disk buff (percentage boost)
+	var disk_buff = DataDiskManager.get_shield_regen_buff()
+	return base_regen * (1.0 + disk_buff)
 
 func get_data_credit_multiplier() -> float:
-	return 1.0 + (data_credit_multiplier_level * DATA_MULTIPLIER_PER_LEVEL) + RewardManager.perm_data_credit_multiplier
+	var base_mult = 1.0 + (data_credit_multiplier_level * DATA_MULTIPLIER_PER_LEVEL) + RewardManager.perm_data_credit_multiplier
+	# Apply data disk buff (flat addition to multiplier)
+	var disk_buff = DataDiskManager.get_dc_multiplier_buff()
+	return base_mult + disk_buff
 
 func get_archive_token_multiplier() -> float:
-	return 1.0 + (archive_token_multiplier_level * ARCHIVE_MULTIPLIER_PER_LEVEL) + RewardManager.perm_archive_token_multiplier
+	var base_mult = 1.0 + (archive_token_multiplier_level * ARCHIVE_MULTIPLIER_PER_LEVEL) + RewardManager.perm_archive_token_multiplier
+	# Apply data disk buff (flat addition to multiplier)
+	var disk_buff = DataDiskManager.get_at_multiplier_buff()
+	return base_mult + disk_buff
 
 func get_wave_skip_chance() -> float:
-	return min(wave_skip_chance_level * WAVE_SKIP_CHANCE_PER_LEVEL + RewardManager.perm_wave_skip_chance, WAVE_SKIP_MAX_CHANCE)
+	var base_chance = wave_skip_chance_level * WAVE_SKIP_CHANCE_PER_LEVEL + RewardManager.perm_wave_skip_chance
+	# Apply data disk buff (flat addition)
+	var disk_buff = DataDiskManager.get_wave_skip_chance_buff()
+	return min(base_chance + disk_buff, WAVE_SKIP_MAX_CHANCE)
 
 func get_free_upgrade_chance() -> float:
-	return min(free_upgrade_chance_level * FREE_UPGRADE_CHANCE_PER_LEVEL + RewardManager.perm_free_upgrade_chance, FREE_UPGRADE_MAX_CHANCE)
+	var base_chance = free_upgrade_chance_level * FREE_UPGRADE_CHANCE_PER_LEVEL + RewardManager.perm_free_upgrade_chance
+	# Apply data disk buff (flat addition)
+	var disk_buff = DataDiskManager.get_free_upgrade_chance_buff()
+	return min(base_chance + disk_buff, FREE_UPGRADE_MAX_CHANCE)
 
 # --- BATCH 1 UPGRADE GETTERS ---
 func get_piercing() -> int:
@@ -298,7 +346,10 @@ func get_boss_resistance() -> float:
 
 # --- BATCH 2 UPGRADE GETTERS ---
 func get_overshield() -> int:
-	return overshield_level * OVERSHIELD_PER_LEVEL + RewardManager.perm_overshield
+	var base_overshield = overshield_level * OVERSHIELD_PER_LEVEL + RewardManager.perm_overshield
+	# Apply data disk buff (percentage boost)
+	var disk_buff = DataDiskManager.get_overshield_capacity_buff()
+	return int(base_overshield * (1.0 + disk_buff))
 
 func get_boss_bonus() -> float:
 	return 1.0 + (boss_bonus_level * BOSS_BONUS_PER_LEVEL) + RewardManager.perm_boss_bonus

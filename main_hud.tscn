@@ -431,14 +431,3 @@ offset_top = 2.0
 offset_right = 342.0
 offset_bottom = 33.0
 text = "x"
-
-[connection signal="pressed" from="BottomBanner/BuyXButton" to="." method="_on_buy_x_button_pressed"]
-[connection signal="pressed" from="BottomBanner/SpeedButton" to="." method="_on_speed_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/ButtonBar/OffenseButton" to="." method="_on_upgrade_damage_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/ButtonBar/DefenseButton" to="." method="_on_defense_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/ButtonBar/EconomyButton" to="." method="_on_economy_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/EconomyPanel/DataCreditsUpgradeButton" to="." method="_on_data_credits_upgrade_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/EconomyPanel/ArchiveTokenUpgradeButton" to="." method="_on_archive_token_upgrade_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/EconomyPanel/FreeUpgradeChanceButton" to="." method="_on_free_upgrade_chance_button_pressed"]
-[connection signal="pressed" from="UpgradeUI/EconomyPanel/WaveSkipChanceButton" to="." method="_on_wave_skip_chance_button_pressed"]
-[connection signal="pressed" from="QuitButton" to="." method="_on_quit_button_pressed"]

@@ -52,3 +52,10 @@ func add_at_spent_perm_upgrade(amount: int) -> void:
 func record_kill(enemy_type: String) -> void:
 	if lifetime_kills.has(enemy_type):
 		lifetime_kills[enemy_type] += 1
+
+	# Track for achievements
+	if AchievementManager:
+		AchievementManager.add_enemies_killed(1)
+		# Check if this is a boss kill (assuming boss types contain "boss" in name)
+		if "boss" in enemy_type.to_lower():
+			AchievementManager.add_boss_killed()

@@ -20,9 +20,13 @@ func fire_at(target: Node2D) -> void:
 	var base_damage = max_hp * base_damage_percent
 	var crit_multiplier = 1.0  # No crit for drones
 
+	# Get DroneUpgradeManager bonuses
+	var tick_interval = DroneUpgradeManager.get_flame_tick_rate() if DroneUpgradeManager else 1.0
+	var hp_cap_percent = DroneUpgradeManager.get_flame_hp_cap() if DroneUpgradeManager else 0.10
+
 	if target.has_method("apply_burn"):
-		# Apply burn with level scaling (enemy.gd handles power/duration scaling internally)
-		target.apply_burn(drone_level, base_damage, crit_multiplier)
+		# Apply burn with level scaling and upgrade bonuses
+		target.apply_burn(drone_level, base_damage, crit_multiplier, tick_interval, hp_cap_percent)
 		#print("🔥 Drone Flame: Applied burn to", target.name)
 	else:
 		print("⚠️ Drone Flame: Target missing apply_burn()")
