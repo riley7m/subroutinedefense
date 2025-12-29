@@ -26,9 +26,9 @@ func _ready() -> void:
 		UIStyler.apply_theme_to_node(self)
 
 func _create_ui() -> void:
-	# Main panel
+	# Main panel (fits 390px mobile screen)
 	panel = Panel.new()
-	panel.custom_minimum_size = Vector2(480, 780)
+	panel.custom_minimum_size = Vector2(360, 780)
 	panel.position = Vector2(15, 50)
 	add_child(panel)
 
@@ -38,7 +38,7 @@ func _create_ui() -> void:
 	title_label.position = Vector2(20, 15)
 	title_label.add_theme_font_size_override("font_size", 24)
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.custom_minimum_size = Vector2(440, 30)
+	title_label.custom_minimum_size = Vector2(320, 30)
 	panel.add_child(title_label)
 
 	# Total QC earned from achievements
@@ -47,23 +47,23 @@ func _create_ui() -> void:
 	total_qc_label.position = Vector2(20, 48)
 	total_qc_label.add_theme_font_size_override("font_size", 14)
 	total_qc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	total_qc_label.custom_minimum_size = Vector2(440, 25)
+	total_qc_label.custom_minimum_size = Vector2(320, 25)
 	panel.add_child(total_qc_label)
 
 	# Achievement scroll area
 	achievement_scroll = ScrollContainer.new()
 	achievement_scroll.position = Vector2(20, 85)
-	achievement_scroll.custom_minimum_size = Vector2(440, 630)
+	achievement_scroll.custom_minimum_size = Vector2(320, 630)
 	panel.add_child(achievement_scroll)
 
 	achievement_list = VBoxContainer.new()
-	achievement_list.custom_minimum_size = Vector2(420, 0)
+	achievement_list.custom_minimum_size = Vector2(300, 0)
 	achievement_scroll.add_child(achievement_list)
 
 	# Close button
 	close_button = Button.new()
 	close_button.text = "Close"
-	close_button.position = Vector2(185, 725)
+	close_button.position = Vector2(125, 725)
 	close_button.custom_minimum_size = Vector2(110, 35)
 	close_button.pressed.connect(_on_close_pressed)
 	panel.add_child(close_button)

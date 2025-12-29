@@ -41,9 +41,9 @@ func _ready() -> void:
 		UIStyler.apply_theme_to_node(self)
 
 func _create_ui() -> void:
-	# Main panel
+	# Main panel (fits 390px mobile screen)
 	panel = Panel.new()
-	panel.custom_minimum_size = Vector2(460, 780)
+	panel.custom_minimum_size = Vector2(360, 780)
 	panel.position = Vector2(15, 50)
 	add_child(panel)
 
@@ -53,7 +53,7 @@ func _create_ui() -> void:
 	title_label.position = Vector2(20, 15)
 	title_label.add_theme_font_size_override("font_size", 24)
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.custom_minimum_size = Vector2(420, 30)
+	title_label.custom_minimum_size = Vector2(320, 30)
 	panel.add_child(title_label)
 
 	# QC Balance display
@@ -62,13 +62,13 @@ func _create_ui() -> void:
 	qc_balance_label.position = Vector2(20, 48)
 	qc_balance_label.add_theme_font_size_override("font_size", 14)
 	qc_balance_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	qc_balance_label.custom_minimum_size = Vector2(420, 25)
+	qc_balance_label.custom_minimum_size = Vector2(320, 25)
 	panel.add_child(qc_balance_label)
 
 	# Tab buttons
 	tab_container = Control.new()
 	tab_container.position = Vector2(20, 80)
-	tab_container.custom_minimum_size = Vector2(420, 45)
+	tab_container.custom_minimum_size = Vector2(320, 45)
 	panel.add_child(tab_container)
 
 	var tab_names = ["qc_packs", "direct_iap", "qc_shop"]
@@ -76,8 +76,8 @@ func _create_ui() -> void:
 		var tab_id = tab_names[i]
 		var tab_info = TAB_INFO[tab_id]
 		var tab_button = Button.new()
-		tab_button.custom_minimum_size = Vector2(135, 40)
-		tab_button.position = Vector2(i * 140, 0)
+		tab_button.custom_minimum_size = Vector2(105, 40)
+		tab_button.position = Vector2(i * 107, 0)
 		tab_button.text = "%s\n%s" % [tab_info["icon"], tab_info["name"]]
 		tab_button.pressed.connect(_on_tab_pressed.bind(tab_id))
 		tab_container.add_child(tab_button)
@@ -86,17 +86,17 @@ func _create_ui() -> void:
 	# Content scroll area
 	content_scroll = ScrollContainer.new()
 	content_scroll.position = Vector2(20, 135)
-	content_scroll.custom_minimum_size = Vector2(420, 580)
+	content_scroll.custom_minimum_size = Vector2(320, 580)
 	panel.add_child(content_scroll)
 
 	content_list = VBoxContainer.new()
-	content_list.custom_minimum_size = Vector2(400, 0)
+	content_list.custom_minimum_size = Vector2(300, 0)
 	content_scroll.add_child(content_list)
 
 	# Close button
 	close_button = Button.new()
 	close_button.text = "Close"
-	close_button.position = Vector2(175, 725)
+	close_button.position = Vector2(125, 725)
 	close_button.custom_minimum_size = Vector2(110, 35)
 	close_button.pressed.connect(_on_close_pressed)
 	panel.add_child(close_button)

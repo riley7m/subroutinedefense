@@ -186,9 +186,15 @@ func _ready() -> void:
 	software_upgrade_panel.visible = false
 	add_child(software_upgrade_panel)
 
+	# BOTTOM MENU BUTTONS - TWO ROWS TO FIT 390px MOBILE SCREEN
+	# Row 1 (y=755): Labs, Tiers, Rush, Stats
+	# Row 2 (y=800): Drones, Shop, Pass, Achieve
+	# Each button: 90px wide, 5px spacing = 375px total (centered in 390px)
+
+	# ROW 1 - Core Systems
 	software_upgrade_button = Button.new()
 	software_upgrade_button.text = "🔬 Labs"
-	software_upgrade_button.position = Vector2(5, 800)
+	software_upgrade_button.position = Vector2(8, 755)
 	software_upgrade_button.custom_minimum_size = Vector2(90, 35)
 	software_upgrade_button.pressed.connect(_on_software_upgrade_button_pressed)
 	add_child(software_upgrade_button)
@@ -200,7 +206,7 @@ func _ready() -> void:
 
 	tier_selection_button = Button.new()
 	tier_selection_button.text = "🎖️ Tiers"
-	tier_selection_button.position = Vector2(100, 800)
+	tier_selection_button.position = Vector2(103, 755)
 	tier_selection_button.custom_minimum_size = Vector2(90, 35)
 	tier_selection_button.pressed.connect(_on_tier_selection_button_pressed)
 	add_child(tier_selection_button)
@@ -212,7 +218,7 @@ func _ready() -> void:
 
 	boss_rush_button = Button.new()
 	boss_rush_button.text = "🏆 Rush"
-	boss_rush_button.position = Vector2(195, 800)
+	boss_rush_button.position = Vector2(198, 755)
 	boss_rush_button.custom_minimum_size = Vector2(90, 35)
 	boss_rush_button.pressed.connect(_on_boss_rush_button_pressed)
 	add_child(boss_rush_button)
@@ -220,14 +226,15 @@ func _ready() -> void:
 	# Add Statistics button
 	statistics_button = Button.new()
 	statistics_button.text = "📊 Stats"
-	statistics_button.position = Vector2(290, 800)
-	statistics_button.custom_minimum_size = Vector2(95, 35)
+	statistics_button.position = Vector2(293, 755)
+	statistics_button.custom_minimum_size = Vector2(90, 35)
 	statistics_button.pressed.connect(_on_statistics_button_pressed)
 	add_child(statistics_button)
 
 	# Create statistics panel
 	_create_statistics_panel()
 
+	# ROW 2 - Progression Systems
 	# Add Drone Upgrade panel and button
 	drone_upgrade_panel = preload("res://drone_upgrade_ui.gd").new()
 	drone_upgrade_panel.visible = false
@@ -235,8 +242,8 @@ func _ready() -> void:
 
 	drone_upgrade_button = Button.new()
 	drone_upgrade_button.text = "🚁 Drones"
-	drone_upgrade_button.position = Vector2(390, 800)
-	drone_upgrade_button.custom_minimum_size = Vector2(95, 35)
+	drone_upgrade_button.position = Vector2(8, 800)
+	drone_upgrade_button.custom_minimum_size = Vector2(90, 35)
 	drone_upgrade_button.pressed.connect(_on_drone_upgrade_button_pressed)
 	add_child(drone_upgrade_button)
 
@@ -247,7 +254,7 @@ func _ready() -> void:
 
 	qc_shop_button = Button.new()
 	qc_shop_button.text = "💎 Shop"
-	qc_shop_button.position = Vector2(490, 800)
+	qc_shop_button.position = Vector2(103, 800)
 	qc_shop_button.custom_minimum_size = Vector2(90, 35)
 	qc_shop_button.pressed.connect(_on_qc_shop_button_pressed)
 	add_child(qc_shop_button)
@@ -259,7 +266,7 @@ func _ready() -> void:
 
 	milestone_button = Button.new()
 	milestone_button.text = "🎖️ Pass"
-	milestone_button.position = Vector2(585, 800)
+	milestone_button.position = Vector2(198, 800)
 	milestone_button.custom_minimum_size = Vector2(90, 35)
 	milestone_button.pressed.connect(_on_milestone_button_pressed)
 	add_child(milestone_button)
@@ -271,8 +278,8 @@ func _ready() -> void:
 
 	achievement_button = Button.new()
 	achievement_button.text = "🏆 Achieve"
-	achievement_button.position = Vector2(680, 800)
-	achievement_button.custom_minimum_size = Vector2(100, 35)
+	achievement_button.position = Vector2(293, 800)
+	achievement_button.custom_minimum_size = Vector2(90, 35)
 	achievement_button.pressed.connect(_on_achievement_button_pressed)
 	add_child(achievement_button)
 
@@ -1298,16 +1305,16 @@ func _on_quit_button_pressed():
 # === STATISTICS PANEL ===
 
 func _create_statistics_panel() -> void:
-	# Create panel
+	# Create panel (fits 390px mobile screen)
 	statistics_panel = Panel.new()
-	statistics_panel.custom_minimum_size = Vector2(600, 700)
-	statistics_panel.position = Vector2(300, 100)
+	statistics_panel.custom_minimum_size = Vector2(360, 700)
+	statistics_panel.position = Vector2(15, 50)
 	statistics_panel.visible = false
 	add_child(statistics_panel)
 
 	# Create scroll container
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(580, 680)
+	scroll.custom_minimum_size = Vector2(340, 680)
 	scroll.position = Vector2(10, 10)
 	statistics_panel.add_child(scroll)
 
@@ -1319,7 +1326,7 @@ func _create_statistics_panel() -> void:
 	var title = Label.new()
 	title.text = "=== LIFETIME STATISTICS ==="
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.custom_minimum_size = Vector2(550, 30)
+	title.custom_minimum_size = Vector2(320, 30)
 	vbox.add_child(title)
 	UIStyler.apply_theme_to_node(title)
 
@@ -1330,7 +1337,7 @@ func _create_statistics_panel() -> void:
 	# Account Section
 	var account_title = Label.new()
 	account_title.text = "🔐 Account"
-	account_title.custom_minimum_size = Vector2(550, 25)
+	account_title.custom_minimum_size = Vector2(320, 25)
 	vbox.add_child(account_title)
 	UIStyler.apply_theme_to_node(account_title)
 
@@ -1343,7 +1350,7 @@ func _create_statistics_panel() -> void:
 			account_status.text = "✅ Registered Account (ID: %s)" % CloudSaveManager.player_id.substr(0, 8)
 	else:
 		account_status.text = "❌ Not Logged In"
-	account_status.custom_minimum_size = Vector2(550, 20)
+	account_status.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(account_status)
 	UIStyler.apply_theme_to_node(account_status)
 
@@ -1363,28 +1370,28 @@ func _create_statistics_panel() -> void:
 	# Currency Stats
 	var currency_title = Label.new()
 	currency_title.text = "💰 Currency Earned"
-	currency_title.custom_minimum_size = Vector2(550, 25)
+	currency_title.custom_minimum_size = Vector2(320, 25)
 	vbox.add_child(currency_title)
 	UIStyler.apply_theme_to_node(currency_title)
 
 	var dc_stat = Label.new()
 	dc_stat.name = "DCStatLabel"
 	dc_stat.text = "Data Credits: 0"
-	dc_stat.custom_minimum_size = Vector2(550, 20)
+	dc_stat.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(dc_stat)
 	UIStyler.apply_theme_to_node(dc_stat)
 
 	var at_stat = Label.new()
 	at_stat.name = "ATStatLabel"
 	at_stat.text = "Archive Tokens: 0"
-	at_stat.custom_minimum_size = Vector2(550, 20)
+	at_stat.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(at_stat)
 	UIStyler.apply_theme_to_node(at_stat)
 
 	var frag_stat = Label.new()
 	frag_stat.name = "FragStatLabel"
 	frag_stat.text = "Fragments: 0"
-	frag_stat.custom_minimum_size = Vector2(550, 20)
+	frag_stat.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(frag_stat)
 	UIStyler.apply_theme_to_node(frag_stat)
 
@@ -1395,28 +1402,28 @@ func _create_statistics_panel() -> void:
 	# Spending Stats
 	var spending_title = Label.new()
 	spending_title.text = "💸 Archive Tokens Spent"
-	spending_title.custom_minimum_size = Vector2(550, 25)
+	spending_title.custom_minimum_size = Vector2(320, 25)
 	vbox.add_child(spending_title)
 	UIStyler.apply_theme_to_node(spending_title)
 
 	var lab_spent = Label.new()
 	lab_spent.name = "LabSpentLabel"
 	lab_spent.text = "On Labs: 0"
-	lab_spent.custom_minimum_size = Vector2(550, 20)
+	lab_spent.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(lab_spent)
 	UIStyler.apply_theme_to_node(lab_spent)
 
 	var perm_spent = Label.new()
 	perm_spent.name = "PermSpentLabel"
 	perm_spent.text = "On Permanent Upgrades: 0"
-	perm_spent.custom_minimum_size = Vector2(550, 20)
+	perm_spent.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(perm_spent)
 	UIStyler.apply_theme_to_node(perm_spent)
 
 	var total_spent = Label.new()
 	total_spent.name = "TotalSpentLabel"
 	total_spent.text = "Total Spent: 0"
-	total_spent.custom_minimum_size = Vector2(550, 20)
+	total_spent.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(total_spent)
 	UIStyler.apply_theme_to_node(total_spent)
 
@@ -1427,56 +1434,56 @@ func _create_statistics_panel() -> void:
 	# Kill Stats
 	var kills_title = Label.new()
 	kills_title.text = "⚔️ Enemies Defeated"
-	kills_title.custom_minimum_size = Vector2(550, 25)
+	kills_title.custom_minimum_size = Vector2(320, 25)
 	vbox.add_child(kills_title)
 	UIStyler.apply_theme_to_node(kills_title)
 
 	var breacher_kills = Label.new()
 	breacher_kills.name = "BreacherKillsLabel"
 	breacher_kills.text = "Breachers: 0"
-	breacher_kills.custom_minimum_size = Vector2(550, 20)
+	breacher_kills.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(breacher_kills)
 	UIStyler.apply_theme_to_node(breacher_kills)
 
 	var slicer_kills = Label.new()
 	slicer_kills.name = "SlicerKillsLabel"
 	slicer_kills.text = "Slicers: 0"
-	slicer_kills.custom_minimum_size = Vector2(550, 20)
+	slicer_kills.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(slicer_kills)
 	UIStyler.apply_theme_to_node(slicer_kills)
 
 	var sentinel_kills = Label.new()
 	sentinel_kills.name = "SentinelKillsLabel"
 	sentinel_kills.text = "Sentinels: 0"
-	sentinel_kills.custom_minimum_size = Vector2(550, 20)
+	sentinel_kills.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(sentinel_kills)
 	UIStyler.apply_theme_to_node(sentinel_kills)
 
 	var signal_kills = Label.new()
 	signal_kills.name = "SignalKillsLabel"
 	signal_kills.text = "Signal Runners: 0"
-	signal_kills.custom_minimum_size = Vector2(550, 20)
+	signal_kills.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(signal_kills)
 	UIStyler.apply_theme_to_node(signal_kills)
 
 	var null_kills = Label.new()
 	null_kills.name = "NullKillsLabel"
 	null_kills.text = "Null Walkers: 0"
-	null_kills.custom_minimum_size = Vector2(550, 20)
+	null_kills.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(null_kills)
 	UIStyler.apply_theme_to_node(null_kills)
 
 	var boss_kills = Label.new()
 	boss_kills.name = "BossKillsLabel"
 	boss_kills.text = "Bosses (Override): 0"
-	boss_kills.custom_minimum_size = Vector2(550, 20)
+	boss_kills.custom_minimum_size = Vector2(320, 20)
 	vbox.add_child(boss_kills)
 	UIStyler.apply_theme_to_node(boss_kills)
 
 	var total_kills = Label.new()
 	total_kills.name = "TotalKillsLabel"
 	total_kills.text = "Total Kills: 0"
-	total_kills.custom_minimum_size = Vector2(550, 25)
+	total_kills.custom_minimum_size = Vector2(320, 25)
 	vbox.add_child(total_kills)
 	UIStyler.apply_theme_to_node(total_kills)
 
