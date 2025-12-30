@@ -344,7 +344,9 @@ func die():
 
 	# Grant fragments for boss kills
 	if enemy_type == "override":
-		var fragment_reward = 10 + int(wave_number / 10)  # Scales with wave
+		var base_fragments = 10 + int(wave_number / 10)  # Scales with wave
+		var tier_mult = TierManager.get_reward_multiplier() if TierManager else 1.0
+		var fragment_reward = int(base_fragments * tier_mult)  # Apply tier multiplier like DC/AT
 		RewardManager.add_fragments(fragment_reward)
 		print("💎 Boss killed! Fragments earned:", fragment_reward)
 
