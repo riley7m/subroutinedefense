@@ -399,6 +399,20 @@ func can_start_upgrade(lab_id: String) -> bool:
 
 	return true
 
+func unlock_lab(lab_id: String) -> bool:
+	# Labs are unlocked by default (start at level 0)
+	# This function just ensures the lab exists and is available
+	if not labs.has(lab_id):
+		push_error("❌ Invalid lab ID: %s" % lab_id)
+		return false
+
+	# Ensure lab level is initialized
+	if not lab_levels.has(lab_id):
+		lab_levels[lab_id] = 0
+
+	print("🔬 Lab accessible: %s (Level %d)" % [lab_id, lab_levels[lab_id]])
+	return true
+
 func start_upgrade(lab_id: String, slot_index: int) -> bool:
 	if slot_index < 0 or slot_index >= get_max_slots():
 		return false

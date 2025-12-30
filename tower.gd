@@ -21,6 +21,11 @@ var shield_initialized: bool = false
 
 @onready var death_screen = null  # Will be set in _ready()
 
+# Enemy targeting cache (performance optimization for wave 50+)
+var _cached_closest_enemy: Node2D = null
+var _cached_enemy_list: Array = []
+var _cache_frame_counter: int = 0
+const CACHE_REFRESH_FRAMES: int = 3  # Refresh every 3 frames (~20Hz at 60fps)
 
 func _ready() -> void:
 	# Add to Tower group for easy reference
@@ -81,7 +86,21 @@ func refresh_shield_stats():
 	update_bars()
 	update_visual_tier()
 
+func _process(_delta: float) -> void:
+	# Increment cache frame counter
+	_cache_frame_counter += 1
+
+	# Invalidate cache if target is dead
+	if _cached_closest_enemy and not is_instance_valid(_cached_closest_enemy):
+		_cached_closest_enemy = null
+		_cached_enemy_list.clear()
+
 func get_closest_enemy() -> Node2D:
+	# Use cached result if still valid
+	if _cache_frame_counter % CACHE_REFRESH_FRAMES != 0 and _cached_closest_enemy and is_instance_valid(_cached_closest_enemy):
+		return _cached_closest_enemy
+
+	# Recalculate and cache
 	var closest: Node2D = null
 	var closest_dist := INF
 	for enemy in get_tree().get_nodes_in_group("enemies"):
@@ -91,15 +110,24 @@ func get_closest_enemy() -> Node2D:
 		if dist < closest_dist:
 			closest = enemy
 			closest_dist = dist
+
+	_cached_closest_enemy = closest
 	return closest
 
 func get_nearest_enemies(count: int) -> Array:
+	# Use cached result if still valid
+	if _cache_frame_counter % CACHE_REFRESH_FRAMES != 0 and _cached_enemy_list.size() > 0:
+		return _cached_enemy_list.slice(0, count)
+
+	# Recalculate and cache
 	var enemy_list: Array = []
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(enemy):
 			continue
 		enemy_list.append(enemy)
 	enemy_list.sort_custom(func(a, b): return global_position.distance_to(a.global_position) < global_position.distance_to(b.global_position))
+
+	_cached_enemy_list = enemy_list
 	return enemy_list.slice(0, count)
 
 

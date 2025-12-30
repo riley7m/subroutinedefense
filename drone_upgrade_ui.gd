@@ -49,7 +49,7 @@ func _ready() -> void:
 func _create_ui() -> void:
 	# Main panel
 	panel = Panel.new()
-	panel.custom_minimum_size = Vector2(420, 780)
+	panel.custom_minimum_size = Vector2(360, 780)
 	panel.position = Vector2(15, 50)
 	add_child(panel)
 
@@ -59,7 +59,7 @@ func _create_ui() -> void:
 	title_label.position = Vector2(20, 15)
 	title_label.add_theme_font_size_override("font_size", 24)
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.custom_minimum_size = Vector2(380, 30)
+	title_label.custom_minimum_size = Vector2(320, 30)
 	panel.add_child(title_label)
 
 	# Fragments display
@@ -68,12 +68,12 @@ func _create_ui() -> void:
 	fragments_label.position = Vector2(20, 48)
 	fragments_label.add_theme_font_size_override("font_size", 14)
 	fragments_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	fragments_label.custom_minimum_size = Vector2(380, 25)
+	fragments_label.custom_minimum_size = Vector2(320, 25)
 	panel.add_child(fragments_label)
 
 	# Active Slots Panel
 	slots_panel = Panel.new()
-	slots_panel.custom_minimum_size = Vector2(380, 80)
+	slots_panel.custom_minimum_size = Vector2(320, 80)
 	slots_panel.position = Vector2(20, 80)
 	panel.add_child(slots_panel)
 
@@ -86,8 +86,8 @@ func _create_ui() -> void:
 	# Create slot buttons (4 total: 1 default + 3 unlockable)
 	for i in range(4):
 		var slot_button = Button.new()
-		slot_button.custom_minimum_size = Vector2(85, 40)
-		slot_button.position = Vector2(10 + i * 92, 32)
+		slot_button.custom_minimum_size = Vector2(70, 40)
+		slot_button.position = Vector2(10 + i * 77, 32)
 
 		if i == 0:
 			slot_button.text = "Slot 1\n✅"
@@ -102,15 +102,15 @@ func _create_ui() -> void:
 	# Drone Selection Tabs
 	tab_container = Control.new()
 	tab_container.position = Vector2(20, 170)
-	tab_container.custom_minimum_size = Vector2(380, 45)
+	tab_container.custom_minimum_size = Vector2(320, 45)
 	panel.add_child(tab_container)
 
 	var tab_names = ["flame", "poison", "frost", "shock"]
 	for i in range(4):
 		var drone_type = tab_names[i]
 		var tab_button = Button.new()
-		tab_button.custom_minimum_size = Vector2(90, 40)
-		tab_button.position = Vector2(i * 95, 0)
+		tab_button.custom_minimum_size = Vector2(75, 40)
+		tab_button.position = Vector2(i * 80, 0)
 		tab_button.text = DRONE_INFO[drone_type]["icon"]
 		tab_button.pressed.connect(_on_tab_pressed.bind(drone_type))
 		tab_container.add_child(tab_button)
@@ -119,17 +119,17 @@ func _create_ui() -> void:
 	# Upgrade scroll area
 	upgrade_scroll = ScrollContainer.new()
 	upgrade_scroll.position = Vector2(20, 225)
-	upgrade_scroll.custom_minimum_size = Vector2(380, 490)
+	upgrade_scroll.custom_minimum_size = Vector2(320, 490)
 	panel.add_child(upgrade_scroll)
 
 	upgrade_list = VBoxContainer.new()
-	upgrade_list.custom_minimum_size = Vector2(360, 0)
+	upgrade_list.custom_minimum_size = Vector2(300, 0)
 	upgrade_scroll.add_child(upgrade_list)
 
 	# Close button
 	close_button = Button.new()
 	close_button.text = "Close"
-	close_button.position = Vector2(155, 725)
+	close_button.position = Vector2(125, 725)
 	close_button.custom_minimum_size = Vector2(110, 35)
 	close_button.pressed.connect(_on_close_pressed)
 	panel.add_child(close_button)

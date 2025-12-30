@@ -68,23 +68,24 @@ func _on_body_entered(body: Node2D) -> void:
 		if body in pierced_targets:
 			return
 
-		var base_dmg = UpgradeManager.get_projectile_damage()
+		var base_dmg_bn = UpgradeManager.get_projectile_damage()  # BigNumber
 
 		# Apply boss bonus damage
 		var is_boss = body.has_method("is_boss") and body.is_boss()
 		if is_boss:
-			base_dmg = int(base_dmg * UpgradeManager.get_boss_bonus())
+			base_dmg_bn = base_dmg_bn.copy().multiply(UpgradeManager.get_boss_bonus())
 
 		var crit_roll = randi() % 100
 		var is_crit = crit_roll < UpgradeManager.get_crit_chance()
-		var dealt_dmg = base_dmg
+		var dealt_dmg_bn = base_dmg_bn.copy()
 
 		if is_crit:
 			var crit_multiplier = UpgradeManager.get_crit_damage_multiplier()
-			dealt_dmg = int(base_dmg * crit_multiplier)
+			dealt_dmg_bn = base_dmg_bn.copy().multiply(crit_multiplier)
 
 		# --- Record damage dealt before applying to enemy (for run stats)
-		RunStats.damage_dealt += dealt_dmg
+		# Convert to float for stats tracking (loses precision for huge values but that's okay for stats)
+		RunStats.damage_dealt += dealt_dmg_bn.to_float()
 
 		# Create impact effect (with null safety check)
 		var parent = get_parent()
@@ -93,6 +94,8 @@ func _on_body_entered(body: Node2D) -> void:
 
 		# Apply damage and get overkill amount
 		var overkill_damage = 0
+		# Convert BigNumber to float for enemy.take_damage()
+		var dealt_dmg = dealt_dmg_bn.to_float()
 		if body.has_method("take_damage"):
 			# Check if take_damage accepts is_critical parameter
 			var method_info = body.get_method_list()
@@ -108,9 +111,10 @@ func _on_body_entered(body: Node2D) -> void:
 				body.take_damage(dealt_dmg)
 
 			# Calculate overkill if enemy died
-			if body.has_method("get_health") and body.get_health() <= 0:
-				var enemy_health = body.get("max_health") if body.has_method("get") else 0
-				overkill_damage = max(0, dealt_dmg - enemy_health)
+			# TODO: Overkill calculation needs redesign - enemies don't store max HP
+			# For now, disable overkill to prevent errors
+			# if body.has_method("get_health") and body.get_health().less_equal(BigNumber.new(0)):
+			# 	overkill_damage calculation here
 
 		# Handle piercing
 		var piercing = UpgradeManager.get_piercing()

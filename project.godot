@@ -37,6 +37,7 @@ NotificationManager="*res://NotificationManager.gd"
 AchievementManager="*res://AchievementManager.gd"
 QuantumCoreShop="*res://QuantumCoreShop.gd"
 DroneUpgradeManager="*res://DroneUpgradeManager.gd"
+DailyRewardManager="*res://DailyRewardManager.gd"
 
 [display]
 

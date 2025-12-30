@@ -497,6 +497,10 @@ var data_disk_inventory: Dictionary = {}
 # All disks are automatically active when acquired
 var equipped_disks: Array = []  # Array of disk_ids in order acquired
 
+# --- CACHED BUFFS (for performance) ---
+# Recalculated only when disks are added/removed
+var _cached_buffs: Dictionary = {}
+
 # --- INITIALIZATION ---
 func _ready() -> void:
 	load_data_disks()
@@ -547,10 +551,10 @@ func get_random_disk_id() -> String:
 	return weighted_list[randi() % weighted_list.size()]
 
 # --- APPLY DISK BUFFS ---
-# Recalculate all buffs from owned disks
+# Recalculate all buffs from owned disks (called on disk add/load only)
 func _apply_disk_buffs() -> void:
-	# Reset buffs (we'll recalculate from scratch)
-	var buffs = {
+	# Reset cached buffs (recalculate from scratch)
+	_cached_buffs = {
 		"projectile_damage": 0.0,
 		"fire_rate": 0.0,
 		"crit_chance": 0.0,
@@ -563,10 +567,26 @@ func _apply_disk_buffs() -> void:
 		"fragment_drop_rate": 0.0,
 		"boss_hp_reduction": 0.0,
 		"wave_skip_chance": 0.0,
-		"free_upgrade_chance": 0.0
+		"free_upgrade_chance": 0.0,
+		"overshield_capacity": 0.0,
+		"piercing": 0.0,
+		"overkill_damage": 0.0,
+		"boss_damage": 0.0,
+		"qc_multiplier": 0.0,
+		"lab_speed": 0.0,
+		"ricochet_chance": 0.0,
+		"lucky_drops": 0.0,
+		"precision": 0.0,
+		"block_chance": 0.0,
+		"devastator": 0.0,
+		"all_currency": 0.0,
+		"boss_slayer": 0.0,
+		"projectile_speed": 0.0,
+		"multi_target_damage": 0.0,
+		"starting_currency": 0.0
 	}
 
-	# Calculate buffs from inventory
+	# Calculate buffs from inventory (only called when disks change, not per-frame)
 	for disk_id in data_disk_inventory.keys():
 		var count = data_disk_inventory[disk_id]
 		var disk_data = DATA_DISK_TYPES.get(disk_id, {})
@@ -577,83 +597,66 @@ func _apply_disk_buffs() -> void:
 		var stat = disk_data.get("stat", "")
 		var value = disk_data.get("value", 0.0)
 
-		if stat in buffs:
-			buffs[stat] += value * count
+		if stat in _cached_buffs:
+			_cached_buffs[stat] += value * count
 
-	# TODO: Apply buffs to appropriate managers
-	# For now, we'll store them and expose getters
-	# These will be consumed by UpgradeManager and RewardManager
+	# Buffs are now cached and will be returned by getters without recalculation
 
-# --- GETTERS FOR BUFFS ---
+# --- GETTERS FOR BUFFS (cached, O(1) performance) ---
 func get_projectile_damage_buff() -> float:
-	return _calculate_buff("projectile_damage")
+	return _cached_buffs.get("projectile_damage", 0.0)
 
 func get_fire_rate_buff() -> float:
-	return _calculate_buff("fire_rate")
+	return _cached_buffs.get("fire_rate", 0.0)
 
 func get_crit_chance_buff() -> float:
-	return _calculate_buff("crit_chance")
+	return _cached_buffs.get("crit_chance", 0.0)
 
 func get_crit_damage_buff() -> float:
-	return _calculate_buff("crit_damage")
+	return _cached_buffs.get("crit_damage", 0.0)
 
 func get_shield_integrity_buff() -> float:
-	return _calculate_buff("shield_integrity")
+	return _cached_buffs.get("shield_integrity", 0.0)
 
 func get_shield_regen_buff() -> float:
-	return _calculate_buff("shield_regen")
+	return _cached_buffs.get("shield_regen", 0.0)
 
 func get_damage_reduction_buff() -> float:
-	return _calculate_buff("damage_reduction")
+	return _cached_buffs.get("damage_reduction", 0.0)
 
 func get_dc_multiplier_buff() -> float:
-	return _calculate_buff("dc_multiplier")
+	return _cached_buffs.get("dc_multiplier", 0.0)
 
 func get_at_multiplier_buff() -> float:
-	return _calculate_buff("at_multiplier")
+	return _cached_buffs.get("at_multiplier", 0.0)
 
 func get_fragment_drop_rate_buff() -> float:
-	return _calculate_buff("fragment_drop_rate")
+	return _cached_buffs.get("fragment_drop_rate", 0.0)
 
 func get_boss_hp_reduction_buff() -> float:
-	return _calculate_buff("boss_hp_reduction")
+	return _cached_buffs.get("boss_hp_reduction", 0.0)
 
 func get_wave_skip_chance_buff() -> float:
-	return _calculate_buff("wave_skip_chance")
+	return _cached_buffs.get("wave_skip_chance", 0.0)
 
 func get_free_upgrade_chance_buff() -> float:
-	return _calculate_buff("free_upgrade_chance")
+	return _cached_buffs.get("free_upgrade_chance", 0.0)
 
 func get_overshield_capacity_buff() -> float:
-	return _calculate_buff("overshield_capacity")
+	return _cached_buffs.get("overshield_capacity", 0.0)
 
-# Multi-stat disk support
+# Multi-stat disk support (cached)
 func get_devastator_damage_buff() -> float:
-	return _calculate_buff("devastator") * 0.10  # +10% damage per devastator disk
+	return _cached_buffs.get("devastator", 0.0) * 0.10  # +10% damage per devastator disk
 
 func get_devastator_crit_damage_buff() -> float:
-	return _calculate_buff("devastator") * 0.10  # +10% crit damage per devastator disk
+	return _cached_buffs.get("devastator", 0.0) * 0.10  # +10% crit damage per devastator disk
 
 func get_precision_crit_chance_buff() -> float:
-	return _calculate_buff("precision") * 3.0  # +3% crit chance per precision disk
+	return _cached_buffs.get("precision", 0.0) * 3.0  # +3% crit chance per precision disk
 
 func get_precision_crit_damage_buff() -> float:
-	return _calculate_buff("precision") * 0.05  # +5% crit damage per precision disk
-
-func _calculate_buff(stat: String) -> float:
-	var total = 0.0
-
-	for disk_id in data_disk_inventory.keys():
-		var count = data_disk_inventory[disk_id]
-		var disk_data = DATA_DISK_TYPES.get(disk_id, {})
-
-		if disk_data.is_empty():
-			continue
-
-		if disk_data.get("stat", "") == stat:
-			total += disk_data.get("value", 0.0) * count
-
-	return total
+	return _cached_buffs.get("precision", 0.0) * 0.05  # +5% crit damage per precision disk
 
 # --- INVENTORY QUERIES ---
 func get_disk_count(disk_id: String) -> int:

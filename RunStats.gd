@@ -1,7 +1,7 @@
 extends Node
 
 # Per-run stats (reset each run)
-var damage_dealt: int = 0
+var damage_dealt: float = 0.0  # Changed to float to handle BigNumber.to_float() conversion
 var damage_taken: int = 0
 var data_credits_earned: int = 0
 var archive_tokens_earned: int = 0
@@ -26,7 +26,7 @@ var lifetime_kills: Dictionary = {
 
 func reset():
 	# Reset per-run stats only
-	damage_dealt = 0
+	damage_dealt = 0.0
 	damage_taken = 0
 	data_credits_earned = 0
 	archive_tokens_earned = 0
@@ -56,6 +56,6 @@ func record_kill(enemy_type: String) -> void:
 	# Track for achievements
 	if AchievementManager:
 		AchievementManager.add_enemies_killed(1)
-		# Check if this is a boss kill (assuming boss types contain "boss" in name)
-		if "boss" in enemy_type.to_lower():
+		# Boss type is "override"
+		if enemy_type == "override":
 			AchievementManager.add_boss_killed()

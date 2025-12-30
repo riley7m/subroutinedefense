@@ -35,7 +35,7 @@ const STUN_MAX_DURATION: float = 2.0
 @export var base_speed: float = 100.0
 var wave_number: int = 1
 @export var attack_speed: float = 1
-var hp: int
+var hp: BigNumber = null  # Changed to BigNumber for infinite scaling
 var damage_to_tower: int
 var move_speed: float
 @export var tower_position: Vector2 = Vector2.ZERO
@@ -55,7 +55,8 @@ var is_pooled: bool = false
 var burn_active: bool = false
 var burn_timer: float = 0.0
 var burn_duration: float = 0.0
-var burn_damage_per_tick: float = 0.0
+var burn_damage_per_tick: float = 0.0  # Display value
+var burn_damage_bn: BigNumber = null  # BigNumber for efficient damage application
 var burn_tick_interval: float = 1.0   # 1 second per tick
 var burn_tick_timer: float = 0.0
 
@@ -63,7 +64,8 @@ var burn_tick_timer: float = 0.0
 var poison_active: bool = false
 var poison_timer: float = 0.0
 var poison_duration: float = 0.0
-var poison_damage_per_tick: float = 0.0
+var poison_damage_per_tick: float = 0.0  # Display value
+var poison_damage_bn: BigNumber = null  # BigNumber for efficient damage application
 var poison_tick_interval: float = 1.0
 var poison_tick_timer: float = 0.0
 
@@ -89,7 +91,7 @@ func _ready() -> void:
 	add_to_group("enemies")
 
 	# Initialize stats (will be overwritten by apply_wave_scaling, but safe defaults)
-	hp = base_hp
+	hp = BigNumber.new(base_hp)
 	damage_to_tower = base_damage
 	move_speed = base_speed
 
@@ -208,42 +210,46 @@ func _physics_process(delta: float) -> void:
 		burn_timer += delta
 		burn_tick_timer += delta
 		if burn_tick_timer >= burn_tick_interval:
-			hp -= burn_damage_per_tick
+			# Reuse cached BigNumber instead of creating new one every tick
+			hp.subtract(burn_damage_bn)
 			burn_tick_timer -= burn_tick_interval
-			#print("🔥", name, "takes", burn_damage_per_tick, "burn tick! HP now", hp)
+			#print("🔥", name, "takes", burn_damage_per_tick, "burn tick! HP now", hp.format())
 		if burn_timer >= burn_duration:
 			burn_active = false
 			burn_timer = 0.0
 			burn_tick_timer = 0.0
 			burn_duration = 0.0
 			burn_damage_per_tick = 0.0
+			burn_damage_bn = null  # Clear cached BigNumber
 			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("burn", self)
 			AdvancedVisuals.remove_status_icon("burn", self)
 			#print("🔥", name, "burn ended")
-		if hp <= 0 and not is_dead:
+		if hp.less_equal(BigNumber.new(0)) and not is_dead:
 			is_dead = true
 			die()
-	
+
 		# --- Poison effect tick ---
 	if poison_active:
 		poison_timer += delta
 		poison_tick_timer += delta
 		if poison_tick_timer >= poison_tick_interval:
-			hp -= poison_damage_per_tick
+			# Reuse cached BigNumber instead of creating new one every tick
+			hp.subtract(poison_damage_bn)
 			poison_tick_timer -= poison_tick_interval
-			#print("🟣", name, "takes", poison_damage_per_tick, "poison tick! HP now", hp)
+			#print("🟣", name, "takes", poison_damage_per_tick, "poison tick! HP now", hp.format())
 		if poison_timer >= poison_duration:
 			poison_active = false
 			poison_timer = 0.0
 			poison_tick_timer = 0.0
 			poison_duration = 0.0
 			poison_damage_per_tick = 0.0
+			poison_damage_bn = null  # Clear cached BigNumber
 			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("poison", self)
 			AdvancedVisuals.remove_status_icon("poison", self)
 			#print("🟣", name, "poison ended")
-		if hp <= 0 and not is_dead:
+		if hp.less_equal(BigNumber.new(0)) and not is_dead:
 			is_dead = true
 			die()
 	# --- Apply slow effect ---
@@ -263,7 +269,7 @@ func _physics_process(delta: float) -> void:
 			velocity *= slow_multiplier
 
 	# --- Final death check (in case status effects reduced hp to 0) ---
-	if hp <= 0 and not is_dead:
+	if hp.less_equal(BigNumber.new(0)) and not is_dead:
 		is_dead = true
 		die()
 
@@ -294,8 +300,9 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 	if parent and is_instance_valid(parent):
 		AdvancedVisuals.create_damage_number(amount, global_position, is_critical, parent)
 
-	hp -= amount
-	if hp <= 0:
+	# Apply damage using BigNumber
+	hp.subtract(BigNumber.new(amount))
+	if hp.less_equal(BigNumber.new(0)):
 		is_dead = true
 		die()
 
@@ -344,7 +351,9 @@ func die():
 
 	# Grant fragments for boss kills
 	if enemy_type == "override":
-		var fragment_reward = 10 + int(wave_number / 10)  # Scales with wave
+		var base_fragments = 10 + int(wave_number / 10)  # Scales with wave
+		var tier_mult = TierManager.get_reward_multiplier() if TierManager else 1.0
+		var fragment_reward = int(base_fragments * tier_mult)  # Apply tier multiplier like DC/AT
 		RewardManager.add_fragments(fragment_reward)
 		print("💎 Boss killed! Fragments earned:", fragment_reward)
 
@@ -428,23 +437,25 @@ func apply_wave_scaling():
 	var tier_mult = TierManager.get_enemy_multiplier()
 
 	# Apply tier multiplier to base stats, then wave scaling
-	# Exponential HP scaling for better late-game balance
-	hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
+	# Exponential HP scaling using BigNumber for infinite progression
+	var calculated_hp = base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number)
+	hp = BigNumber.new(calculated_hp)
 	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
 	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)
-	#print("enemy hp:", hp, "tier mult:", tier_mult)
+	#print("enemy hp:", hp.format(), "tier mult:", tier_mult)
 
 func apply_boss_rush_scaling():
 	# Boss rush uses faster scaling than normal tiers
 	var boss_rush_mult = BossRushManager.get_boss_rush_hp_multiplier(wave_number)
 
-	# Apply exponential HP scaling (5% per wave vs 2% normal)
-	hp = int(base_hp * boss_rush_mult)
+	# Apply exponential HP scaling (5% per wave vs 2% normal) using BigNumber
+	var calculated_hp = base_hp * boss_rush_mult
+	hp = BigNumber.new(calculated_hp)
 	damage_to_tower = int(base_damage * BossRushManager.get_boss_rush_damage_multiplier())
 	move_speed = base_speed * BossRushManager.get_boss_rush_speed_multiplier()
 
-	#print("Boss rush wave:", wave_number, "HP:", hp, "Mult:", boss_rush_mult)
+	#print("Boss rush wave:", wave_number, "HP:", hp.format(), "Mult:", boss_rush_mult)
 
 func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0, tick_interval: float = 1.0, hp_cap_percent: float = 0.10) -> void:
 	# 15% at level 1 → 150% at level 10 (linear)
@@ -453,9 +464,9 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0, ti
 	burn_damage_per_tick = base_damage * percent * crit_multiplier
 
 	# Cap at upgraded HP cap percent (default 10%, upgradeable to 25%)
-	var tier_mult = TierManager.get_enemy_multiplier()
-	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
-	var max_burn_per_tick = max_hp * hp_cap_percent
+	# Use current HP (BigNumber) for calculation
+	var max_burn_bn = hp.copy().multiply(hp_cap_percent)
+	var max_burn_per_tick = max_burn_bn.to_float()  # Convert for comparison
 	if burn_damage_per_tick > max_burn_per_tick:
 		burn_damage_per_tick = max_burn_per_tick
 
@@ -464,6 +475,9 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0, ti
 	burn_active = true
 	burn_timer = 0.0
 	burn_tick_timer = 0.0
+
+	# Cache BigNumber to avoid creating new objects every tick
+	burn_damage_bn = BigNumber.new(burn_damage_per_tick)
 
 	# Add visual effects
 	VisualFactory.create_status_effect_overlay("burn", self)
@@ -475,9 +489,9 @@ func apply_poison(level: int, duration: float = 4.0, max_stacks: int = 1) -> voi
 	# Level 1 = 1% per sec, Level 10 = 7.5% per sec (nerfed from 10%)
 	var percent_per_sec = POISON_MIN_PERCENT + (level - 1) * POISON_PERCENT_PER_LEVEL
 	percent_per_sec = clamp(percent_per_sec, POISON_MIN_PERCENT, POISON_MAX_PERCENT)
-	var tier_mult = TierManager.get_enemy_multiplier()
-	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
-	var new_poison_damage = max_hp * percent_per_sec
+	# Calculate poison damage from current HP (BigNumber)
+	var poison_bn = hp.copy().multiply(percent_per_sec)
+	var new_poison_damage = poison_bn.to_float()
 
 	# Stacking: if already poisoned and max_stacks > 1, add to existing damage
 	if poison_active and max_stacks > 1:
@@ -491,6 +505,9 @@ func apply_poison(level: int, duration: float = 4.0, max_stacks: int = 1) -> voi
 		poison_tick_timer = 0.0
 
 	poison_active = true
+
+	# Cache BigNumber to avoid creating new objects every tick
+	poison_damage_bn = BigNumber.new(poison_damage_per_tick)
 
 	# Add visual effects (only if not already present)
 	if not has_node("StatusOverlay_poison"):
@@ -530,11 +547,15 @@ func apply_stun(level: int, duration_bonus: float = 0.0) -> void:
 		AdvancedVisuals.create_status_icon("stun", self)
 	#print("⚡", name, "stunned for", stun_duration, "seconds!")
 
-func get_current_hp() -> int:
+func get_current_hp() -> BigNumber:
 	return hp
 
-func get_health() -> int:
+func get_health() -> BigNumber:
 	return hp
+
+func get_health_display() -> String:
+	# Return formatted HP for UI display (e.g., "1.5M" or "3.2B")
+	return hp.format(1) if hp else "0"
 
 func is_boss() -> bool:
 	return enemy_type == "override"
