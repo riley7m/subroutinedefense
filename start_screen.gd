@@ -50,7 +50,6 @@ var data_disks_nav_button: Button
 var tiers_nav_button: Button
 
 # Overlays
-var login_ui: Control = null
 var overlay_panel: Control = null
 
 # === INITIALIZATION ===
@@ -59,10 +58,6 @@ func _ready() -> void:
 	_create_ui()
 	_connect_signals()
 	_update_display()
-
-	# Show login if needed
-	if CloudSaveManager and not CloudSaveManager.is_logged_in:
-		_show_login_screen()
 
 	# Update timer displays every second
 	var timer = Timer.new()
@@ -133,6 +128,15 @@ func _create_top_currency_display() -> void:
 	tier_wave_label.position = Vector2(200, 35)
 	tier_wave_label.add_theme_font_size_override("font_size", 12)
 	currency_panel.add_child(tier_wave_label)
+
+	# Account button - top right
+	var account_button = Button.new()
+	account_button.text = "👤"
+	account_button.position = Vector2(320, 55)
+	account_button.custom_minimum_size = Vector2(50, 25)
+	account_button.add_theme_font_size_override("font_size", 16)
+	account_button.pressed.connect(_on_account_button_pressed)
+	currency_panel.add_child(account_button)
 
 func _create_center_title_section() -> void:
 	# Game title with animated border (y=200-300)
@@ -491,6 +495,19 @@ func _on_data_disks_nav_pressed() -> void:
 func _on_tiers_nav_pressed() -> void:
 	_show_overlay("tiers")
 
+func _on_account_button_pressed() -> void:
+	# Show account/login UI
+	if overlay_panel:
+		overlay_panel.queue_free()
+
+	overlay_panel = preload("res://account_ui.gd").new()
+	add_child(overlay_panel)
+	overlay_panel.visible = true
+
+	# Connect to account updates
+	if overlay_panel.has_signal("account_updated"):
+		overlay_panel.account_updated.connect(_update_display)
+
 # === OVERLAY SYSTEM ===
 
 func _show_overlay(overlay_type: String) -> void:
@@ -701,14 +718,3 @@ func _show_daily_reward_popup(fragments: int, qc: int, day: int) -> void:
 	close_button.pressed.connect(func(): popup_bg.queue_free())
 	popup_bg.add_child(close_button)
 
-# === LOGIN ===
-
-func _show_login_screen() -> void:
-	login_ui = preload("res://login_ui.gd").new()
-	add_child(login_ui)
-	login_ui.show_login()
-	login_ui.login_completed.connect(_on_login_completed)
-
-func _on_login_completed() -> void:
-	print("✅ Player logged in successfully")
-	_update_display()
