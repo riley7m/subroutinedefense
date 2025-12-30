@@ -287,10 +287,12 @@ func _apply_screen_effects(enabled: bool) -> void:
 # === BUTTON HANDLERS ===
 
 func _on_login_pressed() -> void:
-	print("👤 Login requested")
-	# TODO: Show login UI
-	if CloudSaveManager:
-		CloudSaveManager.show_login()
+	# Show account/login UI
+	var account_ui = preload("res://account_ui.gd").new()
+	get_parent().add_child(account_ui)
+	account_ui.account_updated.connect(func():
+		queue_free()  # Close settings to refresh after login
+	)
 
 func _on_logout_pressed() -> void:
 	print("👤 Logout requested")

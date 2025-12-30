@@ -358,7 +358,7 @@ func _connect_signals() -> void:
 
 	# Listen for currency changes
 	if RewardManager:
-		RewardManager.currency_changed.connect(_update_display)
+		RewardManager.archive_tokens_changed.connect(_update_display)
 
 	# Listen for daily reward signals
 	if DailyRewardManager:
@@ -384,8 +384,8 @@ func _update_display() -> void:
 	tier_label.text = "Tier %d" % current_tier
 	highest_wave_label.text = "Highest Wave: %d" % highest_wave
 
-	# Update DC multiplier
-	var multiplier = TierManager.get_dc_multiplier_for_tier(current_tier)
+	# Update DC multiplier (reward multiplier applies to all currencies)
+	var multiplier = TierManager.get_reward_multiplier()
 	dc_multiplier_label.text = "💾 x%.1f" % multiplier
 
 func _update_timers() -> void:
@@ -425,7 +425,7 @@ func _on_tier_left_pressed() -> void:
 		return
 	var current_tier = TierManager.get_current_tier()
 	if current_tier > 1:
-		TierManager.set_current_tier(current_tier - 1)
+		TierManager.enter_tier(current_tier - 1)
 		_update_display()
 
 func _on_tier_right_pressed() -> void:
@@ -434,7 +434,7 @@ func _on_tier_right_pressed() -> void:
 	var current_tier = TierManager.get_current_tier()
 	var max_unlocked_tier = TierManager.max_unlocked_tier
 	if current_tier < max_unlocked_tier:
-		TierManager.set_current_tier(current_tier + 1)
+		TierManager.enter_tier(current_tier + 1)
 		_update_display()
 
 func _on_daily_reward_pressed() -> void:
@@ -521,9 +521,7 @@ func _show_overlay(overlay_type: String) -> void:
 		"achievements":
 			overlay_panel = preload("res://achievement_ui.gd").new()
 		"stats":
-			# TODO: Create a start screen stats overlay
-			print("📊 Stats overlay")
-			return
+			overlay_panel = preload("res://stats_overlay_ui.gd").new()
 		"shop":
 			overlay_panel = preload("res://quantum_core_shop_ui.gd").new()
 		"drones":
