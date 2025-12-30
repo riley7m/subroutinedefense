@@ -18,7 +18,7 @@ signal score_submitted(success: bool, rank: int)
 
 # Boss Rush State
 var is_active: bool = false
-var current_run_damage: int = 0
+var current_run_damage: float = 0.0  # Float to handle BigNumber.to_float() without overflow
 var current_run_wave: int = 0
 var fragments_awarded_for_current_run: bool = false  # Prevent double fragment awards
 
@@ -129,14 +129,14 @@ func start_boss_rush() -> bool:
 		return false
 
 	is_active = true
-	current_run_damage = 0
+	current_run_damage = 0.0
 	current_run_wave = 0
 	fragments_awarded_for_current_run = false  # Reset fragment award flag
 	print("🏆 Boss Rush started!")
 	boss_rush_started.emit()
 	return true
 
-func end_boss_rush(final_damage: int, final_wave: int) -> void:
+func end_boss_rush(final_damage: float, final_wave: int) -> void:
 	if not is_active:
 		return
 
@@ -198,7 +198,7 @@ func get_boss_rush_speed_multiplier() -> float:
 # === ONLINE LEADERBOARD (PlayFab) ===
 
 ## Submit score to PlayFab with server-side validation
-func submit_score_online(damage: int, waves: int) -> void:
+func submit_score_online(damage: float, waves: int) -> void:
 	# Rate limiting: prevent spam submissions
 	var now = int(Time.get_unix_time_from_system())
 	if now - last_score_submit < MIN_SUBMIT_INTERVAL:
@@ -214,7 +214,7 @@ func submit_score_online(damage: int, waves: int) -> void:
 	validate_score_with_server(damage, waves)
 
 ## Validate score with PlayFab CloudScript (server-side anti-cheat)
-func validate_score_with_server(damage: int, waves: int) -> void:
+func validate_score_with_server(damage: float, waves: int) -> void:
 	if not CloudSaveManager or not CloudSaveManager.session_ticket:
 		print("❌ Not logged in to PlayFab")
 		return
@@ -242,7 +242,7 @@ func validate_score_with_server(damage: int, waves: int) -> void:
 		is_online = false
 
 ## Submit validated score to PlayFab leaderboard
-func _submit_validated_score(damage: int, waves: int) -> void:
+func _submit_validated_score(damage: float, waves: int) -> void:
 	if not CloudSaveManager or not CloudSaveManager.session_ticket:
 		return
 
@@ -423,7 +423,7 @@ func _award_fragments_for_rank(rank: int) -> void:
 
 # === LOCAL LEADERBOARD (Fallback/Cache) ===
 
-func add_leaderboard_entry(damage: int, waves: int) -> void:
+func add_leaderboard_entry(damage: float, waves: int) -> void:
 	var entry = {
 		"damage": damage,
 		"waves": waves,
@@ -491,7 +491,7 @@ func load_leaderboard() -> void:
 
 # === UTILITY ===
 
-func format_damage(damage: int) -> String:
+func format_damage(damage: float) -> String:
 	if damage < 1000:
 		return str(damage)
 	elif damage < 1000000:
@@ -501,7 +501,7 @@ func format_damage(damage: int) -> String:
 	else:
 		return "%.1fB" % (damage / 1000000000.0)
 
-func get_rank_for_damage(damage: int) -> int:
+func get_rank_for_damage(damage: float) -> int:
 	# Returns what rank this damage would place (1 = best)
 	var rank = 1
 	for entry in leaderboard:

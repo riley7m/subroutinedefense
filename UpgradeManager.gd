@@ -755,10 +755,24 @@ func upgrade_perm_projectile_damage() -> bool:
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent projectile damage.")
 		return false
+
+	# Transaction safety: backup currency before deducting
+	var backup_at = RewardManager.archive_tokens
+	var backup_damage = RewardManager.get_perm_projectile_damage_bn().copy()
+
+	# Apply upgrade
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.add_perm_projectile_damage(10)
-	RewardManager.save_permanent_upgrades()
+
+	# Try to save - if it fails, rollback
+	if not RewardManager.save_permanent_upgrades():
+		push_error("❌ CRITICAL: Save failed! Rolling back permanent damage upgrade.")
+		RewardManager.archive_tokens = backup_at
+		RewardManager.set_perm_projectile_damage_bn(backup_damage)
+		RunStats.add_at_spent_perm_upgrade(-cost)  # Rollback stat tracking
+		return false
+
 	print("🏅 Permanent Projectile Damage +10. Now:", RewardManager.get_perm_projectile_damage_int())
 	return true
 
@@ -767,10 +781,24 @@ func upgrade_perm_projectile_fire_rate() -> bool:
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent fire rate.")
 		return false
+
+	# Transaction safety: backup currency before deducting
+	var backup_at = RewardManager.archive_tokens
+	var backup_fire_rate = RewardManager.perm_projectile_fire_rate
+
+	# Apply upgrade
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_projectile_fire_rate += 0.1
-	RewardManager.save_permanent_upgrades()
+
+	# Try to save - if it fails, rollback
+	if not RewardManager.save_permanent_upgrades():
+		push_error("❌ CRITICAL: Save failed! Rolling back fire rate upgrade.")
+		RewardManager.archive_tokens = backup_at
+		RewardManager.perm_projectile_fire_rate = backup_fire_rate
+		RunStats.add_at_spent_perm_upgrade(-cost)
+		return false
+
 	print("🏅 Permanent Fire Rate +0.1. Now:", RewardManager.perm_projectile_fire_rate)
 	return true
 
@@ -779,10 +807,24 @@ func upgrade_perm_crit_chance() -> bool:
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent crit chance.")
 		return false
+
+	# Transaction safety: backup currency before deducting
+	var backup_at = RewardManager.archive_tokens
+	var backup_crit = RewardManager.perm_crit_chance
+
+	# Apply upgrade
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_crit_chance += 1
-	RewardManager.save_permanent_upgrades()
+
+	# Try to save - if it fails, rollback
+	if not RewardManager.save_permanent_upgrades():
+		push_error("❌ CRITICAL: Save failed! Rolling back crit chance upgrade.")
+		RewardManager.archive_tokens = backup_at
+		RewardManager.perm_crit_chance = backup_crit
+		RunStats.add_at_spent_perm_upgrade(-cost)
+		return false
+
 	print("🏅 Permanent Crit Chance +1%. Now:", RewardManager.perm_crit_chance)
 	return true
 

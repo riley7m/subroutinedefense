@@ -76,7 +76,8 @@ func start_wave(wave_number: int) -> int:
 		return current_wave
 
 	# Normal mode handling
-	if should_skip_wave():
+	# Boss waves (every 10th) cannot be skipped - they are progression gates
+	if should_skip_wave() and actual_wave % 10 != 0:
 		print("⏩ Wave", actual_wave, "skipped due to Wave Skip Chance!")
 		actual_wave += 1
 
@@ -210,10 +211,10 @@ func reset():
 
 func end_boss_rush() -> void:
 	# Called when boss rush ends (wave 100 or player death)
-	var final_damage = RunStats.damage_dealt
+	var final_damage = RunStats.damage_dealt  # Already float from RunStats
 	var final_wave = current_wave
 	BossRushManager.end_boss_rush(final_damage, final_wave)
-	print("🏆 Boss Rush ended! Final wave: %d, Damage dealt: %d" % [final_wave, final_damage])
+	print("🏆 Boss Rush ended! Final wave: %d, Damage dealt: %.0f" % [final_wave, final_damage])
 
 func reset_wave_timers():
 	enemy_spawn_timer = 0.0
