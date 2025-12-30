@@ -437,9 +437,9 @@ func _on_daily_reward_pressed() -> void:
 	if not DailyRewardManager:
 		return
 
-	if DailyRewardManager.claim_reward():
-		# Get reward info to show in popup
-		var reward_info = DailyRewardManager.get_current_reward_info()
+	var reward_info = DailyRewardManager.claim_reward()
+	if not reward_info.is_empty():
+		# Show popup with claimed reward
 		_show_daily_reward_popup(reward_info["fragments"], reward_info["qc"], reward_info["day"])
 		_update_display()
 		_update_timers()
@@ -581,12 +581,63 @@ func _show_tournament_ui() -> void:
 	leaderboard_list.custom_minimum_size = Vector2(300, 0)
 	leaderboard_scroll.add_child(leaderboard_list)
 
-	# Add leaderboard entries (placeholder for now)
-	for i in range(10):
-		var entry = Label.new()
-		entry.text = "%d. Player %d - 0 Damage" % [i + 1, i + 1]
-		entry.add_theme_font_size_override("font_size", 14)
-		leaderboard_list.add_child(entry)
+	# Add leaderboard entries from BossRushManager
+	if BossRushManager and BossRushManager.leaderboard.size() > 0:
+		var rank = 1
+		for entry_data in BossRushManager.leaderboard:
+			var entry_container = HBoxContainer.new()
+			entry_container.custom_minimum_size = Vector2(300, 35)
+			leaderboard_list.add_child(entry_container)
+
+			# Rank
+			var rank_label = Label.new()
+			rank_label.text = "%d." % rank
+			rank_label.add_theme_font_size_override("font_size", 14)
+			rank_label.custom_minimum_size = Vector2(30, 35)
+			entry_container.add_child(rank_label)
+
+			# Player ID (truncate if too long)
+			var player_id = entry_data.get("player_id", "Player")
+			if player_id.length() > 12:
+				player_id = player_id.substr(0, 12) + "..."
+			var player_label = Label.new()
+			player_label.text = player_id
+			player_label.add_theme_font_size_override("font_size", 13)
+			player_label.custom_minimum_size = Vector2(120, 35)
+			entry_container.add_child(player_label)
+
+			# Damage
+			var damage_label = Label.new()
+			damage_label.text = "%s DMG" % NumberFormatter.format(entry_data.get("damage", 0))
+			damage_label.add_theme_font_size_override("font_size", 13)
+			damage_label.custom_minimum_size = Vector2(120, 35)
+			damage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			damage_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+			entry_container.add_child(damage_label)
+
+			rank += 1
+
+			# Top 3 get special colors
+			if rank <= 4:  # rank is already incremented, so check <= 4
+				var color = Color.WHITE
+				if rank == 2:  # 1st place (gold)
+					color = Color(1.0, 0.84, 0.0)
+				elif rank == 3:  # 2nd place (silver)
+					color = Color(0.75, 0.75, 0.75)
+				elif rank == 4:  # 3rd place (bronze)
+					color = Color(0.8, 0.5, 0.2)
+
+				rank_label.add_theme_color_override("font_color", color)
+				player_label.add_theme_color_override("font_color", color)
+	else:
+		# No leaderboard data yet
+		var empty_label = Label.new()
+		empty_label.text = "No tournament data yet.\nBe the first to compete!"
+		empty_label.add_theme_font_size_override("font_size", 14)
+		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_label.custom_minimum_size = Vector2(300, 100)
+		empty_label.modulate = Color(0.7, 0.7, 0.7)
+		leaderboard_list.add_child(empty_label)
 
 	# Close button
 	var close_button = Button.new()

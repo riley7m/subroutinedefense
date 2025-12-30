@@ -93,11 +93,11 @@ func get_time_until_ready_string() -> String:
 	else:
 		return "%dm" % minutes
 
-# Claim daily reward (returns true if successful)
-func claim_reward() -> bool:
+# Claim daily reward (returns dictionary with reward info if successful, empty dict if failed)
+func claim_reward() -> Dictionary:
 	if not is_reward_ready():
 		print("⚠️ Daily reward not ready yet!")
-		return false
+		return {}
 
 	# Calculate streak
 	var now = Time.get_unix_time_from_system()
@@ -116,10 +116,11 @@ func claim_reward() -> bool:
 		else:
 			current_streak = 0  # Missed a day, reset streak
 
-	# Get reward for current streak tier
+	# Get reward for current streak tier (BEFORE incrementing)
 	var reward_tier = DAILY_REWARD_TIERS[current_streak]
 	var fragments = reward_tier["fragments"]
 	var qc = reward_tier["qc"]
+	var day_claimed = current_streak + 1
 
 	# Award rewards
 	if RewardManager:
@@ -134,11 +135,16 @@ func claim_reward() -> bool:
 	save_data()
 
 	# Emit signal
-	emit_signal("reward_claimed", fragments, qc, current_streak + 1)
+	emit_signal("reward_claimed", fragments, qc, day_claimed)
 
-	print("🎁 Daily reward claimed! Day %d: %d 💎 + %d 🔮" % [current_streak + 1, fragments, qc])
+	print("🎁 Daily reward claimed! Day %d: %d 💎 + %d 🔮" % [day_claimed, fragments, qc])
 
-	return true
+	# Return claimed reward info
+	return {
+		"fragments": fragments,
+		"qc": qc,
+		"day": day_claimed
+	}
 
 # Get current reward info (what will be claimed)
 func get_current_reward_info() -> Dictionary:
