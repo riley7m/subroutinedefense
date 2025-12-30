@@ -111,9 +111,10 @@ func _on_body_entered(body: Node2D) -> void:
 				body.take_damage(dealt_dmg)
 
 			# Calculate overkill if enemy died
-			if body.has_method("get_health") and body.get_health() <= 0:
-				var enemy_health = body.get("max_health") if body.has_method("get") else 0
-				overkill_damage = max(0, dealt_dmg - enemy_health)
+			# TODO: Overkill calculation needs redesign - enemies don't store max HP
+			# For now, disable overkill to prevent errors
+			# if body.has_method("get_health") and body.get_health().less_equal(BigNumber.new(0)):
+			# 	overkill_damage calculation here
 
 		# Handle piercing
 		var piercing = UpgradeManager.get_piercing()
