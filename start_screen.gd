@@ -356,6 +356,11 @@ func _connect_signals() -> void:
 	if RewardManager:
 		RewardManager.currency_changed.connect(_update_display)
 
+	# Listen for daily reward signals
+	if DailyRewardManager:
+		DailyRewardManager.reward_ready.connect(_update_timers)
+		DailyRewardManager.reward_claimed.connect(_on_daily_reward_claimed_signal)
+
 # === DISPLAY UPDATE ===
 
 func _update_display() -> void:
@@ -381,11 +386,33 @@ func _update_display() -> void:
 
 func _update_timers() -> void:
 	# Update daily reward timer
-	# TODO: Implement actual timer logic
-	daily_reward_timer_label.text = "Next in\n2d 6h"
+	if DailyRewardManager:
+		if DailyRewardManager.is_reward_ready():
+			daily_reward_button.text = "💎 CLAIM"
+			daily_reward_button.disabled = false
+			daily_reward_timer_label.text = "Ready!"
+		else:
+			daily_reward_button.text = "💎"
+			daily_reward_button.disabled = true
+			var time_string = DailyRewardManager.get_time_until_ready_string()
+			daily_reward_timer_label.text = "Next in\n%s" % time_string
 
 	# Update tournament timer
-	tournament_timer_label.text = "Next in 1d 6h"
+	if BossRushManager:
+		if BossRushManager.is_tournament_available():
+			tournament_button.disabled = false
+			tournament_timer_label.text = "ACTIVE!"
+		else:
+			tournament_button.disabled = true
+			var next_tournament = BossRushManager.get_next_tournament_time()
+			var hours = next_tournament["hours_until"]
+			var days = hours / 24
+			var remaining_hours = hours % 24
+
+			if days > 0:
+				tournament_timer_label.text = "Next in %dd %dh" % [days, remaining_hours]
+			else:
+				tournament_timer_label.text = "Next in %dh" % remaining_hours
 
 # === BUTTON HANDLERS ===
 
@@ -407,18 +434,34 @@ func _on_tier_right_pressed() -> void:
 		_update_display()
 
 func _on_daily_reward_pressed() -> void:
-	print("🎁 Daily reward claimed!")
-	# TODO: Implement daily rewards
+	if not DailyRewardManager:
+		return
+
+	if DailyRewardManager.claim_reward():
+		# Get reward info to show in popup
+		var reward_info = DailyRewardManager.get_current_reward_info()
+		_show_daily_reward_popup(reward_info["fragments"], reward_info["qc"], reward_info["day"])
+		_update_display()
+		_update_timers()
+
+func _on_daily_reward_claimed_signal(fragments: int, qc: int, streak: int) -> void:
+	# Signal handler for when reward is claimed (can be used for notifications)
+	pass
 
 func _on_tournament_pressed() -> void:
-	print("🏆 Tournament pressed")
-	# TODO: Open tournament/boss rush UI
+	if not BossRushManager:
+		return
+
+	if BossRushManager.is_tournament_available():
+		_show_tournament_ui()
+	else:
+		print("⚠️ Tournament not available yet")
 
 func _on_milestone_pressed() -> void:
 	_show_overlay("milestone")
 
 func _on_settings_pressed() -> void:
-	print("⚙️ Settings (coming soon)")
+	_show_overlay("settings")
 
 func _on_labs_pressed() -> void:
 	_show_overlay("labs")
@@ -440,12 +483,10 @@ func _on_drones_nav_pressed() -> void:
 	_show_overlay("drones")
 
 func _on_perms_nav_pressed() -> void:
-	print("⬆️ Permanent upgrades (coming soon)")
-	# TODO: Show permanent upgrades panel
+	_show_overlay("perms")
 
 func _on_data_disks_nav_pressed() -> void:
-	print("📀 Data disks (coming soon)")
-	# TODO: Show data disk collection UI
+	_show_overlay("data_disks")
 
 func _on_tiers_nav_pressed() -> void:
 	_show_overlay("tiers")
@@ -474,10 +515,140 @@ func _show_overlay(overlay_type: String) -> void:
 			overlay_panel = preload("res://milestone_ui.gd").new()
 		"tiers":
 			overlay_panel = preload("res://tier_selection_ui.gd").new()
+		"perms":
+			overlay_panel = preload("res://permanent_upgrades_ui.gd").new()
+		"data_disks":
+			overlay_panel = preload("res://data_disk_collection_ui.gd").new()
+		"settings":
+			overlay_panel = preload("res://settings_ui.gd").new()
 
 	if overlay_panel:
 		add_child(overlay_panel)
 		overlay_panel.visible = true
+
+# === TOURNAMENT UI ===
+
+func _show_tournament_ui() -> void:
+	# Create tournament info panel
+	var tournament_panel = Panel.new()
+	tournament_panel.position = Vector2(15, 50)
+	tournament_panel.custom_minimum_size = Vector2(360, 780)
+	add_child(tournament_panel)
+
+	# Title
+	var title = Label.new()
+	title.text = "🏆 BOSS RUSH TOURNAMENT"
+	title.position = Vector2(20, 15)
+	title.add_theme_font_size_override("font_size", 22)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(320, 30)
+	tournament_panel.add_child(title)
+
+	# Info text
+	var info = Label.new()
+	info.text = "Every wave spawns only bosses!\nDamage dealt determines your rank.\n\nTop 10 players earn fragment rewards!"
+	info.position = Vector2(20, 50)
+	info.add_theme_font_size_override("font_size", 14)
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.custom_minimum_size = Vector2(320, 80)
+	tournament_panel.add_child(info)
+
+	# Start Boss Rush button
+	var start_button = Button.new()
+	start_button.text = "START BOSS RUSH"
+	start_button.position = Vector2(60, 140)
+	start_button.custom_minimum_size = Vector2(240, 60)
+	start_button.add_theme_font_size_override("font_size", 20)
+	start_button.pressed.connect(_on_start_boss_rush_from_tournament)
+	tournament_panel.add_child(start_button)
+
+	# Leaderboard section
+	var leaderboard_label = Label.new()
+	leaderboard_label.text = "LEADERBOARD"
+	leaderboard_label.position = Vector2(20, 220)
+	leaderboard_label.add_theme_font_size_override("font_size", 18)
+	leaderboard_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	leaderboard_label.custom_minimum_size = Vector2(320, 25)
+	tournament_panel.add_child(leaderboard_label)
+
+	# Leaderboard scroll area
+	var leaderboard_scroll = ScrollContainer.new()
+	leaderboard_scroll.position = Vector2(20, 255)
+	leaderboard_scroll.custom_minimum_size = Vector2(320, 450)
+	tournament_panel.add_child(leaderboard_scroll)
+
+	var leaderboard_list = VBoxContainer.new()
+	leaderboard_list.custom_minimum_size = Vector2(300, 0)
+	leaderboard_scroll.add_child(leaderboard_list)
+
+	# Add leaderboard entries (placeholder for now)
+	for i in range(10):
+		var entry = Label.new()
+		entry.text = "%d. Player %d - 0 Damage" % [i + 1, i + 1]
+		entry.add_theme_font_size_override("font_size", 14)
+		leaderboard_list.add_child(entry)
+
+	# Close button
+	var close_button = Button.new()
+	close_button.text = "Close"
+	close_button.position = Vector2(125, 725)
+	close_button.custom_minimum_size = Vector2(110, 35)
+	close_button.pressed.connect(func(): tournament_panel.queue_free())
+	tournament_panel.add_child(close_button)
+
+func _on_start_boss_rush_from_tournament() -> void:
+	# Start boss rush mode and transition to game
+	if BossRushManager:
+		BossRushManager.start_boss_rush()
+	get_tree().change_scene_to_file("res://main_hud.tscn")
+
+# === DAILY REWARD POPUP ===
+
+func _show_daily_reward_popup(fragments: int, qc: int, day: int) -> void:
+	# Create popup panel
+	var popup_bg = Panel.new()
+	popup_bg.position = Vector2(60, 300)
+	popup_bg.custom_minimum_size = Vector2(270, 200)
+	add_child(popup_bg)
+
+	# Title
+	var title = Label.new()
+	title.text = "🎁 DAILY REWARD"
+	title.position = Vector2(20, 15)
+	title.add_theme_font_size_override("font_size", 22)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.custom_minimum_size = Vector2(230, 30)
+	popup_bg.add_child(title)
+
+	# Day streak
+	var day_label = Label.new()
+	day_label.text = "Day %d Claimed!" % day
+	day_label.position = Vector2(20, 50)
+	day_label.add_theme_font_size_override("font_size", 16)
+	day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	day_label.custom_minimum_size = Vector2(230, 25)
+	popup_bg.add_child(day_label)
+
+	# Rewards
+	var reward_label = Label.new()
+	reward_label.text = "💎 %s Fragments\n🔮 %s Quantum Cores" % [
+		NumberFormatter.format(fragments),
+		NumberFormatter.format(qc)
+	]
+	reward_label.position = Vector2(20, 85)
+	reward_label.add_theme_font_size_override("font_size", 16)
+	reward_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	reward_label.custom_minimum_size = Vector2(230, 60)
+	reward_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
+	popup_bg.add_child(reward_label)
+
+	# Close button
+	var close_button = Button.new()
+	close_button.text = "Claim"
+	close_button.position = Vector2(80, 155)
+	close_button.custom_minimum_size = Vector2(110, 35)
+	close_button.pressed.connect(func(): popup_bg.queue_free())
+	popup_bg.add_child(close_button)
 
 # === LOGIN ===
 
