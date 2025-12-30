@@ -414,11 +414,12 @@ func _award_fragments_for_rank(rank: int) -> void:
 		print("⚠️ Fragments already awarded for this run")
 		return
 
-	var fragments = get_fragment_reward_for_rank(rank)
+	# Set flag BEFORE awarding to prevent race condition
+	fragments_awarded_for_current_run = true
 
+	var fragments = get_fragment_reward_for_rank(rank)
 	if fragments > 0 and RewardManager:
 		RewardManager.add_fragments(fragments)
-		fragments_awarded_for_current_run = true  # Mark as awarded
 		print("💎 Awarded %d fragments for rank #%d!" % [fragments, rank])
 
 # === LOCAL LEADERBOARD (Fallback/Cache) ===

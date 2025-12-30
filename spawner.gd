@@ -25,14 +25,19 @@ var current_wave: int = 1
 var wave_spawning: bool = false
 var enemy_spawn_timer: float = 0.0
 
+# Wave skip tracking (prevent consecutive skips)
+var last_skip_wave: int = -999  # Initialize far in past
+const WAVE_SKIP_COOLDOWN: int = 3  # Minimum waves between skips
+
 func _ready() -> void:
 	# Initialize enemy pools for all types
+	# Pool size 60 to handle late-game waves (up to 40 enemies + buffer)
 	var enemy_types = ["breacher", "slicer", "sentinel", "signal_runner", "null_walker", "override"]
 	for i in range(enemy_scenes.size()):
 		if i < enemy_types.size():
 			var pool_name = "enemy_" + enemy_types[i]
 			if not ObjectPool.pools.has(pool_name):
-				ObjectPool.create_pool(pool_name, enemy_scenes[i], 30)
+				ObjectPool.create_pool(pool_name, enemy_scenes[i], 60)
 
 func _process(delta: float) -> void:
 	if wave_spawning:
@@ -77,8 +82,11 @@ func start_wave(wave_number: int) -> int:
 
 	# Normal mode handling
 	# Boss waves (every 10th) cannot be skipped - they are progression gates
-	if should_skip_wave() and actual_wave % 10 != 0:
+	# Also prevent consecutive skips with cooldown (must wait 3 waves)
+	var can_skip = should_skip_wave() and actual_wave % 10 != 0 and (actual_wave - last_skip_wave) >= WAVE_SKIP_COOLDOWN
+	if can_skip:
 		print("⏩ Wave", actual_wave, "skipped due to Wave Skip Chance!")
+		last_skip_wave = actual_wave
 		actual_wave += 1
 
 	current_wave = actual_wave
@@ -201,6 +209,7 @@ func reset():
 	spawned_enemies = 0
 	wave_spawning = false
 	enemy_spawn_timer = 0.0
+	last_skip_wave = -999  # Reset skip tracking
 	# Remove all enemies from the scene
 	for enemy in get_children():
 		if "Enemy" in enemy.name or enemy.is_in_group("enemies"):

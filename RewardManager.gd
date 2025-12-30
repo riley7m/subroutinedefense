@@ -671,6 +671,7 @@ func _apply_save_data(data: Dictionary) -> void:
 	var save_version = data.get("version", 1)  # Default to version 1 if missing
 	if save_version < SAVE_VERSION:
 		print("📦 Migrating save from version %d to version %d" % [save_version, SAVE_VERSION])
+		data = _migrate_save_data(data, save_version, SAVE_VERSION)
 	elif save_version > SAVE_VERSION:
 		push_warning("⚠️ Save file version %d is newer than current version %d! Loading may fail." % [save_version, SAVE_VERSION])
 
@@ -798,6 +799,36 @@ func _apply_save_data(data: Dictionary) -> void:
 
 	# Calculate offline progress (without ad by default - UI will handle ad option)
 	calculate_offline_progress(false)
+
+## Migration Framework: Apply version-specific migrations
+func _migrate_save_data(data: Dictionary, from_version: int, to_version: int) -> Dictionary:
+	# Apply migrations sequentially from old version to new
+	for version in range(from_version + 1, to_version + 1):
+		print("  Applying migration for version %d..." % version)
+		data = _apply_migration_for_version(data, version)
+	return data
+
+## Apply specific migration logic for each version
+func _apply_migration_for_version(data: Dictionary, target_version: int) -> Dictionary:
+	match target_version:
+		2:
+			# Version 2: Migrate perm_projectile_damage from int to BigNumber
+			if data.has("perm_projectile_damage") and not data.has("perm_projectile_damage_mantissa"):
+				var old_value = data.get("perm_projectile_damage", 0)
+				if old_value > 0:
+					var bn = BigNumber.new(old_value)
+					data["perm_projectile_damage_mantissa"] = bn.mantissa
+					data["perm_projectile_damage_exponent"] = bn.exponent
+					print("    Migrated perm_projectile_damage: %d → BigNumber(%.2f, %d)" % [old_value, bn.mantissa, bn.exponent])
+				data.erase("perm_projectile_damage")  # Remove old field
+		# Add future version migrations here:
+		# 3:
+		#     # Migration logic for version 3
+		# 4:
+		#     # Migration logic for version 4
+		_:
+			pass  # No migration needed for this version
+	return data
 
 # === CLOUD SAVE INTEGRATION ===
 

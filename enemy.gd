@@ -436,10 +436,16 @@ func apply_wave_scaling():
 	# Get tier multiplier
 	var tier_mult = TierManager.get_enemy_multiplier()
 
-	# Apply tier multiplier to base stats, then wave scaling
-	# Exponential HP scaling using BigNumber for infinite progression
-	var calculated_hp = base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number)
-	hp = BigNumber.new(calculated_hp)
+	# Use BigNumber for intermediate calculations to prevent float precision loss
+	var wave_mult = pow(HP_SCALING_BASE, wave_number)
+
+	# Calculate HP using BigNumber to maintain precision
+	var hp_bn = BigNumber.new(base_hp)
+	hp_bn.multiply(tier_mult)
+	hp_bn.multiply(wave_mult)
+	hp = hp_bn  # No caps - infinite scaling with BigNumber
+
+	# Damage and speed use regular float (don't need extreme precision)
 	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
 	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)

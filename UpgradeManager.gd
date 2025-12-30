@@ -28,7 +28,8 @@ var free_upgrade_chance_level: int = 1
 
 # New upgrades (batch 1)
 var piercing_level: int = 0
-var overkill_damage_level: int = 0
+# NOTE: Overkill system disabled - enemies don't store max HP, calculation impossible
+# var overkill_damage_level: int = 0  # DISABLED until redesigned
 var projectile_speed_level: int = 0
 var block_chance_level: int = 0
 var block_amount_level: int = 0
@@ -54,7 +55,7 @@ var archive_multiplier_purchases: int = 0
 var wave_skip_purchases: int = 0
 var free_upgrade_purchases: int = 0
 var piercing_purchases: int = 0
-var overkill_purchases: int = 0
+# var overkill_purchases: int = 0  # DISABLED - overkill system non-functional
 var projectile_speed_purchases: int = 0
 var block_chance_purchases: int = 0
 var block_amount_purchases: int = 0
@@ -92,8 +93,9 @@ const FREE_UPGRADE_MAX_CHANCE := 50.0
 # New upgrade constants
 const PIERCING_BASE_COST := 150
 const PIERCING_PER_LEVEL := 1  # +1 enemy pierced per level
-const OVERKILL_BASE_COST := 200
-const OVERKILL_PER_LEVEL := 0.05  # +5% overkill damage spread
+# OVERKILL DISABLED - System non-functional (enemies don't store max HP)
+# const OVERKILL_BASE_COST := 200
+# const OVERKILL_PER_LEVEL := 0.05  # +5% overkill damage spread
 const PROJECTILE_SPEED_BASE_COST := 75
 const PROJECTILE_SPEED_PER_LEVEL := 0.1  # +10% speed
 const BLOCK_CHANCE_BASE_COST := 150
@@ -197,10 +199,11 @@ const PERM_DRONE_MAX_LEVEL := 30  # Max level for permanent drone upgrades
 # Exponential cost scaling for permanent upgrades (AT-based)
 # Formula: base * (1.13 ^ level)
 #
+# Uses BigNumber to prevent int64 overflow at high levels (150+)
 # This creates a 3-year progression timeline where:
 # - Early levels: affordable with basic gameplay (1-50)
 # - Mid levels: require focused farming (50-200)
-# - Late levels: endgame grind (200-500)
+# - Late levels: endgame grind (200-500+)
 #
 # Example costs for base=5000:
 # - Level 1: 5,650 AT (1.13x)
@@ -208,10 +211,19 @@ const PERM_DRONE_MAX_LEVEL := 30  # Max level for permanent drone upgrades
 # - Level 50: 423,063 AT (84.6x)
 # - Level 100: 35,847,267 AT (7,169x)
 # - Level 200: 1.03e12 AT (206 billion)
+# - Level 500: 1.9e25 AT (requires BigNumber)
 #
 # Note: The 'increment' parameter is legacy and not used
 func get_perm_cost(base: int, increment: int, level: int) -> int:
-	return int(base * pow(1.13, level))
+	# For levels < 100, use simple int calculation (faster)
+	if level < 100:
+		return int(base * pow(1.13, level))
+
+	# For high levels, use BigNumber to prevent overflow
+	var cost_bn = BigNumber.new(base)
+	var multiplier = pow(1.13, level)
+	cost_bn.multiply(multiplier)
+	return cost_bn.to_int()  # Will cap at int64 max if needed
 
 func get_perm_drone_upgrade_cost(level: int) -> int:
 	return 2500 + level * 1000
@@ -326,7 +338,9 @@ func get_piercing() -> int:
 	return piercing_level * PIERCING_PER_LEVEL + RewardManager.perm_piercing
 
 func get_overkill_damage() -> float:
-	return overkill_damage_level * OVERKILL_PER_LEVEL + RewardManager.perm_overkill_damage
+	# Overkill system disabled - always return 0
+	return 0.0
+	# return overkill_damage_level * OVERKILL_PER_LEVEL + RewardManager.perm_overkill_damage
 
 func get_projectile_speed() -> float:
 	return 1.0 + (projectile_speed_level * PROJECTILE_SPEED_PER_LEVEL) + RewardManager.perm_projectile_speed
@@ -1231,7 +1245,7 @@ func reset_run_upgrades():
 	free_upgrade_chance_level = 50
 	# Batch 1 upgrades
 	piercing_level = 0
-	overkill_damage_level = 0
+	# overkill_damage_level = 0  # DISABLED
 	projectile_speed_level = 0
 	block_chance_level = 0
 	block_amount_level = 0
@@ -1258,7 +1272,7 @@ func reset_run_upgrades():
 	wave_skip_purchases = 0
 	free_upgrade_purchases = 0
 	piercing_purchases = 0
-	overkill_purchases = 0
+	# overkill_purchases = 0  # DISABLED
 	projectile_speed_purchases = 0
 	block_chance_purchases = 0
 	block_amount_purchases = 0
