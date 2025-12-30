@@ -692,9 +692,10 @@ func _apply_save_data(data: Dictionary) -> void:
 	perm_drone_frost_level = _safe_int.call("perm_drone_frost_level", 0, 0, 10000)
 	perm_drone_poison_level = _safe_int.call("perm_drone_poison_level", 0, 0, 10000)
 	perm_drone_shock_level = _safe_int.call("perm_drone_shock_level", 0, 0, 10000)
-	archive_tokens = _safe_int.call("archive_tokens", 0, 0, 999999999)
-	fragments = _safe_int.call("fragments", 0, 0, 999999999)
-	quantum_cores = _safe_int.call("quantum_cores", 0, 0, 999999999)
+	# Currency caps raised to int64 max to support Tier 10 rewards (4B+ per boss)
+	archive_tokens = _safe_int.call("archive_tokens", 0, 0, 9223372036854775807)
+	fragments = _safe_int.call("fragments", 0, 0, 9223372036854775807)
+	quantum_cores = _safe_int.call("quantum_cores", 0, 0, 9223372036854775807)
 
 	# Validate dictionary and array types
 	var drones_data = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
@@ -716,12 +717,12 @@ func _apply_save_data(data: Dictionary) -> void:
 	if tier_data and not tier_data.is_empty():
 		TierManager.load_tier_data(tier_data)
 
-	# Load lifetime statistics (with type validation)
-	RunStats.lifetime_dc_earned = _safe_int.call("lifetime_dc_earned", 0, 0, 999999999)
-	RunStats.lifetime_at_earned = _safe_int.call("lifetime_at_earned", 0, 0, 999999999)
-	RunStats.lifetime_fragments_earned = _safe_int.call("lifetime_fragments_earned", 0, 0, 999999999)
-	RunStats.lifetime_at_spent_labs = _safe_int.call("lifetime_at_spent_labs", 0, 0, 999999999)
-	RunStats.lifetime_at_spent_perm_upgrades = _safe_int.call("lifetime_at_spent_perm_upgrades", 0, 0, 999999999)
+	# Load lifetime statistics (with type validation, int64 max for late-game support)
+	RunStats.lifetime_dc_earned = _safe_int.call("lifetime_dc_earned", 0, 0, 9223372036854775807)
+	RunStats.lifetime_at_earned = _safe_int.call("lifetime_at_earned", 0, 0, 9223372036854775807)
+	RunStats.lifetime_fragments_earned = _safe_int.call("lifetime_fragments_earned", 0, 0, 9223372036854775807)
+	RunStats.lifetime_at_spent_labs = _safe_int.call("lifetime_at_spent_labs", 0, 0, 9223372036854775807)
+	RunStats.lifetime_at_spent_perm_upgrades = _safe_int.call("lifetime_at_spent_perm_upgrades", 0, 0, 9223372036854775807)
 
 	# Validate lifetime_kills dictionary
 	var kills_data = data.get("lifetime_kills", {

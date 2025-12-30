@@ -431,7 +431,10 @@ func apply_wave_scaling():
 
 	# Apply tier multiplier to base stats, then wave scaling
 	# Exponential HP scaling for better late-game balance
-	hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
+	var calculated_hp = base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number)
+	# Cap HP to int64 max to prevent overflow and ensure bosses remain killable
+	# (Damage also caps at int64 max via BigNumber.to_int())
+	hp = int(min(calculated_hp, 9223372036854775807))
 	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
 	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)
@@ -442,7 +445,9 @@ func apply_boss_rush_scaling():
 	var boss_rush_mult = BossRushManager.get_boss_rush_hp_multiplier(wave_number)
 
 	# Apply exponential HP scaling (5% per wave vs 2% normal)
-	hp = int(base_hp * boss_rush_mult)
+	var calculated_hp = base_hp * boss_rush_mult
+	# Cap to int64 max to prevent overflow
+	hp = int(min(calculated_hp, 9223372036854775807))
 	damage_to_tower = int(base_damage * BossRushManager.get_boss_rush_damage_multiplier())
 	move_speed = base_speed * BossRushManager.get_boss_rush_speed_multiplier()
 
@@ -456,7 +461,8 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0, ti
 
 	# Cap at upgraded HP cap percent (default 10%, upgradeable to 25%)
 	var tier_mult = TierManager.get_enemy_multiplier()
-	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
+	var calculated_max_hp = base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number)
+	var max_hp = int(min(calculated_max_hp, 9223372036854775807))
 	var max_burn_per_tick = max_hp * hp_cap_percent
 	if burn_damage_per_tick > max_burn_per_tick:
 		burn_damage_per_tick = max_burn_per_tick
@@ -478,7 +484,8 @@ func apply_poison(level: int, duration: float = 4.0, max_stacks: int = 1) -> voi
 	var percent_per_sec = POISON_MIN_PERCENT + (level - 1) * POISON_PERCENT_PER_LEVEL
 	percent_per_sec = clamp(percent_per_sec, POISON_MIN_PERCENT, POISON_MAX_PERCENT)
 	var tier_mult = TierManager.get_enemy_multiplier()
-	var max_hp = int(base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number))
+	var calculated_max_hp = base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number)
+	var max_hp = int(min(calculated_max_hp, 9223372036854775807))
 	var new_poison_damage = max_hp * percent_per_sec
 
 	# Stacking: if already poisoned and max_stacks > 1, add to existing damage
