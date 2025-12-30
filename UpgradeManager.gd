@@ -761,7 +761,6 @@ func upgrade_perm_projectile_damage() -> bool:
 		return false
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
-	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_projectile_damage += 10
 	RewardManager.save_permanent_upgrades()
 	print("🏅 Permanent Projectile Damage +10. Now:", RewardManager.perm_projectile_damage)

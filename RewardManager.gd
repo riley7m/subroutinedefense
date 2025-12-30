@@ -645,55 +645,86 @@ func load_permanent_upgrades():
 	print("❌ All save files corrupted or missing. Starting fresh.")
 
 func _apply_save_data(data: Dictionary) -> void:
+	# Helper to safely load numeric values with type validation
+	var _safe_int = func(key: String, default: int, min_val: int, max_val: int) -> int:
+		var value = data.get(key, default)
+		if typeof(value) != TYPE_INT:
+			push_warning("⚠️ Save data type mismatch for %s, using default" % key)
+			return default
+		return clamp(value, min_val, max_val)
 
-	# Load with validation (clamp to reasonable ranges)
-	perm_projectile_damage = clamp(data.get("perm_projectile_damage", 0), 0, 100000)
-	perm_projectile_fire_rate = clamp(data.get("perm_projectile_fire_rate", 0.0), 0.0, 1000.0)
-	perm_crit_chance = clamp(data.get("perm_crit_chance", 0), 0, 100000)
-	perm_crit_damage = clamp(data.get("perm_crit_damage", 0.0), 0.0, 1000.0)
-	perm_piercing = clamp(data.get("perm_piercing", 0), 0, 100000)
-	perm_overkill_damage = clamp(data.get("perm_overkill_damage", 0.0), 0.0, 1000.0)
-	perm_projectile_speed = clamp(data.get("perm_projectile_speed", 0.0), 0.0, 1000.0)
-	perm_shield_integrity = clamp(data.get("perm_shield_integrity", 0), 0, 100000)
-	perm_damage_reduction = clamp(data.get("perm_damage_reduction", 0.0), 0.0, 1000.0)
-	perm_shield_regen = clamp(data.get("perm_shield_regen", 0.0), 0.0, 1000.0)
-	perm_block_chance = clamp(data.get("perm_block_chance", 0.0), 0.0, 100.0)
-	perm_block_amount = clamp(data.get("perm_block_amount", 0), 0, 100000)
-	perm_boss_resistance = clamp(data.get("perm_boss_resistance", 0.0), 0.0, 100.0)
-	perm_data_credit_multiplier = clamp(data.get("perm_data_credit_multiplier", 0.0), 0.0, 1000.0)
-	perm_archive_token_multiplier = clamp(data.get("perm_archive_token_multiplier", 0.0), 0.0, 1000.0)
-	perm_wave_skip_chance = clamp(data.get("perm_wave_skip_chance", 0.0), 0.0, 100.0)
-	perm_free_upgrade_chance = clamp(data.get("perm_free_upgrade_chance", 0.0), 0.0, 100.0)
-	perm_overshield = clamp(data.get("perm_overshield", 0), 0, 100000)
-	perm_boss_bonus = clamp(data.get("perm_boss_bonus", 0.0), 0.0, 1000.0)
-	perm_lucky_drops = clamp(data.get("perm_lucky_drops", 0.0), 0.0, 100.0)
-	perm_ricochet_chance = clamp(data.get("perm_ricochet_chance", 0.0), 0.0, 100.0)
-	perm_ricochet_max_targets = clamp(data.get("perm_ricochet_max_targets", 0), 0, 100)
+	var _safe_float = func(key: String, default: float, min_val: float, max_val: float) -> float:
+		var value = data.get(key, default)
+		if typeof(value) != TYPE_FLOAT and typeof(value) != TYPE_INT:
+			push_warning("⚠️ Save data type mismatch for %s, using default" % key)
+			return default
+		return clamp(float(value), min_val, max_val)
+
+	# Load with validation (clamp to reasonable ranges + type checking)
+	perm_projectile_damage = _safe_int.call("perm_projectile_damage", 0, 0, 100000)
+	perm_projectile_fire_rate = _safe_float.call("perm_projectile_fire_rate", 0.0, 0.0, 1000.0)
+	perm_crit_chance = _safe_int.call("perm_crit_chance", 0, 0, 100000)
+	perm_crit_damage = _safe_float.call("perm_crit_damage", 0.0, 0.0, 1000.0)
+	perm_piercing = _safe_int.call("perm_piercing", 0, 0, 100000)
+	perm_overkill_damage = _safe_float.call("perm_overkill_damage", 0.0, 0.0, 1000.0)
+	perm_projectile_speed = _safe_float.call("perm_projectile_speed", 0.0, 0.0, 1000.0)
+	perm_shield_integrity = _safe_int.call("perm_shield_integrity", 0, 0, 100000)
+	perm_damage_reduction = _safe_float.call("perm_damage_reduction", 0.0, 0.0, 1000.0)
+	perm_shield_regen = _safe_float.call("perm_shield_regen", 0.0, 0.0, 1000.0)
+	perm_block_chance = _safe_float.call("perm_block_chance", 0.0, 0.0, 100.0)
+	perm_block_amount = _safe_int.call("perm_block_amount", 0, 0, 100000)
+	perm_boss_resistance = _safe_float.call("perm_boss_resistance", 0.0, 0.0, 100.0)
+	perm_data_credit_multiplier = _safe_float.call("perm_data_credit_multiplier", 0.0, 0.0, 1000.0)
+	perm_archive_token_multiplier = _safe_float.call("perm_archive_token_multiplier", 0.0, 0.0, 1000.0)
+	perm_wave_skip_chance = _safe_float.call("perm_wave_skip_chance", 0.0, 0.0, 100.0)
+	perm_free_upgrade_chance = _safe_float.call("perm_free_upgrade_chance", 0.0, 0.0, 100.0)
+	perm_overshield = _safe_int.call("perm_overshield", 0, 0, 100000)
+	perm_boss_bonus = _safe_float.call("perm_boss_bonus", 0.0, 0.0, 1000.0)
+	perm_lucky_drops = _safe_float.call("perm_lucky_drops", 0.0, 0.0, 100.0)
+	perm_ricochet_chance = _safe_float.call("perm_ricochet_chance", 0.0, 0.0, 100.0)
+	perm_ricochet_max_targets = _safe_int.call("perm_ricochet_max_targets", 0, 0, 100)
+
+	# Boolean field (no validation needed)
 	perm_multi_target_unlocked = data.get("perm_multi_target_unlocked", false)
-	perm_lab_speed = clamp(data.get("perm_lab_speed", 0.0), 0.0, 100.0)
-	perm_drone_flame_level = clamp(data.get("perm_drone_flame_level", 0), 0, 10000)
-	perm_drone_frost_level = clamp(data.get("perm_drone_frost_level", 0), 0, 10000)
-	perm_drone_poison_level = clamp(data.get("perm_drone_poison_level", 0), 0, 10000)
-	perm_drone_shock_level = clamp(data.get("perm_drone_shock_level", 0), 0, 10000)
-	archive_tokens = clamp(data.get("archive_tokens", 0), 0, 999999999)
-	fragments = clamp(data.get("fragments", 0), 0, 999999999)
-	quantum_cores = clamp(data.get("quantum_cores", 0), 0, 999999999)
-	owned_drones = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
-	last_play_time = data.get("last_play_time", 0)
-	run_history = data.get("run_history", [])
+
+	perm_lab_speed = _safe_float.call("perm_lab_speed", 0.0, 0.0, 100.0)
+	perm_drone_flame_level = _safe_int.call("perm_drone_flame_level", 0, 0, 10000)
+	perm_drone_frost_level = _safe_int.call("perm_drone_frost_level", 0, 0, 10000)
+	perm_drone_poison_level = _safe_int.call("perm_drone_poison_level", 0, 0, 10000)
+	perm_drone_shock_level = _safe_int.call("perm_drone_shock_level", 0, 0, 10000)
+	archive_tokens = _safe_int.call("archive_tokens", 0, 0, 999999999)
+	fragments = _safe_int.call("fragments", 0, 0, 999999999)
+	quantum_cores = _safe_int.call("quantum_cores", 0, 0, 999999999)
+
+	# Validate dictionary and array types
+	var drones_data = data.get("owned_drones", {"flame": false, "frost": false, "poison": false, "shock": false})
+	if typeof(drones_data) == TYPE_DICTIONARY:
+		owned_drones = drones_data
+	else:
+		owned_drones = {"flame": false, "frost": false, "poison": false, "shock": false}
+
+	last_play_time = _safe_int.call("last_play_time", 0, 0, 2147483647)
+
+	var history_data = data.get("run_history", [])
+	if typeof(history_data) == TYPE_ARRAY:
+		run_history = history_data
+	else:
+		run_history = []
 
 	# Load tier system data
 	var tier_data = data.get("tier_data", {})
 	if tier_data and not tier_data.is_empty():
 		TierManager.load_tier_data(tier_data)
 
-	# Load lifetime statistics
-	RunStats.lifetime_dc_earned = data.get("lifetime_dc_earned", 0)
-	RunStats.lifetime_at_earned = data.get("lifetime_at_earned", 0)
-	RunStats.lifetime_fragments_earned = data.get("lifetime_fragments_earned", 0)
-	RunStats.lifetime_at_spent_labs = data.get("lifetime_at_spent_labs", 0)
-	RunStats.lifetime_at_spent_perm_upgrades = data.get("lifetime_at_spent_perm_upgrades", 0)
-	RunStats.lifetime_kills = data.get("lifetime_kills", {
+	# Load lifetime statistics (with type validation)
+	RunStats.lifetime_dc_earned = _safe_int.call("lifetime_dc_earned", 0, 0, 999999999)
+	RunStats.lifetime_at_earned = _safe_int.call("lifetime_at_earned", 0, 0, 999999999)
+	RunStats.lifetime_fragments_earned = _safe_int.call("lifetime_fragments_earned", 0, 0, 999999999)
+	RunStats.lifetime_at_spent_labs = _safe_int.call("lifetime_at_spent_labs", 0, 0, 999999999)
+	RunStats.lifetime_at_spent_perm_upgrades = _safe_int.call("lifetime_at_spent_perm_upgrades", 0, 0, 999999999)
+
+	# Validate lifetime_kills dictionary
+	var kills_data = data.get("lifetime_kills", {
 		"breacher": 0,
 		"slicer": 0,
 		"sentinel": 0,
@@ -701,6 +732,18 @@ func _apply_save_data(data: Dictionary) -> void:
 		"nullwalker": 0,
 		"override": 0,
 	})
+	if typeof(kills_data) == TYPE_DICTIONARY:
+		RunStats.lifetime_kills = kills_data
+	else:
+		push_warning("⚠️ lifetime_kills type mismatch, using defaults")
+		RunStats.lifetime_kills = {
+			"breacher": 0,
+			"slicer": 0,
+			"sentinel": 0,
+			"signal_runner": 0,
+			"nullwalker": 0,
+			"override": 0,
+		}
 
 	print("🔄 Permanent upgrades loaded.")
 

@@ -56,6 +56,6 @@ func record_kill(enemy_type: String) -> void:
 	# Track for achievements
 	if AchievementManager:
 		AchievementManager.add_enemies_killed(1)
-		# Check if this is a boss kill (assuming boss types contain "boss" in name)
-		if "boss" in enemy_type.to_lower():
+		# Boss type is "override"
+		if enemy_type == "override":
 			AchievementManager.add_boss_killed()
