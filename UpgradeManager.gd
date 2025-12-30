@@ -247,7 +247,7 @@ func get_projectile_damage() -> BigNumber:
 
 	# Always use BigNumber for consistent infinite scaling
 	var bn = BigNumber.new(total)
-	var perm_bn = BigNumber.new(RewardManager.perm_projectile_damage)
+	var perm_bn = RewardManager.get_perm_projectile_damage_bn()
 	bn = bn.add(perm_bn)
 
 	# Apply data disk buffs (percentage boost)
@@ -751,15 +751,15 @@ func upgrade_perm_multi_target_unlock() -> bool:
 
 
 func upgrade_perm_projectile_damage() -> bool:
-	var cost = get_perm_cost(5000, 250, RewardManager.perm_projectile_damage / 10)
+	var cost = get_perm_cost(5000, 250, RewardManager.get_perm_projectile_damage_int() / 10)
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent projectile damage.")
 		return false
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
-	RewardManager.perm_projectile_damage += 10
+	RewardManager.add_perm_projectile_damage(10)
 	RewardManager.save_permanent_upgrades()
-	print("🏅 Permanent Projectile Damage +10. Now:", RewardManager.perm_projectile_damage)
+	print("🏅 Permanent Projectile Damage +10. Now:", RewardManager.get_perm_projectile_damage_int())
 	return true
 
 func upgrade_perm_projectile_fire_rate() -> bool:
@@ -1090,7 +1090,7 @@ func try_upgrade_economy() -> bool:
 func get_perm_level(key: String) -> int:
 	match key:
 		"projectile_damage":
-			return RewardManager.perm_projectile_damage
+			return RewardManager.get_perm_projectile_damage_int()
 		"fire_rate":
 			return int(RewardManager.perm_projectile_fire_rate * 10)
 		"crit_chance":
@@ -1119,7 +1119,7 @@ func get_perm_level(key: String) -> int:
 func get_perm_upgrade_cost(key: String) -> int:
 	match key:
 		"projectile_damage":
-			return get_perm_cost(5000, 250, RewardManager.perm_projectile_damage / 10)
+			return get_perm_cost(5000, 250, RewardManager.get_perm_projectile_damage_int() / 10)
 		"fire_rate":
 			return get_perm_cost(8000, 500, int(RewardManager.perm_projectile_fire_rate * 10))
 		"crit_chance":

@@ -30,7 +30,9 @@ const MAX_RUN_HISTORY = 100  # Keep last 100 runs
 const WEEK_IN_SECONDS = 604800  # 7 days
 
 # --- Permanent Upgrades (all are managed here now) ---
-var perm_projectile_damage: int = 0
+# Permanent damage stored as BigNumber (mantissa + exponent) for infinite scaling
+var perm_projectile_damage_mantissa: float = 0.0
+var perm_projectile_damage_exponent: int = 0
 var perm_projectile_fire_rate: float = 0.0
 var perm_crit_chance: int = 0
 var perm_crit_damage: float = 0.0
@@ -144,6 +146,23 @@ func add_fragments(amount: int) -> void:
 func add_quantum_cores(amount: int) -> void:
 	quantum_cores += amount
 	print("🔮 +%d Quantum Cores (Total: %d)" % [amount, quantum_cores])
+
+# === Permanent Damage BigNumber Helpers ===
+func get_perm_projectile_damage_bn() -> BigNumber:
+	return BigNumber.new(perm_projectile_damage_mantissa, perm_projectile_damage_exponent)
+
+func set_perm_projectile_damage_bn(bn: BigNumber) -> void:
+	perm_projectile_damage_mantissa = bn.mantissa
+	perm_projectile_damage_exponent = bn.exponent
+
+func add_perm_projectile_damage(amount: int) -> void:
+	var current = get_perm_projectile_damage_bn()
+	current.add(BigNumber.new(amount))
+	set_perm_projectile_damage_bn(current)
+
+# For backward compatibility with int-based code
+func get_perm_projectile_damage_int() -> int:
+	return get_perm_projectile_damage_bn().to_int()
 
 # === Flat Reward Lookup ===
 func get_dc_reward_for_enemy(enemy_type: String) -> int:
@@ -502,7 +521,9 @@ func apply_offline_rewards() -> void:
 	print("🌙 Offline rewards applied: %d DC, %d AT" % [offline_dc, offline_at])
 
 # === PERSISTENCE: Save/Load All Permanent Upgrades and Currency ===
-const SAVE_VERSION = 1
+# Version 1: Original format with perm_projectile_damage as int
+# Version 2: BigNumber format with perm_projectile_damage_mantissa/exponent
+const SAVE_VERSION = 2
 const SAVE_FILE = "user://perm_upgrades.save"
 const SAVE_FILE_TEMP = "user://perm_upgrades.save.tmp"
 const SAVE_FILE_BACKUP = "user://perm_upgrades.save.backup"
@@ -513,7 +534,8 @@ func save_permanent_upgrades() -> bool:
 
 	var data = {
 		"version": SAVE_VERSION,
-		"perm_projectile_damage": perm_projectile_damage,
+		"perm_projectile_damage_mantissa": perm_projectile_damage_mantissa,
+		"perm_projectile_damage_exponent": perm_projectile_damage_exponent,
 		"perm_projectile_fire_rate": perm_projectile_fire_rate,
 		"perm_crit_chance": perm_crit_chance,
 		"perm_crit_damage": perm_crit_damage,
@@ -645,6 +667,13 @@ func load_permanent_upgrades():
 	print("❌ All save files corrupted or missing. Starting fresh.")
 
 func _apply_save_data(data: Dictionary) -> void:
+	# Check save version and handle migrations
+	var save_version = data.get("version", 1)  # Default to version 1 if missing
+	if save_version < SAVE_VERSION:
+		print("📦 Migrating save from version %d to version %d" % [save_version, SAVE_VERSION])
+	elif save_version > SAVE_VERSION:
+		push_warning("⚠️ Save file version %d is newer than current version %d! Loading may fail." % [save_version, SAVE_VERSION])
+
 	# Helper to safely load numeric values with type validation
 	var _safe_int = func(key: String, default: int, min_val: int, max_val: int) -> int:
 		var value = data.get(key, default)
@@ -661,7 +690,23 @@ func _apply_save_data(data: Dictionary) -> void:
 		return clamp(float(value), min_val, max_val)
 
 	# Load with validation (clamp to reasonable ranges + type checking)
-	perm_projectile_damage = _safe_int.call("perm_projectile_damage", 0, 0, 100000)
+	# Migrate old save format (int) to new BigNumber format (mantissa + exponent)
+	if data.has("perm_projectile_damage_mantissa"):
+		# New save format - load BigNumber directly
+		perm_projectile_damage_mantissa = _safe_float.call("perm_projectile_damage_mantissa", 0.0, 0.0, 10.0)
+		perm_projectile_damage_exponent = _safe_int.call("perm_projectile_damage_exponent", 0, -999, 999)
+	elif data.has("perm_projectile_damage"):
+		# Old save format - migrate int to BigNumber
+		var old_value = _safe_int.call("perm_projectile_damage", 0, 0, 100000)
+		var bn = BigNumber.new(old_value)
+		perm_projectile_damage_mantissa = bn.mantissa
+		perm_projectile_damage_exponent = bn.exponent
+		print("📦 Migrated old perm_projectile_damage (%d) to BigNumber format" % old_value)
+	else:
+		# No save data - initialize to zero
+		perm_projectile_damage_mantissa = 0.0
+		perm_projectile_damage_exponent = 0
+
 	perm_projectile_fire_rate = _safe_float.call("perm_projectile_fire_rate", 0.0, 0.0, 1000.0)
 	perm_crit_chance = _safe_int.call("perm_crit_chance", 0, 0, 100000)
 	perm_crit_damage = _safe_float.call("perm_crit_damage", 0.0, 0.0, 1000.0)

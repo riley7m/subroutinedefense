@@ -55,7 +55,8 @@ var is_pooled: bool = false
 var burn_active: bool = false
 var burn_timer: float = 0.0
 var burn_duration: float = 0.0
-var burn_damage_per_tick: float = 0.0
+var burn_damage_per_tick: float = 0.0  # Display value
+var burn_damage_bn: BigNumber = null  # BigNumber for efficient damage application
 var burn_tick_interval: float = 1.0   # 1 second per tick
 var burn_tick_timer: float = 0.0
 
@@ -63,7 +64,8 @@ var burn_tick_timer: float = 0.0
 var poison_active: bool = false
 var poison_timer: float = 0.0
 var poison_duration: float = 0.0
-var poison_damage_per_tick: float = 0.0
+var poison_damage_per_tick: float = 0.0  # Display value
+var poison_damage_bn: BigNumber = null  # BigNumber for efficient damage application
 var poison_tick_interval: float = 1.0
 var poison_tick_timer: float = 0.0
 
@@ -208,7 +210,8 @@ func _physics_process(delta: float) -> void:
 		burn_timer += delta
 		burn_tick_timer += delta
 		if burn_tick_timer >= burn_tick_interval:
-			hp.subtract(BigNumber.new(burn_damage_per_tick))
+			# Reuse cached BigNumber instead of creating new one every tick
+			hp.subtract(burn_damage_bn)
 			burn_tick_timer -= burn_tick_interval
 			#print("🔥", name, "takes", burn_damage_per_tick, "burn tick! HP now", hp.format())
 		if burn_timer >= burn_duration:
@@ -217,6 +220,7 @@ func _physics_process(delta: float) -> void:
 			burn_tick_timer = 0.0
 			burn_duration = 0.0
 			burn_damage_per_tick = 0.0
+			burn_damage_bn = null  # Clear cached BigNumber
 			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("burn", self)
 			AdvancedVisuals.remove_status_icon("burn", self)
@@ -230,7 +234,8 @@ func _physics_process(delta: float) -> void:
 		poison_timer += delta
 		poison_tick_timer += delta
 		if poison_tick_timer >= poison_tick_interval:
-			hp.subtract(BigNumber.new(poison_damage_per_tick))
+			# Reuse cached BigNumber instead of creating new one every tick
+			hp.subtract(poison_damage_bn)
 			poison_tick_timer -= poison_tick_interval
 			#print("🟣", name, "takes", poison_damage_per_tick, "poison tick! HP now", hp.format())
 		if poison_timer >= poison_duration:
@@ -239,6 +244,7 @@ func _physics_process(delta: float) -> void:
 			poison_tick_timer = 0.0
 			poison_duration = 0.0
 			poison_damage_per_tick = 0.0
+			poison_damage_bn = null  # Clear cached BigNumber
 			# Remove visual effects
 			VisualFactory.remove_status_effect_overlay("poison", self)
 			AdvancedVisuals.remove_status_icon("poison", self)
@@ -470,6 +476,9 @@ func apply_burn(level: int, base_damage: float, crit_multiplier: float = 1.0, ti
 	burn_timer = 0.0
 	burn_tick_timer = 0.0
 
+	# Cache BigNumber to avoid creating new objects every tick
+	burn_damage_bn = BigNumber.new(burn_damage_per_tick)
+
 	# Add visual effects
 	VisualFactory.create_status_effect_overlay("burn", self)
 	AdvancedVisuals.create_status_icon("burn", self)
@@ -496,6 +505,9 @@ func apply_poison(level: int, duration: float = 4.0, max_stacks: int = 1) -> voi
 		poison_tick_timer = 0.0
 
 	poison_active = true
+
+	# Cache BigNumber to avoid creating new objects every tick
+	poison_damage_bn = BigNumber.new(poison_damage_per_tick)
 
 	# Add visual effects (only if not already present)
 	if not has_node("StatusOverlay_poison"):
