@@ -324,19 +324,20 @@ func _ready() -> void:
 
 	# Connect upgrade and toggle buttons
 	offense_button.pressed.connect(_on_offense_button_pressed)
-	damage_upgrade.pressed.connect(_on_damage_upgrade_pressed)
-	fire_rate_upgrade.pressed.connect(_on_fire_rate_upgrade_pressed)
-	crit_upgrade_button.pressed.connect(_on_crit_chance_upgrade_pressed)
-	crit_damage_upgrade.pressed.connect(_on_crit_damage_upgrade_pressed)
+	# Generic upgrade handler (Phase 1 refactor)
+	damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage"))
+	fire_rate_upgrade.pressed.connect(_handle_inrun_upgrade.bind("fire_rate"))
+	crit_upgrade_button.pressed.connect(_handle_inrun_upgrade.bind("crit_chance"))
+	crit_damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("crit_damage"))
 	defense_button.pressed.connect(_on_defense_button_pressed)
-	shield_upgrade.pressed.connect(_on_shield_upgrade_pressed)
-	reduction_upgrade.pressed.connect(_on_damage_reduction_upgrade_pressed)
-	regen_upgrade.pressed.connect(_on_shield_regen_upgrade_pressed)
+	shield_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield"))
+	reduction_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage_reduction"))
+	regen_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield_regen"))
 	economy_button.pressed.connect(_on_economy_button_pressed)
-	data_credits_upgrade.pressed.connect(_on_data_credits_upgrade_pressed)
-	archive_token_upgrade.pressed.connect(_on_archive_token_upgrade_pressed)
-	free_upgrade_chance.pressed.connect(_on_free_upgrade_chance_pressed)
-	wave_skip_chance.pressed.connect(_on_wave_skip_chance_pressed)
+	data_credits_upgrade.pressed.connect(_handle_inrun_upgrade.bind("data_credits"))
+	archive_token_upgrade.pressed.connect(_handle_inrun_upgrade.bind("archive_token"))
+	free_upgrade_chance.pressed.connect(_handle_inrun_upgrade.bind("free_upgrade"))
+	wave_skip_chance.pressed.connect(_handle_inrun_upgrade.bind("wave_skip"))
 	speed_button.pressed.connect(_on_speed_button_pressed)
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
 	buy_x_button.pressed.connect(_on_buy_x_button_pressed)
@@ -445,65 +446,236 @@ func _on_offense_button_pressed() -> void:
 	economy_panel.visible = false
 	perm_panel.visible = false
 
-func _on_damage_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_projectile_damage():
-			print("Bought one (Max mode)")
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_projectile_damage():
-				print("Stopped at %d upgrades" % i)
-				break
-			else:
-				print("Bought upgrade %d" % (i+1))
-	update_damage_label()
-	if tower and is_instance_valid(tower):
-		tower.update_visual_tier()  # Update tower visuals after damage upgrade
-
-
-func _on_fire_rate_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_fire_rate():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_fire_rate():
-				break
-	if tower and is_instance_valid(tower):
-		tower.refresh_fire_rate()
-		tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
-	# Drones have independent fire rates based on their level, no need to refresh
-	update_labels()
-
-func _on_crit_chance_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_crit_chance():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_crit_chance():
-				break
-	update_crit_label()
-	update_labels()
-
-func _on_crit_damage_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_crit_damage():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_crit_damage():
-				break
-	update_labels()
+# Offense upgrade handlers removed - replaced by generic _handle_inrun_upgrade()
 
 func update_crit_label():
 	var chance = UpgradeManager.get_crit_chance()
 	print("Crit Chance: %d%%" % chance)
-	
+
+# === GENERIC UPGRADE HANDLER (Phase 1 Refactor) ===
+# Metadata table for all in-run upgrade handlers
+# Eliminates 11 duplicated button handlers (120+ lines → 1 generic function)
+const UPGRADE_METADATA = {
+	"damage": {
+		"upgrade_func": "upgrade_projectile_damage",
+		"post_actions": ["update_damage_label", "tower_update_visual"]
+	},
+	"fire_rate": {
+		"upgrade_func": "upgrade_fire_rate",
+		"post_actions": ["tower_refresh_fire_rate", "tower_update_visual", "update_labels"]
+	},
+	"crit_chance": {
+		"upgrade_func": "upgrade_crit_chance",
+		"post_actions": ["update_crit_label", "update_labels"]
+	},
+	"crit_damage": {
+		"upgrade_func": "upgrade_crit_damage",
+		"post_actions": ["update_labels"]
+	},
+	"shield": {
+		"upgrade_func": "upgrade_shield_integrity",
+		"post_actions": ["tower_refresh_shield", "update_labels"]
+	},
+	"damage_reduction": {
+		"upgrade_func": "upgrade_damage_reduction",
+		"post_actions": ["update_labels"]
+	},
+	"shield_regen": {
+		"upgrade_func": "upgrade_shield_regen",
+		"post_actions": ["tower_refresh_shield", "update_labels"]
+	},
+	"data_credits": {
+		"upgrade_func": "upgrade_data_credit_multiplier",
+		"post_actions": ["update_labels"]
+	},
+	"archive_token": {
+		"upgrade_func": "upgrade_archive_token_multiplier",
+		"post_actions": ["update_labels"]
+	},
+	"free_upgrade": {
+		"upgrade_func": "upgrade_free_upgrade_chance",
+		"post_actions": ["update_labels"]
+	},
+	"wave_skip": {
+		"upgrade_func": "upgrade_wave_skip_chance",
+		"post_actions": ["update_labels"]
+	}
+}
+
+# Generic upgrade handler - replaces 11 duplicated functions
+func _handle_inrun_upgrade(upgrade_key: String) -> void:
+	if not UPGRADE_METADATA.has(upgrade_key):
+		push_error("Invalid upgrade key: %s" % upgrade_key)
+		return
+
+	var metadata = UPGRADE_METADATA[upgrade_key]
+	var amount = get_current_buy_amount()
+
+	# Execute upgrade purchases
+	if amount == -1:
+		# Max mode: buy until can't afford
+		while UpgradeManager.call(metadata.upgrade_func):
+			pass
+	else:
+		# Buy specified amount
+		for i in range(amount):
+			if not UpgradeManager.call(metadata.upgrade_func):
+				break
+
+	# Execute post-actions
+	for action in metadata.post_actions:
+		match action:
+			"update_labels":
+				update_labels()
+			"update_damage_label":
+				update_damage_label()
+			"update_crit_label":
+				update_crit_label()
+			"tower_update_visual":
+				if tower and is_instance_valid(tower):
+					tower.update_visual_tier()
+			"tower_refresh_fire_rate":
+				if tower and is_instance_valid(tower):
+					tower.refresh_fire_rate()
+			"tower_refresh_shield":
+				if tower and is_instance_valid(tower):
+					tower.refresh_shield_stats()
+			_:
+				push_warning("Unknown post-action: %s" % action)
+
+# === GENERIC UI UPDATE FUNCTION (Phase 1.2 Refactor) ===
+# Metadata table for all in-run upgrade button UI updates
+# Eliminates 165+ lines of duplicated UI update logic
+const BUTTON_UI_METADATA = {
+	"damage": {
+		"button": "damage_upgrade",
+		"base_cost": "DAMAGE_UPGRADE_BASE_COST",
+		"purchases": "damage_purchases",
+		"label": "Damage"
+	},
+	"fire_rate": {
+		"button": "fire_rate_upgrade",
+		"base_cost": "FIRE_RATE_UPGRADE_BASE_COST",
+		"purchases": "fire_rate_purchases",
+		"label": "Fire Rate"
+	},
+	"crit_chance": {
+		"button": "crit_upgrade_button",
+		"base_cost": "CRIT_CHANCE_UPGRADE_BASE_COST",
+		"purchases": "crit_chance_purchases",
+		"label": "Crit Chance",
+		"has_cap": true,
+		"cap_func": "get_crit_chance",
+		"cap_value": "CRIT_CHANCE_CAP"
+	},
+	"crit_damage": {
+		"button": "crit_damage_upgrade",
+		"base_cost": "CRIT_DAMAGE_UPGRADE_BASE_COST",
+		"purchases": "crit_damage_purchases",
+		"label": "Crit Damage"
+	},
+	"shield": {
+		"button": "shield_upgrade",
+		"base_cost": "SHIELD_UPGRADE_BASE_COST",
+		"purchases": "shield_purchases",
+		"label": "Shield Integrity"
+	},
+	"damage_reduction": {
+		"button": "reduction_upgrade",
+		"base_cost": "DAMAGE_REDUCTION_UPGRADE_BASE_COST",
+		"purchases": "damage_reduction_purchases",
+		"label": "Damage Reduction"
+	},
+	"shield_regen": {
+		"button": "regen_upgrade",
+		"base_cost": "SHIELD_REGEN_UPGRADE_BASE_COST",
+		"purchases": "shield_regen_purchases",
+		"label": "Shield Regen"
+	},
+	"data_credits": {
+		"button": "data_credits_upgrade",
+		"base_cost": "DATA_MULTIPLIER_UPGRADE_BASE_COST",
+		"purchases": "data_multiplier_purchases",
+		"label": "Data Credits Multiplier"
+	},
+	"archive_token": {
+		"button": "archive_token_upgrade",
+		"base_cost": "ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST",
+		"purchases": "archive_multiplier_purchases",
+		"label": "Archive Token Multiplier"
+	},
+	"free_upgrade": {
+		"button": "free_upgrade_chance",
+		"base_cost": "FREE_UPGRADE_BASE_COST",
+		"purchases": "free_upgrade_purchases",
+		"label": "Free Upgrade Chance",
+		"has_cap": true,
+		"cap_func": "get_free_upgrade_chance",
+		"cap_value": "FREE_UPGRADE_MAX_CHANCE"
+	},
+	"wave_skip": {
+		"button": "wave_skip_chance",
+		"base_cost": "WAVE_SKIP_UPGRADE_BASE_COST",
+		"purchases": "wave_skip_purchases",
+		"label": "Wave Skip Chance",
+		"has_cap": true,
+		"cap_func": "get_wave_skip_chance",
+		"cap_value": "WAVE_SKIP_MAX_CHANCE"
+	}
+}
+
+# Generic UI update function - replaces 165+ lines of duplicated button update logic
+func _update_upgrade_button_ui(upgrade_key: String) -> void:
+	if not BUTTON_UI_METADATA.has(upgrade_key):
+		push_error("Invalid upgrade key for UI: %s" % upgrade_key)
+		return
+
+	var metadata = BUTTON_UI_METADATA[upgrade_key]
+	var button = get(metadata.button)
+	if not button:
+		push_error("Button not found: %s" % metadata.button)
+		return
+
+	var dc = RewardManager.data_credits
+	var buy_amount = get_current_buy_amount()
+
+	# Check if upgrade is capped
+	if metadata.has("has_cap") and metadata.has_cap:
+		var current_value = UpgradeManager.call(metadata.cap_func)
+		var cap_value = UpgradeManager.get(metadata.cap_value)
+		if current_value >= cap_value:
+			button.text = "%s (MAX)" % metadata.label
+			button.disabled = true
+			return
+
+	# Get cost constants
+	var base_cost = UpgradeManager.get(metadata.base_cost)
+	var purchases = UpgradeManager.get(metadata.purchases)
+
+	# Calculate cost and text
+	var cost: int
+	var text: String
+
+	if buy_amount == -1:
+		# Max mode: show how many can afford
+		var arr = get_inrun_max_affordable(base_cost, purchases)
+		cost = arr[1]
+		text = "%s x%d (%s DC)" % [metadata.label, arr[0], NumberFormatter.format(cost)]
+	else:
+		# Buy X mode: show cost for X purchases
+		cost = get_inrun_total_cost(base_cost, purchases, buy_amount)
+		text = "%s x%d (%s DC)" % [metadata.label, buy_amount, NumberFormatter.format(cost)]
+
+	button.text = text
+	button.disabled = dc < cost or cost == 0
+
+func update_all_inrun_upgrade_ui() -> void:
+	# Generic updates for all 11 upgrades
+	for upgrade_key in BUTTON_UI_METADATA.keys():
+		_update_upgrade_button_ui(upgrade_key)
+	# Multi-target has custom logic (unlock vs upgrade)
+	update_multi_target_ui()
+
 func _on_unlock_multi_target_pressed():
 	if UpgradeManager.unlock_multi_target():
 		update_multi_target_ui()
@@ -539,182 +711,10 @@ func update_multi_target_ui():
 
 		multi_target_label.text = "Multi Target: %d" % targets
 
-# --- IN-RUN UPGRADE UI UPDATE FUNCTIONS ---
-# Update all in-run upgrade buttons with current costs and availability
-
-func update_all_inrun_upgrade_ui() -> void:
-	update_offense_upgrade_ui()
-	update_defense_upgrade_ui()
-	update_economy_upgrade_ui()
-	update_multi_target_ui()
-
-func update_offense_upgrade_ui() -> void:
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
-
-	# Damage upgrade
-	var damage_cost: int
-	var damage_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.DAMAGE_UPGRADE_BASE_COST, UpgradeManager.damage_purchases)
-		damage_cost = arr[1]
-		damage_text = "Damage x%d (%s DC)" % [arr[0], NumberFormatter.format(damage_cost)]
-	else:
-		damage_cost = get_inrun_total_cost(UpgradeManager.DAMAGE_UPGRADE_BASE_COST, UpgradeManager.damage_purchases, buy_amount)
-		damage_text = "Damage x%d (%s DC)" % [buy_amount, NumberFormatter.format(damage_cost)]
-	damage_upgrade.text = damage_text
-	damage_upgrade.disabled = dc < damage_cost or damage_cost == 0
-
-	# Fire rate upgrade
-	var fire_rate_cost: int
-	var fire_rate_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.FIRE_RATE_UPGRADE_BASE_COST, UpgradeManager.fire_rate_purchases)
-		fire_rate_cost = arr[1]
-		fire_rate_text = "Fire Rate x%d (%s DC)" % [arr[0], NumberFormatter.format(fire_rate_cost)]
-	else:
-		fire_rate_cost = get_inrun_total_cost(UpgradeManager.FIRE_RATE_UPGRADE_BASE_COST, UpgradeManager.fire_rate_purchases, buy_amount)
-		fire_rate_text = "Fire Rate x%d (%s DC)" % [buy_amount, NumberFormatter.format(fire_rate_cost)]
-	fire_rate_upgrade.text = fire_rate_text
-	fire_rate_upgrade.disabled = dc < fire_rate_cost or fire_rate_cost == 0
-
-	# Crit chance upgrade
-	if UpgradeManager.get_crit_chance() >= UpgradeManager.CRIT_CHANCE_CAP:
-		crit_upgrade_button.text = "Crit Chance (MAX)"
-		crit_upgrade_button.disabled = true
-	else:
-		var crit_chance_cost: int
-		var crit_chance_text: String
-		if buy_amount == -1:
-			var arr = get_inrun_max_affordable(UpgradeManager.CRIT_CHANCE_UPGRADE_BASE_COST, UpgradeManager.crit_chance_purchases)
-			crit_chance_cost = arr[1]
-			crit_chance_text = "Crit Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(crit_chance_cost)]
-		else:
-			crit_chance_cost = get_inrun_total_cost(UpgradeManager.CRIT_CHANCE_UPGRADE_BASE_COST, UpgradeManager.crit_chance_purchases, buy_amount)
-			crit_chance_text = "Crit Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(crit_chance_cost)]
-		crit_upgrade_button.text = crit_chance_text
-		crit_upgrade_button.disabled = dc < crit_chance_cost or crit_chance_cost == 0
-
-	# Crit damage upgrade
-	var crit_damage_cost: int
-	var crit_damage_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.CRIT_DAMAGE_UPGRADE_BASE_COST, UpgradeManager.crit_damage_purchases)
-		crit_damage_cost = arr[1]
-		crit_damage_text = "Crit Damage x%d (%s DC)" % [arr[0], NumberFormatter.format(crit_damage_cost)]
-	else:
-		crit_damage_cost = get_inrun_total_cost(UpgradeManager.CRIT_DAMAGE_UPGRADE_BASE_COST, UpgradeManager.crit_damage_purchases, buy_amount)
-		crit_damage_text = "Crit Damage x%d (%s DC)" % [buy_amount, NumberFormatter.format(crit_damage_cost)]
-	crit_damage_upgrade.text = crit_damage_text
-	crit_damage_upgrade.disabled = dc < crit_damage_cost or crit_damage_cost == 0
-
-func update_defense_upgrade_ui() -> void:
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
-
-	# Shield integrity upgrade
-	var shield_cost: int
-	var shield_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.SHIELD_UPGRADE_BASE_COST, UpgradeManager.shield_purchases)
-		shield_cost = arr[1]
-		shield_text = "Shield Integrity x%d (%s DC)" % [arr[0], NumberFormatter.format(shield_cost)]
-	else:
-		shield_cost = get_inrun_total_cost(UpgradeManager.SHIELD_UPGRADE_BASE_COST, UpgradeManager.shield_purchases, buy_amount)
-		shield_text = "Shield Integrity x%d (%s DC)" % [buy_amount, NumberFormatter.format(shield_cost)]
-	shield_upgrade.text = shield_text
-	shield_upgrade.disabled = dc < shield_cost or shield_cost == 0
-
-	# Damage reduction upgrade
-	var reduction_cost: int
-	var reduction_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.DAMAGE_REDUCTION_UPGRADE_BASE_COST, UpgradeManager.damage_reduction_purchases)
-		reduction_cost = arr[1]
-		reduction_text = "Damage Reduction x%d (%s DC)" % [arr[0], NumberFormatter.format(reduction_cost)]
-	else:
-		reduction_cost = get_inrun_total_cost(UpgradeManager.DAMAGE_REDUCTION_UPGRADE_BASE_COST, UpgradeManager.damage_reduction_purchases, buy_amount)
-		reduction_text = "Damage Reduction x%d (%s DC)" % [buy_amount, NumberFormatter.format(reduction_cost)]
-	reduction_upgrade.text = reduction_text
-	reduction_upgrade.disabled = dc < reduction_cost or reduction_cost == 0
-
-	# Shield regen upgrade
-	var regen_cost: int
-	var regen_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.SHIELD_REGEN_UPGRADE_BASE_COST, UpgradeManager.shield_regen_purchases)
-		regen_cost = arr[1]
-		regen_text = "Shield Regen x%d (%s DC)" % [arr[0], NumberFormatter.format(regen_cost)]
-	else:
-		regen_cost = get_inrun_total_cost(UpgradeManager.SHIELD_REGEN_UPGRADE_BASE_COST, UpgradeManager.shield_regen_purchases, buy_amount)
-		regen_text = "Shield Regen x%d (%s DC)" % [buy_amount, NumberFormatter.format(regen_cost)]
-	regen_upgrade.text = regen_text
-	regen_upgrade.disabled = dc < regen_cost or regen_cost == 0
-
-func update_economy_upgrade_ui() -> void:
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
-
-	# Data credits multiplier upgrade
-	var dc_mult_cost: int
-	var dc_mult_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.DATA_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.data_multiplier_purchases)
-		dc_mult_cost = arr[1]
-		dc_mult_text = "Data Credits Multiplier x%d (%s DC)" % [arr[0], NumberFormatter.format(dc_mult_cost)]
-	else:
-		dc_mult_cost = get_inrun_total_cost(UpgradeManager.DATA_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.data_multiplier_purchases, buy_amount)
-		dc_mult_text = "Data Credits Multiplier x%d (%s DC)" % [buy_amount, NumberFormatter.format(dc_mult_cost)]
-	data_credits_upgrade.text = dc_mult_text
-	data_credits_upgrade.disabled = dc < dc_mult_cost or dc_mult_cost == 0
-
-	# Archive token multiplier upgrade
-	var at_mult_cost: int
-	var at_mult_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.archive_multiplier_purchases)
-		at_mult_cost = arr[1]
-		at_mult_text = "Archive Token Multiplier x%d (%s DC)" % [arr[0], NumberFormatter.format(at_mult_cost)]
-	else:
-		at_mult_cost = get_inrun_total_cost(UpgradeManager.ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.archive_multiplier_purchases, buy_amount)
-		at_mult_text = "Archive Token Multiplier x%d (%s DC)" % [buy_amount, NumberFormatter.format(at_mult_cost)]
-	archive_token_upgrade.text = at_mult_text
-	archive_token_upgrade.disabled = dc < at_mult_cost or at_mult_cost == 0
-
-	# Free upgrade chance
-	if UpgradeManager.get_free_upgrade_chance() >= UpgradeManager.FREE_UPGRADE_MAX_CHANCE:
-		free_upgrade_chance.text = "Free Upgrade Chance (MAX)"
-		free_upgrade_chance.disabled = true
-	else:
-		var free_cost: int
-		var free_text: String
-		if buy_amount == -1:
-			var arr = get_inrun_max_affordable(UpgradeManager.FREE_UPGRADE_BASE_COST, UpgradeManager.free_upgrade_purchases)
-			free_cost = arr[1]
-			free_text = "Free Upgrade Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(free_cost)]
-		else:
-			free_cost = get_inrun_total_cost(UpgradeManager.FREE_UPGRADE_BASE_COST, UpgradeManager.free_upgrade_purchases, buy_amount)
-			free_text = "Free Upgrade Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(free_cost)]
-		free_upgrade_chance.text = free_text
-		free_upgrade_chance.disabled = dc < free_cost or free_cost == 0
-
-	# Wave skip chance
-	if UpgradeManager.get_wave_skip_chance() >= UpgradeManager.WAVE_SKIP_MAX_CHANCE:
-		wave_skip_chance.text = "Wave Skip Chance (MAX)"
-		wave_skip_chance.disabled = true
-	else:
-		var skip_cost: int
-		var skip_text: String
-		if buy_amount == -1:
-			var arr = get_inrun_max_affordable(UpgradeManager.WAVE_SKIP_UPGRADE_BASE_COST, UpgradeManager.wave_skip_purchases)
-			skip_cost = arr[1]
-			skip_text = "Wave Skip Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(skip_cost)]
-		else:
-			skip_cost = get_inrun_total_cost(UpgradeManager.WAVE_SKIP_UPGRADE_BASE_COST, UpgradeManager.wave_skip_purchases, buy_amount)
-			skip_text = "Wave Skip Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(skip_cost)]
-		wave_skip_chance.text = skip_text
-		wave_skip_chance.disabled = dc < skip_cost or skip_cost == 0
-
+# --- IN-RUN UPGRADE UI UPDATE FUNCTIONS (Phase 1.2 Refactor) ---
+# Old category-specific update functions removed - replaced by generic _update_upgrade_button_ui()
+# Eliminated: update_offense_upgrade_ui(), update_defense_upgrade_ui(), update_economy_upgrade_ui()
+# Total reduction: 165+ lines of duplicated code
 
 # --- Defense Panel Logic ---
 func _on_defense_button_pressed():
@@ -724,40 +724,7 @@ func _on_defense_button_pressed():
 	economy_panel.visible = false
 	perm_panel.visible = false
 	
-func _on_shield_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_shield_integrity():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_shield_integrity():
-				break
-	tower.refresh_shield_stats()
-	update_labels()
-
-func _on_damage_reduction_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_damage_reduction():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_damage_reduction():
-				break
-	update_labels()
-
-func _on_shield_regen_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_shield_regen():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_shield_regen():
-				break
-	tower.refresh_shield_stats()
-	update_labels()
+# Defense upgrade handlers removed - replaced by generic _handle_inrun_upgrade()
 
 # --- Economy Panel Logic ---
 func _on_economy_button_pressed():
@@ -767,49 +734,7 @@ func _on_economy_button_pressed():
 	defense_panel.visible = false
 	perm_panel.visible = false
 
-func _on_data_credits_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_data_credit_multiplier():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_data_credit_multiplier():
-				break
-	update_labels()
-
-func _on_archive_token_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_archive_token_multiplier():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_archive_token_multiplier():
-				break
-	update_labels()
-
-func _on_free_upgrade_chance_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_free_upgrade_chance():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_free_upgrade_chance():
-				break
-	update_labels()
-
-func _on_wave_skip_chance_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_wave_skip_chance():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_wave_skip_chance():
-				break
-	update_labels()
+# Economy upgrade handlers removed - replaced by generic _handle_inrun_upgrade()
 
 # --- Speed Button Logic ---
 func _on_speed_button_pressed() -> void:
