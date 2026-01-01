@@ -9,13 +9,10 @@ var wave_timer: float = 0.0
 const WAVE_INTERVAL := 2.0
 
 # Cleanup tracking
-var active_drones: Array = []
 var refresh_timer: Timer = null
 
-const DRONE_FLAME_SCENE = preload("res://drone_flame.tscn")
-const DRONE_POISON_SCENE = preload("res://drone_poison.tscn")
-const DRONE_FROST_SCENE = preload("res://drone_frost.tscn")
-const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
+# Drone management (Phase 2.2 Refactor)
+var drone_manager: DroneManager = null
 
 @onready var perm_nodes = {
 	"projectile_damage": {
@@ -102,13 +99,6 @@ var achievement_button: Button = null
 var drone_purchase_containers: Dictionary = {}
 var drone_purchase_buttons: Dictionary = {}
 var drone_status_labels: Dictionary = {}
-
-var drone_scenes = {
-	"flame": DRONE_FLAME_SCENE,
-	"poison": DRONE_POISON_SCENE,
-	"frost": DRONE_FROST_SCENE,
-	"shock": DRONE_SHOCK_SCENE,
-}
 
 var buy_x_options = [1, 5, 10, "Max"]
 var current_buy_index = 0
@@ -363,8 +353,14 @@ func _ready() -> void:
 	economy_panel.visible = false
 	perm_panel.visible = false
 
+	# Initialize drone manager (Phase 2.2 Refactor)
+	drone_manager = DroneManager.new()
+	drone_manager.spawn_parent = self
+	add_child(drone_manager)
+
 	# Auto-spawn owned drones (purchased out-of-run)
-	_spawn_owned_drones()
+	var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
+	drone_manager.spawn_owned_drones(tower_pos)
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
@@ -405,11 +401,9 @@ func _exit_tree() -> void:
 	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "update_all_perm_upgrade_ui")):
 		RewardManager.archive_tokens_changed.disconnect(Callable(self, "update_all_perm_upgrade_ui"))
 
-	# Clean up drones
-	for drone in active_drones:
-		if is_instance_valid(drone):
-			drone.queue_free()
-	active_drones.clear()
+	# Clean up drones (Phase 2.2 Refactor)
+	if drone_manager:
+		drone_manager.cleanup_drones()
 
 func _process(delta: float) -> void:
 	wave_timer += delta
@@ -658,12 +652,12 @@ func _update_upgrade_button_ui(upgrade_key: String) -> void:
 
 	if buy_amount == -1:
 		# Max mode: show how many can afford
-		var arr = get_inrun_max_affordable(base_cost, purchases)
+		var arr = BulkPurchaseCalculator.get_inrun_max_affordable(base_cost, purchases, dc)
 		cost = arr[1]
 		text = "%s x%d (%s DC)" % [metadata.label, arr[0], NumberFormatter.format(cost)]
 	else:
 		# Buy X mode: show cost for X purchases
-		cost = get_inrun_total_cost(base_cost, purchases, buy_amount)
+		cost = BulkPurchaseCalculator.get_inrun_total_cost(base_cost, purchases, buy_amount)
 		text = "%s x%d (%s DC)" % [metadata.label, buy_amount, NumberFormatter.format(cost)]
 
 	button.text = text
@@ -759,9 +753,10 @@ func _on_perm_upgrade_pressed(key):
 				break
 	update_all_perm_upgrade_ui()
 
-	# Refresh drones if drone upgrades were purchased
+	# Refresh drones if drone upgrades were purchased (Phase 2.2 Refactor)
 	if key in ["drone_flame", "drone_frost", "drone_poison", "drone_shock"]:
-		refresh_all_drones()
+		if drone_manager:
+			drone_manager.refresh_all_drones()
 
 	
 func _on_buy_x_button_pressed():
@@ -779,13 +774,13 @@ func update_perm_upgrade_ui(key):
 
 	if buy_amount == -1:
 		# Max: Calculate how many upgrades you can actually afford, and total cost for that amount
-		var arr = get_perm_max_affordable(key)
+		var arr = BulkPurchaseCalculator.get_perm_max_affordable(key, at)
 		var max_afford = arr[0]
 		var max_cost = arr[1]
 		label_text = "Upgrade x%s (%s AT)" % [str(max_afford), str(max_cost)]
 		total_cost = max_cost
 	else:
-		total_cost = get_perm_total_upgrade_cost(key, buy_amount)
+		total_cost = BulkPurchaseCalculator.get_perm_total_cost(key, buy_amount)
 		label_text = "Upgrade x%s (%s AT)" % [str(buy_amount), str(total_cost)]
 
 	perm_nodes[key]["level"].text = "Lvl %d" % level
@@ -797,139 +792,20 @@ func update_all_perm_upgrade_ui():
 	for key in perm_nodes.keys():
 		update_perm_upgrade_ui(key)
 
-func refresh_all_drones() -> void:
-	# Update all active drones with current DroneUpgradeManager levels
-	for drone in active_drones:
-		if not is_instance_valid(drone):
-			continue
-
-		# Determine drone type and apply DroneUpgradeManager level
-		if drone.has_method("apply_upgrade"):
-			var drone_type = drone.drone_type if drone.get("drone_type") else ""
-			if drone_type in DroneUpgradeManager.DRONE_TYPES:
-				var level = DroneUpgradeManager.get_drone_level(drone_type)
-				drone.apply_upgrade(level)
-			# Fire rate automatically updates in apply_upgrade()
-
-# === DRONE AUTO-SPAWN SYSTEM ===
-# Drones are purchased out-of-run and auto-spawn if owned
-
-func _spawn_owned_drones() -> void:
-	var drone_types = ["flame", "frost", "poison", "shock"]
-	var drone_scenes_map = {
-		"flame": DRONE_FLAME_SCENE,
-		"frost": DRONE_FROST_SCENE,
-		"poison": DRONE_POISON_SCENE,
-		"shock": DRONE_SHOCK_SCENE
-	}
-
-	var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
-	var slot_index = 0
-
-	for drone_type in drone_types:
-		# Check if this drone is owned (purchased out-of-run)
-		if not RewardManager.owns_drone(drone_type):
-			continue
-
-		# Spawn the drone
-		var drone = drone_scenes_map[drone_type].instantiate()
-		active_drones.append(drone)
-		add_child(drone)
-
-		# Apply DroneUpgradeManager level
-		if drone_type in DroneUpgradeManager.DRONE_TYPES:
-			var level = DroneUpgradeManager.get_drone_level(drone_type)
-			drone.apply_upgrade(level)
-
-		# Position drone in horizontal line from tower
-		var horizontal_offsets = [-80.0, -40.0, 40.0, 80.0]
-		var horizontal_offset = horizontal_offsets[slot_index]
-		drone.global_position = tower_pos + Vector2(horizontal_offset, 0)
-
-		slot_index += 1
-		print("✅ Auto-spawned", drone_type, "drone (owned)")
+# Drone spawn and refresh functions extracted to DroneManager.gd (Phase 2.2 Refactor)
+# - spawn_owned_drones()
+# - refresh_all_drones()
+# - cleanup_drones()
 
 func get_current_buy_amount() -> int:
 	var x = buy_x_options[current_buy_index]
 	return -1 if x is String and x == "Max" else x
-	
-# Calculates the total cost to buy 'amount' upgrades of a perm stat
-func get_perm_total_upgrade_cost(key: String, amount: int) -> int:
-	var level = UpgradeManager.get_perm_level(key)
-	var total_cost = 0
-	for i in range(amount):
-		var this_cost = UpgradeManager.get_perm_upgrade_cost_for_level(key, level + i)
-		total_cost += this_cost
-	return total_cost
 
-# Returns [max_buyable, total_cost] for current tokens
-func get_perm_max_affordable(key: String) -> Array:
-	var at = RewardManager.archive_tokens
-	var level = UpgradeManager.get_perm_level(key)
-	var total_cost = 0
-	var max_count = 0
-	var safety_counter = 0
-	const MAX_ITERATIONS = 10000  # Safety limit to prevent infinite loops
-
-	while safety_counter < MAX_ITERATIONS:
-		var this_cost = UpgradeManager.get_perm_upgrade_cost_for_level(key, level + max_count)
-
-		# Guard against zero/negative costs which would cause infinite loop
-		if this_cost <= 0:
-			push_warning("get_perm_max_affordable: Invalid cost %d for level %d" % [this_cost, level + max_count])
-			break
-
-		if at >= total_cost + this_cost:
-			total_cost += this_cost
-			max_count += 1
-		else:
-			break
-
-		safety_counter += 1
-
-	if safety_counter >= MAX_ITERATIONS:
-		push_error("get_perm_max_affordable: Hit safety limit! Possible infinite loop prevented.")
-
-	return [max_count, total_cost]
-
-# --- IN-RUN UPGRADE BULK COST CALCULATION ---
-# Calculate total cost for buying X in-run upgrades (accounts for exponential scaling)
-
-func get_inrun_total_cost(base_cost: int, current_purchases: int, amount: int) -> int:
-	var total_cost = 0
-	for i in range(amount):
-		# Use UpgradeManager's safe cost calculation (handles BigNumber for high counts)
-		var cost = UpgradeManager.get_purchase_scaled_cost(base_cost, current_purchases + i)
-		total_cost += cost
-	return total_cost
-
-func get_inrun_max_affordable(base_cost: int, current_purchases: int) -> Array:
-	var dc = RewardManager.data_credits
-	var total_cost = 0
-	var max_count = 0
-	var safety_counter = 0
-	const MAX_ITERATIONS = 10000
-
-	while safety_counter < MAX_ITERATIONS:
-		# Use UpgradeManager's safe cost calculation (handles BigNumber for high counts)
-		var this_cost = UpgradeManager.get_purchase_scaled_cost(base_cost, current_purchases + max_count)
-
-		if this_cost <= 0:
-			push_warning("get_inrun_max_affordable: Invalid cost %d for purchase %d" % [this_cost, current_purchases + max_count])
-			break
-
-		if dc >= total_cost + this_cost:
-			total_cost += this_cost
-			max_count += 1
-		else:
-			break
-
-		safety_counter += 1
-
-	if safety_counter >= MAX_ITERATIONS:
-		push_error("get_inrun_max_affordable: Hit safety limit! Possible infinite loop prevented.")
-
-	return [max_count, total_cost]
+# Bulk purchase calculations extracted to BulkPurchaseCalculator.gd (Phase 2.1 Refactor)
+# - get_perm_total_cost()
+# - get_perm_max_affordable()
+# - get_inrun_total_cost()
+# - get_inrun_max_affordable()
 
 # === DRONE PURCHASE UI (IN PERM PANEL) ===
 
