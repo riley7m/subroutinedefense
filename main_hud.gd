@@ -973,7 +973,8 @@ func get_perm_max_affordable(key: String) -> Array:
 func get_inrun_total_cost(base_cost: int, current_purchases: int, amount: int) -> int:
 	var total_cost = 0
 	for i in range(amount):
-		var cost = int(base_cost * pow(UpgradeManager.UPGRADE_COST_SCALING, current_purchases + i))
+		# Use UpgradeManager's safe cost calculation (handles BigNumber for high counts)
+		var cost = UpgradeManager.get_purchase_scaled_cost(base_cost, current_purchases + i)
 		total_cost += cost
 	return total_cost
 
@@ -985,7 +986,8 @@ func get_inrun_max_affordable(base_cost: int, current_purchases: int) -> Array:
 	const MAX_ITERATIONS = 10000
 
 	while safety_counter < MAX_ITERATIONS:
-		var this_cost = int(base_cost * pow(UpgradeManager.UPGRADE_COST_SCALING, current_purchases + max_count))
+		# Use UpgradeManager's safe cost calculation (handles BigNumber for high counts)
+		var this_cost = UpgradeManager.get_purchase_scaled_cost(base_cost, current_purchases + max_count)
 
 		if this_cost <= 0:
 			push_warning("get_inrun_max_affordable: Invalid cost %d for purchase %d" % [this_cost, current_purchases + max_count])

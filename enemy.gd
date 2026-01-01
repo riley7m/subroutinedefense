@@ -86,8 +86,14 @@ const MAX_TRAIL_POINTS: int = 20
 const TRAIL_SPACING: float = 8.0
 var last_trail_pos: Vector2
 
+# Cached zero BigNumber for efficient death checks (avoids allocation every frame)
+static var _zero_bn: BigNumber = null
+
 
 func _ready() -> void:
+	# Initialize shared zero BigNumber (once for all enemies)
+	if _zero_bn == null:
+		_zero_bn = BigNumber.new(0)
 	add_to_group("enemies")
 
 	# Register with EnemyTracker for efficient targeting
@@ -227,7 +233,7 @@ func _physics_process(delta: float) -> void:
 			VisualFactory.remove_status_effect_overlay("burn", self)
 			AdvancedVisuals.remove_status_icon("burn", self)
 			#print("🔥", name, "burn ended")
-		if hp.less_equal(BigNumber.new(0)) and not is_dead:
+		if hp.less_equal(_zero_bn) and not is_dead:
 			is_dead = true
 			die()
 
@@ -251,7 +257,7 @@ func _physics_process(delta: float) -> void:
 			VisualFactory.remove_status_effect_overlay("poison", self)
 			AdvancedVisuals.remove_status_icon("poison", self)
 			#print("🟣", name, "poison ended")
-		if hp.less_equal(BigNumber.new(0)) and not is_dead:
+		if hp.less_equal(_zero_bn) and not is_dead:
 			is_dead = true
 			die()
 	# --- Apply slow effect ---
@@ -271,7 +277,7 @@ func _physics_process(delta: float) -> void:
 			velocity *= slow_multiplier
 
 	# --- Final death check (in case status effects reduced hp to 0) ---
-	if hp.less_equal(BigNumber.new(0)) and not is_dead:
+	if hp.less_equal(_zero_bn) and not is_dead:
 		is_dead = true
 		die()
 
@@ -304,7 +310,7 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 
 	# Apply damage using BigNumber
 	hp.subtract(BigNumber.new(amount))
-	if hp.less_equal(BigNumber.new(0)):
+	if hp.less_equal(_zero_bn):
 		is_dead = true
 		die()
 

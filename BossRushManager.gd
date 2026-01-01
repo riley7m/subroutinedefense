@@ -182,10 +182,21 @@ func get_boss_rush_hp_multiplier(wave: int) -> float:
 	# - Wave 10: 1.13^10 * 5 = 16.97x base HP
 	# - Wave 20: 1.13^20 * 5 = 57.59x base HP
 	# - Wave 50: 1.13^50 * 5 = 2,249x base HP
+	# - Wave 100: 1.13^100 * 5 = 1.01e6x (requires BigNumber)
+	# - Wave 500: 1.13^500 * 5 = 1.9e25x (catastrophic overflow without BigNumber)
 	#
 	# This aggressive scaling ensures Boss Rush ends quickly (5-15 minutes)
 	# and rewards top-tier builds for leaderboard competition
-	return pow(BOSS_HP_SCALING_BASE, wave) * BOSS_ENEMY_MULTIPLIER
+
+	# For low waves, use fast float calculation
+	if wave < 100:
+		return pow(BOSS_HP_SCALING_BASE, wave) * BOSS_ENEMY_MULTIPLIER
+
+	# For high waves, use BigNumber to prevent overflow
+	var multiplier_bn = BigNumber.new(BOSS_ENEMY_MULTIPLIER)
+	var wave_multiplier = pow(BOSS_HP_SCALING_BASE, wave)
+	multiplier_bn.multiply(wave_multiplier)
+	return multiplier_bn.to_float()
 
 func get_boss_rush_damage_multiplier() -> float:
 	# Bosses deal 5x base damage

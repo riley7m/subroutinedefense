@@ -133,7 +133,18 @@ const UPGRADE_COST_SCALING := 1.15  # 15% increase per purchase
 # Purchase 20: 818 DC (16.37x)
 # Purchase 50: 36,841 DC (736x)
 func get_purchase_scaled_cost(base_cost: int, purchase_count: int) -> int:
-	return int(base_cost * pow(UPGRADE_COST_SCALING, purchase_count))
+	# For low purchase counts, use fast int calculation
+	if purchase_count < 100:
+		return int(base_cost * pow(UPGRADE_COST_SCALING, purchase_count))
+
+	# For high purchase counts, use BigNumber to prevent overflow
+	# pow(1.15, 400) ≈ 1.87e9 (approaching int32/int64 max)
+	var cost_bn = BigNumber.new(base_cost)
+	var multiplier = pow(UPGRADE_COST_SCALING, purchase_count)
+	cost_bn.multiply(multiplier)
+
+	# Return int, capping at int64 max if needed
+	return cost_bn.to_int()
 
 # --- PER-PURCHASE COST GETTERS ---
 func get_damage_upgrade_cost() -> int:
@@ -703,7 +714,17 @@ func is_multi_target_unlocked() -> bool:
 
 func get_multi_target_cost_for_level(level: int) -> int:
 	# Level is 1-based: 1 = unlock, 2+ = upgrades
-	return int(MULTI_TARGET_BASE_COST * pow(MULTI_TARGET_COST_SCALE, max(level-1, 0)))
+	var adjusted_level = max(level - 1, 0)
+
+	# For low levels, use fast int calculation
+	if adjusted_level < 50:
+		return int(MULTI_TARGET_BASE_COST * pow(MULTI_TARGET_COST_SCALE, adjusted_level))
+
+	# For high levels, use BigNumber to prevent overflow
+	var cost_bn = BigNumber.new(MULTI_TARGET_BASE_COST)
+	var multiplier = pow(MULTI_TARGET_COST_SCALE, adjusted_level)
+	cost_bn.multiply(multiplier)
+	return cost_bn.to_int()
 
 func get_multi_target_upgrade_cost() -> int:
 	# For current upgrade button (next level)
