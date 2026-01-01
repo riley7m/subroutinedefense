@@ -90,6 +90,9 @@ var last_trail_pos: Vector2
 func _ready() -> void:
 	add_to_group("enemies")
 
+	# Register with EnemyTracker for efficient targeting
+	EnemyTracker.register_enemy(self)
+
 	# Initialize stats (will be overwritten by apply_wave_scaling, but safe defaults)
 	hp = BigNumber.new(base_hp)
 	damage_to_tower = base_damage
@@ -150,8 +153,7 @@ func _ready() -> void:
 
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		trail = AdvancedVisuals.create_projectile_trail(parent, trail_color)
-		trail.width = 4.0  # Enemies have thicker trails than projectiles
+		trail = TrailPool.get_trail(parent, trail_color, 4.0)
 		last_trail_pos = global_position
 	else:
 		trail = null
@@ -177,10 +179,10 @@ func _physics_process(delta: float) -> void:
 	velocity = direction * move_speed
 	move_and_slide()
 
-	# Update trail using AdvancedVisuals
+	# Update trail using TrailPool
 	if trail and is_instance_valid(trail):
 		if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
-			AdvancedVisuals.update_trail(trail, global_position, MAX_TRAIL_POINTS)
+			TrailPool.update_trail(trail, global_position, MAX_TRAIL_POINTS)
 			last_trail_pos = global_position
 
 	time_since_last_attack += delta
@@ -326,9 +328,10 @@ func _trigger_hit_flash(is_critical: bool = false) -> void:
 func die():
 	is_dead = true
 
-	# Clean up trail
+	# Recycle trail back to pool
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
+		trail = null
 
 	# Disconnect attack zone signals to prevent leaks
 	if has_node("AttackZone"):
@@ -572,6 +575,9 @@ func reset_pooled_object() -> void:
 	# Called when enemy is taken from pool
 	is_pooled = true
 
+	# Re-register with EnemyTracker
+	EnemyTracker.register_enemy(self)
+
 	# Reset state
 	is_dead = false
 	in_range = false
@@ -635,6 +641,9 @@ func cleanup_pooled_object() -> void:
 	target = null
 
 func _cleanup_and_recycle() -> void:
+	# Unregister from EnemyTracker
+	EnemyTracker.unregister_enemy(self)
+
 	# Remove from group
 	remove_from_group("enemies")
 

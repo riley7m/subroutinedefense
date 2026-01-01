@@ -30,10 +30,10 @@ func _ready() -> void:
 	# Add quick spawn animation
 	VisualFactory.add_spawn_animation(self, 0.15)
 
-	# Create trail effect using AdvancedVisuals
+	# Get trail from pool
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		trail = AdvancedVisuals.create_projectile_trail(parent, Color(0.3, 0.9, 1.0))
+		trail = TrailPool.get_trail(parent, Color(0.3, 0.9, 1.0), 3.0)
 		last_trail_pos = global_position
 	else:
 		trail = null
@@ -44,10 +44,10 @@ func _process(delta: float) -> void:
 		global_position += direction * speed * delta
 		rotation = direction.angle()
 
-		# Update trail using AdvancedVisuals
+		# Update trail using TrailPool
 		if trail and is_instance_valid(trail):
 			if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
-				AdvancedVisuals.update_trail(trail, global_position, MAX_TRAIL_POINTS)
+				TrailPool.update_trail(trail, global_position, MAX_TRAIL_POINTS)
 				last_trail_pos = global_position
 	else:
 		# Target is invalid, clean up
@@ -56,7 +56,8 @@ func _process(delta: float) -> void:
 func _exit_tree() -> void:
 	# Safety cleanup if projectile is freed without hitting target
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
+		trail = null
 
 	# Disconnect signal if still connected
 	if body_entered.is_connected(Callable(self, "_on_body_entered")):
@@ -84,8 +85,8 @@ func _on_body_entered(body: Node2D) -> void:
 			dealt_dmg_bn = base_dmg_bn.copy().multiply(crit_multiplier)
 
 		# --- Record damage dealt before applying to enemy (for run stats)
-		# Convert to float for stats tracking (loses precision for huge values but that's okay for stats)
-		RunStats.damage_dealt += dealt_dmg_bn.to_float()
+		# Use BigNumber to maintain precision for infinite scaling
+		RunStats.add_damage_dealt_bn(dealt_dmg_bn)
 
 		# Create impact effect (with null safety check)
 		var parent = get_parent()
@@ -190,7 +191,7 @@ func _spread_overkill_damage(damage: int, origin: Node2D) -> void:
 		for enemy in nearby_enemies:
 			if enemy.has_method("take_damage"):
 				enemy.take_damage(split_damage)
-				RunStats.damage_dealt += split_damage
+				RunStats.add_damage_dealt(split_damage)
 
 # --- OBJECT POOLING METHODS ---
 
@@ -215,19 +216,19 @@ func reset_pooled_object() -> void:
 	# Add quick spawn animation
 	VisualFactory.add_spawn_animation(self, 0.15)
 
-	# Create trail effect
+	# Get trail from pool
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		trail = AdvancedVisuals.create_projectile_trail(parent, Color(0.3, 0.9, 1.0))
+		trail = TrailPool.get_trail(parent, Color(0.3, 0.9, 1.0), 3.0)
 		last_trail_pos = global_position
 	else:
 		trail = null
 
 func cleanup_pooled_object() -> void:
 	# Called when projectile is returned to pool
-	# Clean up trail
+	# Recycle trail back to pool
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
 		trail = null
 
 	# Disconnect signal
@@ -239,9 +240,9 @@ func cleanup_pooled_object() -> void:
 	pierced_targets.clear()
 
 func _cleanup_and_recycle() -> void:
-	# Clean up trail
+	# Recycle trail back to pool
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
 		trail = null
 
 	# Disconnect signal
