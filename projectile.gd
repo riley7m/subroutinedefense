@@ -149,7 +149,7 @@ func _on_body_entered(body: Node2D) -> void:
 		_cleanup_and_recycle()
 
 func _find_nearest_enemy(exclude: Node2D) -> Node2D:
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var enemies = EnemyTracker.get_active_enemies()
 	var nearest: Node2D = null
 	var nearest_dist: float = INF
 
@@ -170,7 +170,7 @@ func _spread_overkill_damage(damage: int, origin: Node2D) -> void:
 	if damage <= 0:
 		return
 
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var enemies = EnemyTracker.get_active_enemies()
 	var nearby_enemies = []
 
 	# Find enemies within 150 units

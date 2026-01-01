@@ -22,7 +22,7 @@ func _get_closest_enemies(max_count: int) -> Array:
 
 	# Get all enemies sorted by distance to tower (ascending)
 	var enemies = []
-	for enemy in get_tree().get_nodes_in_group("enemies"):
+	for enemy in EnemyTracker.get_active_enemies():
 		if not is_instance_valid(enemy):
 			continue
 		if not enemy.has_method("global_position") and not "global_position" in enemy:
