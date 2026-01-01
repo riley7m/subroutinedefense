@@ -14,6 +14,9 @@ var refresh_timer: Timer = null
 # Drone management (Phase 2.2 Refactor)
 var drone_manager: DroneManager = null
 
+# Game state management (Phase 3.1 Refactor)
+var game_state_manager: GameStateManager = null
+
 @onready var perm_nodes = {
 	"projectile_damage": {
 		"level": $PermUpgradesPanel/PermUpgradesList/PermProjectileDamage/PermProjectileDamageLevel,
@@ -361,6 +364,13 @@ func _ready() -> void:
 	# Auto-spawn owned drones (purchased out-of-run)
 	var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
 	drone_manager.spawn_owned_drones(tower_pos)
+
+	# Initialize game state manager (Phase 3.1 Refactor)
+	game_state_manager = GameStateManager.new()
+	game_state_manager.spawner = spawner
+	game_state_manager.tower = tower
+	game_state_manager.main_hud = self
+	add_child(game_state_manager)
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
@@ -931,179 +941,22 @@ func _on_boss_rush_button_pressed():
 		if boss_rush_panel.visible:
 			_hide_all_progression_panels_except("boss_rush")
 
+# Game state management functions delegated to GameStateManager (Phase 3.1 Refactor)
 func reset_to_wave_1():
-	# Called when entering a new tier - resets to wave 1 but keeps permanent upgrades
-	print("🔄 Resetting to Wave 1 for new tier...")
-
-	# 1. Reset in-run upgrades
-	if Engine.has_singleton("UpgradeManager"):
-		UpgradeManager.reset_run_upgrades()
-
-	# 2. Reset run currency (keep AT/Fragments, reset DC)
-	if Engine.has_singleton("RewardManager"):
-		RewardManager.reset_run_currency()
-
-	# 3. Reset wave and clear enemies
-	if spawner.has_method("reset_wave_timers"):
-		spawner.reset_wave_timers()
-	spawner.wave_spawning = false
-	spawner.current_wave = 1
-	spawner.enemies_to_spawn = 0
-	spawner.spawned_enemies = 0
-
-	# Remove any enemy nodes
-	for e in spawner.get_children():
-		if is_instance_valid(e) and e.is_in_group("enemies"):
-			e.queue_free()
-
-	# 4. Reset the tower
-	tower.tower_hp = 1000
-	tower.refresh_shield_stats()
-	tower.current_shield = tower.max_shield
-	tower.update_bars()
-
-	# 5. Hide all upgrade panels
-	offense_panel.visible = false
-	defense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
-	if software_upgrade_panel:
-		software_upgrade_panel.visible = false
-	if tier_selection_panel:
-		tier_selection_panel.visible = false
-
-	# 6. Start wave 1
-	wave_timer = 0.0
-	spawner.start_wave(1)
-	update_labels()
-
-	# 7. Start tracking this run's performance
-	RewardManager.start_run_tracking(1)
-
-	print("✅ Reset complete! Starting Wave 1 in Tier %d" % TierManager.get_current_tier())
+	if game_state_manager:
+		game_state_manager.reset_to_wave_1()
 
 func start_boss_rush():
-	# Called when boss rush starts from UI
-	print("🏆 Starting Boss Rush mode...")
-
-	if not BossRushManager.start_boss_rush():
-		print("⚠️ Failed to start boss rush!")
-		return
-
-	# Reset game state (similar to tier reset but for boss rush)
-	# 1. Reset in-run upgrades
-	if Engine.has_singleton("UpgradeManager"):
-		UpgradeManager.reset_run_upgrades()
-
-	# 2. Reset run currency
-	if Engine.has_singleton("RewardManager"):
-		RewardManager.reset_run_currency()
-
-	# 3. Reset wave and clear enemies
-	if spawner.has_method("reset_wave_timers"):
-		spawner.reset_wave_timers()
-	spawner.wave_spawning = false
-	spawner.current_wave = 1
-	spawner.enemies_to_spawn = 0
-	spawner.spawned_enemies = 0
-
-	# Remove any enemy nodes
-	for e in spawner.get_children():
-		if is_instance_valid(e) and e.is_in_group("enemies"):
-			e.queue_free()
-
-	# 4. Reset the tower
-	tower.tower_hp = 1000
-	tower.refresh_shield_stats()
-	tower.current_shield = tower.max_shield
-	tower.update_bars()
-
-	# 5. Hide all panels
-	offense_panel.visible = false
-	defense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
-	if software_upgrade_panel:
-		software_upgrade_panel.visible = false
-	if tier_selection_panel:
-		tier_selection_panel.visible = false
-	if boss_rush_panel:
-		boss_rush_panel.visible = false
-
-	# 6. Reset RunStats for damage tracking
-	RunStats.reset()
-
-	# 7. Start wave 1
-	wave_timer = 0.0
-	spawner.start_wave(1)
-	update_labels()
-
-	print("✅ Boss Rush started! Good luck!")
+	if game_state_manager:
+		game_state_manager.start_boss_rush()
 
 func exit_boss_rush():
-	# Called when exiting boss rush (player quits or dies)
-	print("🏆 Exiting Boss Rush mode...")
-
-	# End boss rush in spawner (this will trigger leaderboard entry)
-	if spawner and spawner.has_method("end_boss_rush"):
-		spawner.end_boss_rush()
-
-	# Return to start screen
-	_on_quit_button_pressed()
+	if game_state_manager:
+		game_state_manager.exit_boss_rush()
 
 func _on_quit_button_pressed():
-	# Record run performance before quitting
-	if Engine.has_singleton("RewardManager") and spawner:
-		RewardManager.record_run_performance(spawner.current_wave)
-
-	# 1. Reset in-run upgrades
-	if Engine.has_singleton("UpgradeManager"):
-		UpgradeManager.reset_run_upgrades()
-		UpgradeManager.maybe_grant_free_upgrade() # Optional
-
-	# 2. Save permanent upgrades and reset currencies
-	if Engine.has_singleton("RewardManager"):
-		RewardManager.save_permanent_upgrades()
-		RewardManager.reset_run_currency()
-
-	# 3. Reset wave and clear enemies
-	if spawner.has_method("reset_wave_timers"):
-		spawner.reset_wave_timers()
-	spawner.wave_spawning = false
-	spawner.current_wave = 1
-	spawner.enemies_to_spawn = 0
-	spawner.spawned_enemies = 0
-	# Remove any enemy nodes
-	for e in spawner.get_children():
-		if is_instance_valid(e) and e.is_in_group("enemies"):
-			e.queue_free()
-
-	# 4. Reset the tower
-	tower.tower_hp = 1000
-	tower.refresh_shield_stats()
-	tower.current_shield = tower.max_shield
-	tower.update_bars()
-
-	# 5. Hide all upgrade panels
-	if has_node("OffensePanel"):
-		$OffensePanel.visible = false
-	if has_node("DefensePanel"):
-		$DefensePanel.visible = false
-	if has_node("EconomyPanel"):
-		$EconomyPanel.visible = false
-	if has_node("PermUpgradesPanel"):
-		$PermUpgradesPanel.visible = false
-
-	# 6. Return to the Start Screen
-	get_tree().change_scene_to_file("res://StartScreen.tscn")
-
-	print("=== RUN STATS ON DEATH ===")
-	print("AT Earned: ", RunStats.archive_tokens_earned)
-	print("DC Earned: ", RunStats.data_credits_earned)
-	print("Damage Dealt: ", RunStats.damage_dealt)
-	print("Damage Taken: ", RunStats.damage_taken)
-	print("==========================")	
-	RunStats.reset()
+	if game_state_manager:
+		game_state_manager.quit_to_menu()
 
 # === STATISTICS PANEL ===
 
