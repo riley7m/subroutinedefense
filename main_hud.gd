@@ -17,6 +17,9 @@ var drone_manager: DroneManager = null
 # Game state management (Phase 3.1 Refactor)
 var game_state_manager: GameStateManager = null
 
+# Permanent upgrade management (Phase 3.3 Refactor)
+var perm_upgrade_manager: PermanentUpgradeManager = null
+
 @onready var perm_nodes = {
 	"projectile_damage": {
 		"level": $PermUpgradesPanel/PermUpgradesList/PermProjectileDamage/PermProjectileDamageLevel,
@@ -98,10 +101,7 @@ var milestone_button: Button = null
 var achievement_panel: Control = null
 var achievement_button: Button = null
 
-# Drone purchase UI (in perm panel)
-var drone_purchase_containers: Dictionary = {}
-var drone_purchase_buttons: Dictionary = {}
-var drone_status_labels: Dictionary = {}
+# Drone purchase UI tracking moved to PermanentUpgradeManager (Phase 3.3 Refactor)
 
 var buy_x_options = [1, 5, 10, "Max"]
 var current_buy_index = 0
@@ -375,15 +375,25 @@ func _ready() -> void:
 	game_state_manager.main_hud = self
 	add_child(game_state_manager)
 
+	# Initialize permanent upgrade manager (Phase 3.3 Refactor)
+	perm_upgrade_manager = PermanentUpgradeManager.new()
+	perm_upgrade_manager.perm_nodes = perm_nodes
+	perm_upgrade_manager.perm_panel = perm_panel
+	perm_upgrade_manager.perm_panel_toggle_button = perm_panel_toggle_button
+	perm_upgrade_manager.main_hud = self
+	perm_upgrade_manager.permanent_upgrade_purchased.connect(_on_perm_upgrade_purchased)
+	perm_upgrade_manager.drone_purchased.connect(_on_drone_purchased)
+	add_child(perm_upgrade_manager)
+
 	# Spawner hookup
 	spawner.set_main_hud(self)
 	spawner.start_wave(wave)
 	randomize()
 	RewardManager.load_permanent_upgrades()
-	update_all_perm_upgrade_ui()
+	perm_upgrade_manager.update_all_perm_upgrade_ui()
 
 	# Create drone purchase UI in permanent upgrades panel
-	_create_drone_purchase_ui()
+	perm_upgrade_manager.create_drone_purchase_ui()
 
 	# Start tracking this run's performance
 	RewardManager.start_run_tracking(wave)
@@ -394,7 +404,7 @@ func _ready() -> void:
 	refresh_timer.timeout.connect(update_labels)
 	refresh_timer.autostart = true
 	add_child(refresh_timer)
-	RewardManager.archive_tokens_changed.connect(update_all_perm_upgrade_ui)
+	RewardManager.archive_tokens_changed.connect(_on_archive_tokens_changed)
 	update_labels()
 	update_damage_label()
 	update_all_inrun_upgrade_ui()  # Initialize in-run upgrade button costs
@@ -411,8 +421,8 @@ func _exit_tree() -> void:
 		refresh_timer.queue_free()
 
 	# Disconnect signal from RewardManager
-	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "update_all_perm_upgrade_ui")):
-		RewardManager.archive_tokens_changed.disconnect(Callable(self, "update_all_perm_upgrade_ui"))
+	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "_on_archive_tokens_changed")):
+		RewardManager.archive_tokens_changed.disconnect(Callable(self, "_on_archive_tokens_changed"))
 
 	# Clean up drones (Phase 2.2 Refactor)
 	if drone_manager:
@@ -755,55 +765,24 @@ func _update_speed_button_label() -> void:
 	var new_speed = speed_levels[current_speed_index]
 	speed_button.text = "%.0fx Speed" % new_speed
 	
+# Permanent upgrade handler delegated to PermanentUpgradeManager (Phase 3.3 Refactor)
 func _on_perm_upgrade_pressed(key):
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_permanent(key):
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_permanent(key):
-				break
-	update_all_perm_upgrade_ui()
+	if perm_upgrade_manager:
+		perm_upgrade_manager.handle_upgrade_purchase(key)
 
-	# Refresh drones if drone upgrades were purchased (Phase 2.2 Refactor)
-	if key in ["drone_flame", "drone_frost", "drone_poison", "drone_shock"]:
-		if drone_manager:
-			drone_manager.refresh_all_drones()
-
-	
 func _on_buy_x_button_pressed():
 	current_buy_index = (current_buy_index + 1) % buy_x_options.size()
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
 
 
-
+# Permanent upgrade UI functions delegated to PermanentUpgradeManager (Phase 3.3 Refactor)
 func update_perm_upgrade_ui(key):
-	var level = UpgradeManager.get_perm_level(key)
-	var at = RewardManager.archive_tokens
-	var buy_amount = get_current_buy_amount()
-	var label_text = ""
-	var total_cost = 0
-
-	if buy_amount == -1:
-		# Max: Calculate how many upgrades you can actually afford, and total cost for that amount
-		var arr = BulkPurchaseCalculator.get_perm_max_affordable(key, at)
-		var max_afford = arr[0]
-		var max_cost = arr[1]
-		label_text = "Upgrade x%s (%s AT)" % [str(max_afford), str(max_cost)]
-		total_cost = max_cost
-	else:
-		total_cost = BulkPurchaseCalculator.get_perm_total_cost(key, buy_amount)
-		label_text = "Upgrade x%s (%s AT)" % [str(buy_amount), str(total_cost)]
-
-	perm_nodes[key]["level"].text = "Lvl %d" % level
-	perm_nodes[key]["button"].text = label_text
-	perm_nodes[key]["button"].disabled = at < (total_cost if total_cost > 0 else UpgradeManager.get_perm_upgrade_cost(key))
-
+	if perm_upgrade_manager:
+		perm_upgrade_manager.update_perm_upgrade_ui(key)
 
 func update_all_perm_upgrade_ui():
-	for key in perm_nodes.keys():
-		update_perm_upgrade_ui(key)
+	if perm_upgrade_manager:
+		perm_upgrade_manager.update_all_perm_upgrade_ui()
 
 # Drone spawn and refresh functions extracted to DroneManager.gd (Phase 2.2 Refactor)
 # - spawn_owned_drones()
@@ -820,111 +799,25 @@ func get_current_buy_amount() -> int:
 # - get_inrun_total_cost()
 # - get_inrun_max_affordable()
 
-# === DRONE PURCHASE UI (IN PERM PANEL) ===
-
-func _create_drone_purchase_ui() -> void:
-	var perm_list = get_node_or_null("PermUpgradesPanel/PermUpgradesList")
-	if not perm_list:
-		print("⚠️ PermUpgradesList not found!")
-		return
-
-	# Add separator before drones section
-	var separator = HSeparator.new()
-	perm_list.add_child(separator)
-
-	# Add drones section title
-	var title_container = HBoxContainer.new()
-	perm_list.add_child(title_container)
-
-	var title = Label.new()
-	title.text = "=== DRONES (Purchase with 💎 Fragments) ==="
-	title.custom_minimum_size = Vector2(400, 25)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_container.add_child(title)
-
-	# Drone types and info
-	var drone_info = {
-		"flame": {"name": "🔥 Flame", "desc": "Burns enemies"},
-		"frost": {"name": "❄️ Frost", "desc": "Slows fastest"},
-		"poison": {"name": "🟣 Poison", "desc": "Poisons enemies"},
-		"shock": {"name": "⚡ Shock", "desc": "Stuns closest"}
-	}
-
-	for drone_type in ["flame", "frost", "poison", "shock"]:
-		var info = drone_info[drone_type]
-
-		# Create container
-		var container = HBoxContainer.new()
-		container.custom_minimum_size = Vector2(400, 30)
-		drone_purchase_containers[drone_type] = container
-		perm_list.add_child(container)
-
-		# Name label
-		var name_label = Label.new()
-		name_label.text = info["name"]
-		name_label.custom_minimum_size = Vector2(80, 30)
-		container.add_child(name_label)
-
-		# Status label
-		var status_label = Label.new()
-		status_label.text = "Not Owned"
-		status_label.custom_minimum_size = Vector2(120, 30)
-		drone_status_labels[drone_type] = status_label
-		container.add_child(status_label)
-
-		# Purchase button
-		var button = Button.new()
-		button.text = "Purchase (5000 💎)"
-		button.custom_minimum_size = Vector2(180, 30)
-		button.pressed.connect(_on_drone_purchase_button_pressed.bind(drone_type))
-		drone_purchase_buttons[drone_type] = button
-		container.add_child(button)
-
-	# Initial UI update
-	_update_drone_purchase_ui()
-
-func _on_drone_purchase_button_pressed(drone_type: String) -> void:
-	var cost = RewardManager.get_drone_purchase_cost(drone_type)
-	if RewardManager.purchase_drone_permanent(drone_type, cost):
-		_update_drone_purchase_ui()
-		print("💎 Successfully purchased", drone_type, "drone!")
-
-func _update_drone_purchase_ui() -> void:
-	for drone_type in ["flame", "frost", "poison", "shock"]:
-		if not drone_status_labels.has(drone_type) or not drone_purchase_buttons.has(drone_type):
-			continue
-
-		var status_label = drone_status_labels[drone_type]
-		var button = drone_purchase_buttons[drone_type]
-		var is_owned = RewardManager.owns_drone(drone_type)
-		var cost = RewardManager.get_drone_purchase_cost(drone_type)
-
-		# Update status
-		if is_owned:
-			status_label.text = "✅ Owned"
-			button.text = "Owned"
-			button.disabled = true
-		else:
-			status_label.text = "Not Owned"
-			button.text = "Purchase (%d 💎)" % cost
-			button.disabled = RewardManager.fragments < cost
+# Drone purchase UI functions extracted to PermanentUpgradeManager (Phase 3.3 Refactor)
+# - create_drone_purchase_ui()
+# - update_drone_purchase_ui()
+# - _on_drone_purchase_button_pressed()
 
 # === PERM PANEL FUNCTIONS ===
 
+# Perm panel toggle delegated to PermanentUpgradeManager (Phase 3.3 Refactor)
 func _on_perm_panel_toggle_button_pressed():
-	perm_panel.visible = not perm_panel.visible
+	if perm_upgrade_manager:
+		perm_upgrade_manager.toggle_panel()
+
+	# Hide all other panels when perm panel is shown
 	if perm_panel.visible:
-		perm_panel_toggle_button.text = "Hide Upgrades"
-		# Hide all other panels when perm panel is shown
 		offense_panel.visible = false
 		defense_panel.visible = false
 		economy_panel.visible = false
 		if software_upgrade_panel:
 			software_upgrade_panel.visible = false
-		# Update drone purchase UI when opening perm panel
-		_update_drone_purchase_ui()
-	else:
-		perm_panel_toggle_button.text = "Show Upgrades"
 
 func _on_software_upgrade_button_pressed():
 	if software_upgrade_panel:
@@ -1058,3 +951,20 @@ func _hide_all_progression_panels_except(keep_visible: String) -> void:
 		milestone_panel.visible = false
 	if achievement_panel and keep_visible != "achievement":
 		achievement_panel.visible = false
+
+# === PERMANENT UPGRADE MANAGER SIGNAL HANDLERS (Phase 3.3 Refactor) ===
+
+func _on_perm_upgrade_purchased(upgrade_key: String) -> void:
+	# Refresh drones if drone upgrades were purchased
+	if upgrade_key in ["drone_flame", "drone_frost", "drone_poison", "drone_shock"]:
+		if drone_manager:
+			drone_manager.refresh_all_drones()
+
+func _on_drone_purchased(drone_type: String) -> void:
+	# Handle drone purchase events if needed
+	pass
+
+func _on_archive_tokens_changed() -> void:
+	# Update all perm upgrade UI when AT changes
+	if perm_upgrade_manager:
+		perm_upgrade_manager.update_all_perm_upgrade_ui()
