@@ -529,8 +529,6 @@ func apply_offline_rewards() -> void:
 # Version 2: BigNumber format with perm_projectile_damage_mantissa/exponent
 const SAVE_VERSION = 2
 const SAVE_FILE = "user://perm_upgrades.save"
-const SAVE_FILE_TEMP = "user://perm_upgrades.save.tmp"
-const SAVE_FILE_BACKUP = "user://perm_upgrades.save.backup"
 
 func save_permanent_upgrades() -> bool:
 	# Update last play time on save
@@ -584,91 +582,26 @@ func save_permanent_upgrades() -> bool:
 		"lifetime_kills": RunStats.lifetime_kills,
 	}
 
-	# ATOMIC SAVE WITH BACKUP
-	# Step 1: Backup existing save file
-	if FileAccess.file_exists(SAVE_FILE):
-		var dir = DirAccess.open("user://")
-		if dir:
-			if FileAccess.file_exists(SAVE_FILE_BACKUP):
-				dir.remove(SAVE_FILE_BACKUP)
-			var copy_err = dir.copy(SAVE_FILE, SAVE_FILE_BACKUP)
-			if copy_err != OK:
-				print("⚠️ Failed to create backup (error %d), continuing anyway..." % copy_err)
+	# Use SaveManager for atomic save (Priority 4.2: Unified save system)
+	var success = SaveManager.atomic_save(SAVE_FILE, data)
+	if success:
+		print("💾 Permanent upgrades saved (atomic write successful)")
 
-	# Step 2: Write to temporary file
-	var file = FileAccess.open(SAVE_FILE_TEMP, FileAccess.WRITE)
-	if file == null:
-		push_error("❌ Failed to open temp save file: " + str(FileAccess.get_open_error()))
-		return false
-	file.store_var(data)
-	file.close()
+		# Upload to cloud if logged in
+		if CloudSaveManager and CloudSaveManager.is_logged_in:
+			CloudSaveManager.upload_save_data(data)
 
-	# Step 3: Verify temporary file
-	file = FileAccess.open(SAVE_FILE_TEMP, FileAccess.READ)
-	if file == null:
-		push_error("❌ Failed to verify temp save file!")
-		return false
-	var verification = file.get_var()
-	file.close()
-
-	if typeof(verification) != TYPE_DICTIONARY:
-		push_error("❌ Save verification failed: Invalid data type!")
-		var dir = DirAccess.open("user://")
-		if dir:
-			dir.remove(SAVE_FILE_TEMP)
-		return false
-
-	# Step 4: Atomic rename (replace old save with new)
-	var dir = DirAccess.open("user://")
-	if not dir:
-		push_error("❌ Failed to access save directory!")
-		return false
-
-	if FileAccess.file_exists(SAVE_FILE):
-		dir.remove(SAVE_FILE)
-
-	var rename_err = dir.rename(SAVE_FILE_TEMP, SAVE_FILE)
-	if rename_err != OK:
-		push_error("❌ Failed to finalize save file (error %d)!" % rename_err)
-		return false
-
-	print("💾 Permanent upgrades saved (atomic write successful)")
-
-	# Upload to cloud if logged in
-	if CloudSaveManager and CloudSaveManager.is_logged_in:
-		CloudSaveManager.upload_save_data(data)
-
-	return true
+	return success
 
 func load_permanent_upgrades():
-	# Try loading from main save, then backup if corrupted
-	var files_to_try = [SAVE_FILE, SAVE_FILE_BACKUP]
+	# Use SaveManager for atomic load (Priority 4.2: Unified save system)
+	var data = SaveManager.atomic_load(SAVE_FILE)
 
-	for save_file_path in files_to_try:
-		if not FileAccess.file_exists(save_file_path):
-			continue
-
-		var file = FileAccess.open(save_file_path, FileAccess.READ)
-		if file == null:
-			push_error("Failed to open %s for reading: %s" % [save_file_path, str(FileAccess.get_open_error())])
-			continue
-
-		var data = file.get_var()
-		file.close()
-
-		# Validate data is a dictionary
-		if typeof(data) != TYPE_DICTIONARY:
-			push_error("Save file %s corrupted: Invalid data type" % save_file_path)
-			continue
-
-		# Successfully loaded save
-		if save_file_path == SAVE_FILE_BACKUP:
-			print("⚠️ Main save corrupted, loaded from backup!")
-
-		_apply_save_data(data)
+	if data.is_empty():
+		print("❌ All save files corrupted or missing. Starting fresh.")
 		return
 
-	print("❌ All save files corrupted or missing. Starting fresh.")
+	_apply_save_data(data)
 
 func _apply_save_data(data: Dictionary) -> void:
 	# Check save version and handle migrations

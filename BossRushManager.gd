@@ -474,32 +474,24 @@ func save_leaderboard() -> void:
 	}
 
 	var save_path = "user://boss_rush_leaderboard.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# Use SaveManager for simple save (Priority 4.2: Unified save system)
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Boss rush leaderboard saved")
 	else:
 		print("⚠️ Failed to save boss rush leaderboard")
 
 func load_leaderboard() -> void:
 	var save_path = "user://boss_rush_leaderboard.save"
-	if not FileAccess.file_exists(save_path):
+
+	# Use SaveManager for simple load (Priority 4.2: Unified save system)
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📊 No boss rush leaderboard found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
-
-		if save_data and save_data is Dictionary:
-			leaderboard = save_data.get("leaderboard", [])
-			print("📊 Boss rush leaderboard loaded: %d entries" % leaderboard.size())
-		else:
-			print("⚠️ Invalid boss rush leaderboard data")
-	else:
-		print("⚠️ Failed to load boss rush leaderboard")
+	leaderboard = save_data.get("leaderboard", [])
+	print("📊 Boss rush leaderboard loaded: %d entries" % leaderboard.size())
 
 # === UTILITY ===
 
