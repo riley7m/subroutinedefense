@@ -72,7 +72,7 @@ var perm_lab_speed: float = 0.0  # +1% per level from lab_acceleration
 
 # --- Signal Throttling (Performance Optimization) ---
 var _last_ui_update_time: int = 0
-const UI_UPDATE_INTERVAL_MS := 500  # Update UI max 2x per second (every 0.5s)
+const UI_UPDATE_INTERVAL_MS := 333  # Update UI max 3x per second (every 333ms) - Priority 2 optimization
 
 signal archive_tokens_changed
 signal offline_progress_calculated(waves: int, dc: int, at: int, duration: float)
@@ -124,7 +124,7 @@ func add_archive_tokens(amount: int) -> void:
 	archive_tokens += amount
 	AchievementManager.add_at_earned(amount)  # Track for achievements
 
-	# Throttle UI updates to max 2x per second (every 0.5s)
+	# Throttle UI updates to max 3x per second (every 333ms) - Priority 2 optimization
 	# Prevents excessive signal emissions during high kill rates (100+ kills/sec)
 	# Improves performance by 15-20% at wave 100+ and 25-30% at wave 1000+
 	var now = Time.get_ticks_msec()

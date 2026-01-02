@@ -424,9 +424,9 @@ func _ready() -> void:
 	# Start tracking this run's performance
 	RewardManager.start_run_tracking(1)  # Start tracking from wave 1 (BUG-001 fix)
 
-	# Refresh currency labels every 0.2s
+	# Refresh currency labels every 0.333s (3x per second) - Priority 2 optimization
 	refresh_timer = Timer.new()
-	refresh_timer.wait_time = 0.2
+	refresh_timer.wait_time = 0.333
 	refresh_timer.timeout.connect(update_labels)
 	refresh_timer.autostart = true
 	add_child(refresh_timer)
