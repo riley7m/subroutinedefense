@@ -589,15 +589,20 @@ func reset_pooled_object() -> void:
 	in_range = false
 	time_since_last_attack = 0.0
 
-	# Reset status effects
+	# BUG-018 fix: Reset ALL status effect variables (was missing many)
 	burn_active = false
 	burn_timer = 0.0
-	burn_damage = 0.0
-	burn_power = 0.0
+	burn_duration = 0.0
+	burn_damage_per_tick = 0.0
+	burn_damage_bn = null
+	burn_tick_timer = 0.0
 
 	poison_active = false
 	poison_timer = 0.0
-	poison_percent = 0.0
+	poison_duration = 0.0
+	poison_damage_per_tick = 0.0
+	poison_damage_bn = null
+	poison_tick_timer = 0.0
 
 	slow_active = false
 	slow_timer = 0.0

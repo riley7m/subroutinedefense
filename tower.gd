@@ -198,8 +198,9 @@ func take_damage(amount: int, attacker: Node2D = null) -> void:
 		tower_hp -= reduced_amount
 		#print("💥 Tower hit! Remaining HP:", tower_hp)
 
-		# Check for death
-		if tower_hp <= 0:
+		# BUG-016 fix: Only die if HP AND all shields are depleted
+		# Shield can still regen and protect even at 0 HP
+		if tower_hp <= 0 and current_shield <= 0 and current_overshield <= 0:
 			_cleanup_before_death()
 
 			# Check if boss rush is active - use custom death screen

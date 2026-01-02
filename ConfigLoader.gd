@@ -29,6 +29,11 @@ func load_config() -> bool:
 		push_error("❌ Failed to parse game balance JSON: %s" % json.get_error_message())
 		return false
 
+	# BUG-014 fix: Validate that parsed JSON is a dictionary
+	if not json.data is Dictionary:
+		push_error("❌ Game balance JSON must be a dictionary, got: %s" % type_string(typeof(json.data)))
+		return false
+
 	config = json.data
 	loaded = true
 	print("✅ Game balance configuration loaded")

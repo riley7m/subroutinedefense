@@ -426,7 +426,7 @@ func get_best_run_last_week() -> Dictionary:
 # - Ensures offline rewards reflect actual player skill/progression
 #
 # Caps and limits:
-# - Maximum absence: 24 hours (86,400 seconds)
+# - Maximum absence: 1 week (604,800 seconds) - allows multi-day breaks
 # - Minimum absence: 1 minute (60 seconds) to avoid spam
 # - Maximum AT reward: 1,000,000 (prevents exploits/bugs)
 #
@@ -443,8 +443,9 @@ func calculate_offline_progress(watched_ad: bool = false) -> void:
 	# Update timestamp for next session
 	last_play_time = now
 
-	# Cap at 24 hours (86400 seconds)
-	seconds_away = min(seconds_away, 86400)
+	# BUG-012 fix: Cap at 1 week (604800 seconds) instead of 24h
+	# Allows players to take multi-day breaks without losing all progress
+	seconds_away = min(seconds_away, WEEK_IN_SECONDS)
 
 	# Ignore absences less than 1 minute
 	if seconds_away < 60:

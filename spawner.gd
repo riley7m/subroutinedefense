@@ -81,9 +81,10 @@ func start_wave(wave_number: int) -> int:
 		return current_wave
 
 	# Normal mode handling
-	# Boss waves (every 10th) cannot be skipped - they are progression gates
+	# BUG-013 fix: Boss waves (every 10th) cannot be skipped - they are progression gates
+	# Prevent skipping FROM a boss wave OR TO a boss wave (e.g., skip wave 9 → land on wave 10)
 	# Also prevent consecutive skips with cooldown (must wait 3 waves)
-	var can_skip = should_skip_wave() and actual_wave % 10 != 0 and (actual_wave - last_skip_wave) >= WAVE_SKIP_COOLDOWN
+	var can_skip = should_skip_wave() and actual_wave % 10 != 0 and (actual_wave + 1) % 10 != 0 and (actual_wave - last_skip_wave) >= WAVE_SKIP_COOLDOWN
 	if can_skip:
 		print("⏩ Wave", actual_wave, "skipped due to Wave Skip Chance!")
 		last_skip_wave = actual_wave
@@ -116,6 +117,12 @@ func spawn_enemy() -> void:
 	# In boss rush mode, always spawn bosses
 	var enemy_type_index = 5 if BossRushManager.is_boss_rush_active() else pick_enemy_type(current_wave)
 	var enemy_types = ["breacher", "slicer", "sentinel", "signal_runner", "null_walker", "override"]
+
+	# BUG-011 fix: Bounds check before array access
+	if enemy_type_index < 0 or enemy_type_index >= enemy_types.size():
+		push_error("Invalid enemy_type_index: %d, defaulting to 0" % enemy_type_index)
+		enemy_type_index = 0
+
 	var pool_name = "enemy_" + enemy_types[enemy_type_index]
 
 	# Spawn from pool

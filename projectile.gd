@@ -138,7 +138,8 @@ func _on_body_entered(body: Node2D) -> void:
 			if nearest_enemy:
 				ricochet_count += 1
 				target = nearest_enemy
-				pierced_targets.clear()  # Reset piercing for ricochet
+				# BUG-017 fix: Don't clear pierced_targets - prevents retargeting same enemy
+				# pierced_targets.clear()  # Removed to prevent hitting same enemy twice
 				return  # Continue to ricocheted target
 
 		# Handle overkill damage spread

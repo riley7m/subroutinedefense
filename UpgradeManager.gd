@@ -1155,7 +1155,8 @@ func try_upgrade_economy() -> bool:
 		options.append(func(): upgrade_archive_token_multiplier(true))
 	if wave_skip_chance_level * WAVE_SKIP_CHANCE_PER_LEVEL < WAVE_SKIP_MAX_CHANCE:
 		options.append(func(): upgrade_wave_skip_chance(true))
-	if free_upgrade_chance_level * FREE_UPGRADE_CHANCE_PER_LEVEL < FREE_UPGRADE_MAX_CHANCE:
+	# BUG-015 fix: Check total free upgrade chance (including perm bonus), not just level
+	if get_free_upgrade_chance() < FREE_UPGRADE_MAX_CHANCE:
 		options.append(func(): upgrade_free_upgrade_chance(true))
 	if options.is_empty():
 		return false
