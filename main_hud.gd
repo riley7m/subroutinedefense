@@ -20,6 +20,9 @@ var game_state_manager: GameStateManager = null
 # Permanent upgrade management (Phase 3.3 Refactor)
 var perm_upgrade_manager: PermanentUpgradeManager = null
 
+# In-run upgrade management (Phase 3.4 Refactor)
+var inrun_upgrade_panel: InRunUpgradePanel = null
+
 @onready var perm_nodes = {
 	"projectile_damage": {
 		"level": $PermUpgradesPanel/PermUpgradesList/PermProjectileDamage/PermProjectileDamageLevel,
@@ -318,29 +321,12 @@ func _ready() -> void:
 		top_banner.add_child(tier_label)
 		UIStyler.apply_theme_to_node(tier_label)
 
-	# Connect upgrade and toggle buttons
-	offense_button.pressed.connect(_on_offense_button_pressed)
-	# Generic upgrade handler (Phase 1 refactor)
-	damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage"))
-	fire_rate_upgrade.pressed.connect(_handle_inrun_upgrade.bind("fire_rate"))
-	crit_upgrade_button.pressed.connect(_handle_inrun_upgrade.bind("crit_chance"))
-	crit_damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("crit_damage"))
-	defense_button.pressed.connect(_on_defense_button_pressed)
-	shield_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield"))
-	reduction_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage_reduction"))
-	regen_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield_regen"))
-	economy_button.pressed.connect(_on_economy_button_pressed)
-	data_credits_upgrade.pressed.connect(_handle_inrun_upgrade.bind("data_credits"))
-	archive_token_upgrade.pressed.connect(_handle_inrun_upgrade.bind("archive_token"))
-	free_upgrade_chance.pressed.connect(_handle_inrun_upgrade.bind("free_upgrade"))
-	wave_skip_chance.pressed.connect(_handle_inrun_upgrade.bind("wave_skip"))
+	# Connect non-upgrade buttons
 	speed_button.pressed.connect(_on_speed_button_pressed)
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
 	buy_x_button.pressed.connect(_on_buy_x_button_pressed)
 	quit_button.pressed.connect(_on_quit_button_pressed)
 	perm_panel_toggle_button.pressed.connect(_on_perm_panel_toggle_button_pressed)
-	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
-	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
 
 	for key in perm_nodes.keys():
 		var button = perm_nodes[key]["button"]
@@ -384,6 +370,48 @@ func _ready() -> void:
 	perm_upgrade_manager.permanent_upgrade_purchased.connect(_on_perm_upgrade_purchased)
 	perm_upgrade_manager.drone_purchased.connect(_on_drone_purchased)
 	add_child(perm_upgrade_manager)
+
+	# Initialize in-run upgrade panel (Phase 3.4 Refactor)
+	inrun_upgrade_panel = InRunUpgradePanel.new()
+	inrun_upgrade_panel.main_hud = self
+	inrun_upgrade_panel.tower = tower
+	inrun_upgrade_panel.offense_panel = offense_panel
+	inrun_upgrade_panel.defense_panel = defense_panel
+	inrun_upgrade_panel.economy_panel = economy_panel
+	inrun_upgrade_panel.perm_panel = perm_panel
+	inrun_upgrade_panel.damage_upgrade = damage_upgrade
+	inrun_upgrade_panel.fire_rate_upgrade = fire_rate_upgrade
+	inrun_upgrade_panel.crit_upgrade_button = crit_upgrade_button
+	inrun_upgrade_panel.crit_damage_upgrade = crit_damage_upgrade
+	inrun_upgrade_panel.shield_upgrade = shield_upgrade
+	inrun_upgrade_panel.reduction_upgrade = reduction_upgrade
+	inrun_upgrade_panel.regen_upgrade = regen_upgrade
+	inrun_upgrade_panel.data_credits_upgrade = data_credits_upgrade
+	inrun_upgrade_panel.archive_token_upgrade = archive_token_upgrade
+	inrun_upgrade_panel.free_upgrade_chance = free_upgrade_chance
+	inrun_upgrade_panel.wave_skip_chance = wave_skip_chance
+	inrun_upgrade_panel.unlock_multi_target_button = unlock_multi_target_button
+	inrun_upgrade_panel.upgrade_multi_target_button = upgrade_multi_target_button
+	inrun_upgrade_panel.multi_target_label = multi_target_label
+	add_child(inrun_upgrade_panel)
+
+	# Connect in-run upgrade buttons to panel (Phase 3.4 Refactor)
+	offense_button.pressed.connect(_on_offense_button_pressed)
+	damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage"))
+	fire_rate_upgrade.pressed.connect(_handle_inrun_upgrade.bind("fire_rate"))
+	crit_upgrade_button.pressed.connect(_handle_inrun_upgrade.bind("crit_chance"))
+	crit_damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("crit_damage"))
+	defense_button.pressed.connect(_on_defense_button_pressed)
+	shield_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield"))
+	reduction_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage_reduction"))
+	regen_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield_regen"))
+	economy_button.pressed.connect(_on_economy_button_pressed)
+	data_credits_upgrade.pressed.connect(_handle_inrun_upgrade.bind("data_credits"))
+	archive_token_upgrade.pressed.connect(_handle_inrun_upgrade.bind("archive_token"))
+	free_upgrade_chance.pressed.connect(_handle_inrun_upgrade.bind("free_upgrade"))
+	wave_skip_chance.pressed.connect(_handle_inrun_upgrade.bind("wave_skip"))
+	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
+	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
@@ -455,303 +483,52 @@ func update_damage_label() -> void:
 	# Debug function - no UI update needed (damage_label node removed)
 	pass
 
-# --- Offense Panel Logic ---
-func _on_offense_button_pressed() -> void:
-	var new_state = not offense_panel.visible
-	offense_panel.visible = new_state
-	defense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
+# === IN-RUN UPGRADE PANEL DELEGATORS (Phase 3.4 Refactor) ===
+# Panel toggle functions delegated to InRunUpgradePanel
 
-# Offense upgrade handlers removed - replaced by generic _handle_inrun_upgrade()
+func _on_offense_button_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.toggle_offense_panel()
+
+func _on_defense_button_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.toggle_defense_panel()
+
+func _on_economy_button_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.toggle_economy_panel()
 
 func update_crit_label():
-	var chance = UpgradeManager.get_crit_chance()
-	print("Crit Chance: %d%%" % chance)
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.update_crit_label()
 
-# === GENERIC UPGRADE HANDLER (Phase 1 Refactor) ===
-# Metadata table for all in-run upgrade handlers
-# Eliminates 11 duplicated button handlers (120+ lines → 1 generic function)
-const UPGRADE_METADATA = {
-	"damage": {
-		"upgrade_func": "upgrade_projectile_damage",
-		"post_actions": ["update_damage_label", "tower_update_visual"]
-	},
-	"fire_rate": {
-		"upgrade_func": "upgrade_fire_rate",
-		"post_actions": ["tower_refresh_fire_rate", "tower_update_visual", "update_labels"]
-	},
-	"crit_chance": {
-		"upgrade_func": "upgrade_crit_chance",
-		"post_actions": ["update_crit_label", "update_labels"]
-	},
-	"crit_damage": {
-		"upgrade_func": "upgrade_crit_damage",
-		"post_actions": ["update_labels"]
-	},
-	"shield": {
-		"upgrade_func": "upgrade_shield_integrity",
-		"post_actions": ["tower_refresh_shield", "update_labels"]
-	},
-	"damage_reduction": {
-		"upgrade_func": "upgrade_damage_reduction",
-		"post_actions": ["update_labels"]
-	},
-	"shield_regen": {
-		"upgrade_func": "upgrade_shield_regen",
-		"post_actions": ["tower_refresh_shield", "update_labels"]
-	},
-	"data_credits": {
-		"upgrade_func": "upgrade_data_credit_multiplier",
-		"post_actions": ["update_labels"]
-	},
-	"archive_token": {
-		"upgrade_func": "upgrade_archive_token_multiplier",
-		"post_actions": ["update_labels"]
-	},
-	"free_upgrade": {
-		"upgrade_func": "upgrade_free_upgrade_chance",
-		"post_actions": ["update_labels"]
-	},
-	"wave_skip": {
-		"upgrade_func": "upgrade_wave_skip_chance",
-		"post_actions": ["update_labels"]
-	}
-}
+# Upgrade handler and UI update functions delegated to InRunUpgradePanel (Phase 3.4 Refactor)
+# - UPGRADE_METADATA constant (moved to InRunUpgradePanel)
+# - BUTTON_UI_METADATA constant (moved to InRunUpgradePanel)
+# - _handle_inrun_upgrade() → inrun_upgrade_panel.handle_inrun_upgrade()
+# - _update_upgrade_button_ui() → inrun_upgrade_panel.update_upgrade_button_ui()
+# - update_all_inrun_upgrade_ui() → inrun_upgrade_panel.update_all_inrun_upgrade_ui()
+# - update_multi_target_ui() → inrun_upgrade_panel.update_multi_target_ui()
 
-# Generic upgrade handler - replaces 11 duplicated functions
 func _handle_inrun_upgrade(upgrade_key: String) -> void:
-	if not UPGRADE_METADATA.has(upgrade_key):
-		push_error("Invalid upgrade key: %s" % upgrade_key)
-		return
-
-	var metadata = UPGRADE_METADATA[upgrade_key]
-	var amount = get_current_buy_amount()
-
-	# Execute upgrade purchases
-	if amount == -1:
-		# Max mode: buy until can't afford
-		while UpgradeManager.call(metadata.upgrade_func):
-			pass
-	else:
-		# Buy specified amount
-		for i in range(amount):
-			if not UpgradeManager.call(metadata.upgrade_func):
-				break
-
-	# Execute post-actions
-	for action in metadata.post_actions:
-		match action:
-			"update_labels":
-				update_labels()
-			"update_damage_label":
-				update_damage_label()
-			"update_crit_label":
-				update_crit_label()
-			"tower_update_visual":
-				if tower and is_instance_valid(tower):
-					tower.update_visual_tier()
-			"tower_refresh_fire_rate":
-				if tower and is_instance_valid(tower):
-					tower.refresh_fire_rate()
-			"tower_refresh_shield":
-				if tower and is_instance_valid(tower):
-					tower.refresh_shield_stats()
-			_:
-				push_warning("Unknown post-action: %s" % action)
-
-# === GENERIC UI UPDATE FUNCTION (Phase 1.2 Refactor) ===
-# Metadata table for all in-run upgrade button UI updates
-# Eliminates 165+ lines of duplicated UI update logic
-const BUTTON_UI_METADATA = {
-	"damage": {
-		"button": "damage_upgrade",
-		"base_cost": "DAMAGE_UPGRADE_BASE_COST",
-		"purchases": "damage_purchases",
-		"label": "Damage"
-	},
-	"fire_rate": {
-		"button": "fire_rate_upgrade",
-		"base_cost": "FIRE_RATE_UPGRADE_BASE_COST",
-		"purchases": "fire_rate_purchases",
-		"label": "Fire Rate"
-	},
-	"crit_chance": {
-		"button": "crit_upgrade_button",
-		"base_cost": "CRIT_CHANCE_UPGRADE_BASE_COST",
-		"purchases": "crit_chance_purchases",
-		"label": "Crit Chance",
-		"has_cap": true,
-		"cap_func": "get_crit_chance",
-		"cap_value": "CRIT_CHANCE_CAP"
-	},
-	"crit_damage": {
-		"button": "crit_damage_upgrade",
-		"base_cost": "CRIT_DAMAGE_UPGRADE_BASE_COST",
-		"purchases": "crit_damage_purchases",
-		"label": "Crit Damage"
-	},
-	"shield": {
-		"button": "shield_upgrade",
-		"base_cost": "SHIELD_UPGRADE_BASE_COST",
-		"purchases": "shield_purchases",
-		"label": "Shield Integrity"
-	},
-	"damage_reduction": {
-		"button": "reduction_upgrade",
-		"base_cost": "DAMAGE_REDUCTION_UPGRADE_BASE_COST",
-		"purchases": "damage_reduction_purchases",
-		"label": "Damage Reduction"
-	},
-	"shield_regen": {
-		"button": "regen_upgrade",
-		"base_cost": "SHIELD_REGEN_UPGRADE_BASE_COST",
-		"purchases": "shield_regen_purchases",
-		"label": "Shield Regen"
-	},
-	"data_credits": {
-		"button": "data_credits_upgrade",
-		"base_cost": "DATA_MULTIPLIER_UPGRADE_BASE_COST",
-		"purchases": "data_multiplier_purchases",
-		"label": "Data Credits Multiplier"
-	},
-	"archive_token": {
-		"button": "archive_token_upgrade",
-		"base_cost": "ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST",
-		"purchases": "archive_multiplier_purchases",
-		"label": "Archive Token Multiplier"
-	},
-	"free_upgrade": {
-		"button": "free_upgrade_chance",
-		"base_cost": "FREE_UPGRADE_BASE_COST",
-		"purchases": "free_upgrade_purchases",
-		"label": "Free Upgrade Chance",
-		"has_cap": true,
-		"cap_func": "get_free_upgrade_chance",
-		"cap_value": "FREE_UPGRADE_MAX_CHANCE"
-	},
-	"wave_skip": {
-		"button": "wave_skip_chance",
-		"base_cost": "WAVE_SKIP_UPGRADE_BASE_COST",
-		"purchases": "wave_skip_purchases",
-		"label": "Wave Skip Chance",
-		"has_cap": true,
-		"cap_func": "get_wave_skip_chance",
-		"cap_value": "WAVE_SKIP_MAX_CHANCE"
-	}
-}
-
-# Generic UI update function - replaces 165+ lines of duplicated button update logic
-func _update_upgrade_button_ui(upgrade_key: String) -> void:
-	if not BUTTON_UI_METADATA.has(upgrade_key):
-		push_error("Invalid upgrade key for UI: %s" % upgrade_key)
-		return
-
-	var metadata = BUTTON_UI_METADATA[upgrade_key]
-	var button = get(metadata.button)
-	if not button:
-		push_error("Button not found: %s" % metadata.button)
-		return
-
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
-
-	# Check if upgrade is capped
-	if metadata.has("has_cap") and metadata.has_cap:
-		var current_value = UpgradeManager.call(metadata.cap_func)
-		var cap_value = UpgradeManager.get(metadata.cap_value)
-		if current_value >= cap_value:
-			button.text = "%s (MAX)" % metadata.label
-			button.disabled = true
-			return
-
-	# Get cost constants
-	var base_cost = UpgradeManager.get(metadata.base_cost)
-	var purchases = UpgradeManager.get(metadata.purchases)
-
-	# Calculate cost and text
-	var cost: int
-	var text: String
-
-	if buy_amount == -1:
-		# Max mode: show how many can afford
-		var arr = BulkPurchaseCalculator.get_inrun_max_affordable(base_cost, purchases, dc)
-		cost = arr[1]
-		text = "%s x%d (%s DC)" % [metadata.label, arr[0], NumberFormatter.format(cost)]
-	else:
-		# Buy X mode: show cost for X purchases
-		cost = BulkPurchaseCalculator.get_inrun_total_cost(base_cost, purchases, buy_amount)
-		text = "%s x%d (%s DC)" % [metadata.label, buy_amount, NumberFormatter.format(cost)]
-
-	button.text = text
-	button.disabled = dc < cost or cost == 0
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.handle_inrun_upgrade(upgrade_key)
 
 func update_all_inrun_upgrade_ui() -> void:
-	# Generic updates for all 11 upgrades
-	for upgrade_key in BUTTON_UI_METADATA.keys():
-		_update_upgrade_button_ui(upgrade_key)
-	# Multi-target has custom logic (unlock vs upgrade)
-	update_multi_target_ui()
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.update_all_inrun_upgrade_ui()
 
-func _on_unlock_multi_target_pressed():
-	if UpgradeManager.unlock_multi_target():
-		update_multi_target_ui()
-		update_labels()
+func _on_unlock_multi_target_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.handle_unlock_multi_target()
 
-func _on_upgrade_multi_target_pressed():
-	if UpgradeManager.upgrade_multi_target():
-		update_multi_target_ui()
-		update_labels()
-		
-func update_multi_target_ui():
-	if not UpgradeManager.multi_target_unlocked:
-		unlock_multi_target_button.visible = true
-		upgrade_multi_target_button.visible = false
-		var cost = UpgradeManager.get_multi_target_cost_for_level(1)
-		unlock_multi_target_button.text = "Unlock Multi Target (%d DC)" % cost
-		unlock_multi_target_button.disabled = RewardManager.data_credits < cost
-		multi_target_label.text = "Multi Target: Locked"
-	else:
-		unlock_multi_target_button.visible = false
-		upgrade_multi_target_button.visible = true
-		var lvl = UpgradeManager.multi_target_level
-		var targets = lvl + 1
+func _on_upgrade_multi_target_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.handle_upgrade_multi_target()
 
-		# Handle max level separately to avoid type mismatch
-		if lvl >= UpgradeManager.MULTI_TARGET_MAX_LEVEL:
-			upgrade_multi_target_button.text = "Max Level Reached"
-			upgrade_multi_target_button.disabled = true
-		else:
-			var next_cost = UpgradeManager.get_multi_target_cost_for_level(lvl + 1)
-			upgrade_multi_target_button.text = "Upgrade Multi Target (%d DC)" % next_cost
-			upgrade_multi_target_button.disabled = RewardManager.data_credits < next_cost
-
-		multi_target_label.text = "Multi Target: %d" % targets
-
-# --- IN-RUN UPGRADE UI UPDATE FUNCTIONS (Phase 1.2 Refactor) ---
-# Old category-specific update functions removed - replaced by generic _update_upgrade_button_ui()
-# Eliminated: update_offense_upgrade_ui(), update_defense_upgrade_ui(), update_economy_upgrade_ui()
-# Total reduction: 165+ lines of duplicated code
-
-# --- Defense Panel Logic ---
-func _on_defense_button_pressed():
-	var new_state = not defense_panel.visible
-	defense_panel.visible = new_state
-	offense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
-	
-# Defense upgrade handlers removed - replaced by generic _handle_inrun_upgrade()
-
-# --- Economy Panel Logic ---
-func _on_economy_button_pressed():
-	var new_state = not economy_panel.visible
-	economy_panel.visible = new_state
-	offense_panel.visible = false
-	defense_panel.visible = false
-	perm_panel.visible = false
-
-# Economy upgrade handlers removed - replaced by generic _handle_inrun_upgrade()
+func update_multi_target_ui() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.update_multi_target_ui()
 
 # --- Speed Button Logic ---
 func _on_speed_button_pressed() -> void:
