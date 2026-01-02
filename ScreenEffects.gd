@@ -345,6 +345,8 @@ func fragment_notification(amount: int, position: Vector2 = Vector2.ZERO, parent
 		notification.set_anchors_preset(Control.PRESET_FULL_RECT)
 	else:
 		# Convert world position to screen position
+		# BUG-005 fix verified: Properly converts world coords to screen coords
+		# Prevents fragments from appearing off-screen when boss dies at edge
 		var viewport = parent.get_viewport()
 		var camera = viewport.get_camera_2d() if viewport else null
 

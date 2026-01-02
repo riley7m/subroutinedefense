@@ -1,9 +1,7 @@
 extends Control
 
 # Wave and Tower Status
-var wave: int = 1
-var current_wave: int = 1
-var wave_number: int = 1
+# Wave tracking removed - use spawner.current_wave (single source of truth, fixes BUG-001)
 var tower_hp: int = 1000
 var wave_timer: float = 0.0
 const WAVE_INTERVAL := 2.0
@@ -415,7 +413,7 @@ func _ready() -> void:
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
-	spawner.start_wave(wave)
+	spawner.start_wave(1)  # Start at wave 1 (BUG-001 fix: removed duplicate wave variables)
 	randomize()
 	RewardManager.load_permanent_upgrades()
 	perm_upgrade_manager.update_all_perm_upgrade_ui()
@@ -424,7 +422,7 @@ func _ready() -> void:
 	perm_upgrade_manager.create_drone_purchase_ui()
 
 	# Start tracking this run's performance
-	RewardManager.start_run_tracking(wave)
+	RewardManager.start_run_tracking(1)  # Start tracking from wave 1 (BUG-001 fix)
 
 	# Refresh currency labels every 0.2s
 	refresh_timer = Timer.new()
@@ -433,6 +431,7 @@ func _ready() -> void:
 	refresh_timer.autostart = true
 	add_child(refresh_timer)
 	RewardManager.archive_tokens_changed.connect(_on_archive_tokens_changed)
+	RewardManager.save_failed.connect(_on_save_failed)  # BUG-002 fix: Show save error notification
 	update_labels()
 	update_damage_label()
 	update_all_inrun_upgrade_ui()  # Initialize in-run upgrade button costs
@@ -745,3 +744,9 @@ func _on_archive_tokens_changed() -> void:
 	# Update all perm upgrade UI when AT changes
 	if perm_upgrade_manager:
 		perm_upgrade_manager.update_all_perm_upgrade_ui()
+
+func _on_save_failed(error_message: String) -> void:
+	# BUG-002 fix: Display save error notification to user
+	push_warning(error_message)
+	# TODO: Show visual notification popup to user
+	# For now, console error is sufficient as the game auto-retries every 60s

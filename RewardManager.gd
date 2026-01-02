@@ -76,6 +76,7 @@ const UI_UPDATE_INTERVAL_MS := 500  # Update UI max 2x per second (every 0.5s)
 
 signal archive_tokens_changed
 signal offline_progress_calculated(waves: int, dc: int, at: int, duration: float)
+signal save_failed(error_message: String)  # BUG-002 fix: Notify UI when auto-save fails
 
 var UpgradeManager = null
 
@@ -115,7 +116,7 @@ func _on_autosave_timer_timeout() -> void:
 	var success = save_permanent_upgrades()
 	if not success:
 		push_error("❌ Auto-save failed! Progress may not be saved.")
-		# Note: User should be notified via UI, but we don't have direct access to main_hud here
+		save_failed.emit("Auto-save failed! Progress may not be saved.")  # BUG-002 fix: Notify UI
 
 
 # === Reward Functions ===

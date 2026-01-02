@@ -96,7 +96,10 @@ func _on_body_entered(body: Node2D) -> void:
 		# Apply damage and get overkill amount
 		var overkill_damage = 0
 		# Convert BigNumber to float for enemy.take_damage()
+		# BUG-003 fix: Cap damage at float max to prevent INF overflow
 		var dealt_dmg = dealt_dmg_bn.to_float()
+		if is_inf(dealt_dmg):
+			dealt_dmg = 1.7976931348623157e+308  # Float max (effectively one-shot)
 		if body.has_method("take_damage"):
 			# Check if take_damage accepts is_critical parameter
 			var method_info = body.get_method_list()
