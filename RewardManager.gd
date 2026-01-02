@@ -78,13 +78,9 @@ signal archive_tokens_changed
 signal offline_progress_calculated(waves: int, dc: int, at: int, duration: float)
 signal save_failed(error_message: String)  # BUG-002 fix: Notify UI when auto-save fails
 
-var UpgradeManager = null
-
 func _ready() -> void:
-	# Safely get UpgradeManager
-	UpgradeManager = get_node_or_null("UpgradeManager")
-	if not UpgradeManager:
-		push_error("UpgradeManager not found as child of RewardManager")
+	# H-003: UpgradeManager is an autoload - no need to get as child node
+	# The global UpgradeManager autoload is automatically available
 
 	# Connect to tree exit signal only if not already connected
 	if not get_tree().tree_exiting.is_connected(Callable(self, "save_permanent_upgrades")):

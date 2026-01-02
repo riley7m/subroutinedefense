@@ -337,31 +337,26 @@ func save_shop_data() -> void:
 	}
 
 	var save_path = "user://shop.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# H-002: Use SaveManager for unified save system
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Shop data saved")
 	else:
 		push_error("❌ Failed to save shop data")
 
 func load_shop_data() -> void:
 	var save_path = "user://shop.save"
-	if not FileAccess.file_exists(save_path):
+
+	# H-002: Use SaveManager for unified save system
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📂 No shop save file found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
+	purchased_permanent_items = save_data.get("purchased_permanent_items", [])
+	purchased_iap_items = save_data.get("purchased_iap_items", [])
 
-		purchased_permanent_items = save_data.get("purchased_permanent_items", [])
-		purchased_iap_items = save_data.get("purchased_iap_items", [])
-
-		print("✅ Shop data loaded (%d QC items, %d IAP items purchased)" % [purchased_permanent_items.size(), purchased_iap_items.size()])
-	else:
-		push_error("❌ Failed to load shop data")
+	print("✅ Shop data loaded (%d QC items, %d IAP items purchased)" % [purchased_permanent_items.size(), purchased_iap_items.size()])
 
 # --- DEBUG ---
 func grant_test_qc(amount: int) -> void:

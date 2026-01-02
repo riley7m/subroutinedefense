@@ -292,31 +292,26 @@ func save_milestone_progress() -> void:
 	}
 
 	var save_path = "user://milestone_progress.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# H-002: Use SaveManager for unified save system
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Milestone progress saved")
 	else:
 		push_error("❌ Failed to save milestone progress")
 
 func load_milestone_progress() -> void:
 	var save_path = "user://milestone_progress.save"
-	if not FileAccess.file_exists(save_path):
+
+	# H-002: Use SaveManager for unified save system
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📂 No milestone save file found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
+	claimed_milestones = save_data.get("claimed_milestones", {})
+	paid_tracks_unlocked = save_data.get("paid_tracks_unlocked", {})
 
-		claimed_milestones = save_data.get("claimed_milestones", {})
-		paid_tracks_unlocked = save_data.get("paid_tracks_unlocked", {})
-
-		print("✅ Milestone progress loaded")
-	else:
-		push_error("❌ Failed to load milestone progress")
+	print("✅ Milestone progress loaded")
 
 # --- UTILITY ---
 func get_all_milestones_for_tier(tier: int) -> Array:

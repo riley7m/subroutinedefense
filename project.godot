@@ -17,6 +17,7 @@ config/features=PackedStringArray("4.4", "Mobile")
 [autoload]
 
 ConfigLoader="*res://ConfigLoader.gd"
+SaveManager="*res://SaveManager.gd"
 NumberFormatter="*res://NumberFormatter.gd"
 VisualFactory="*res://VisualFactory.gd"
 AdvancedVisuals="*res://AdvancedVisuals.gd"

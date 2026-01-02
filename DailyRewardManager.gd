@@ -184,29 +184,16 @@ func save_data() -> void:
 		"current_streak": current_streak,
 	}
 
-	var file = FileAccess.open(SAVE_FILE, FileAccess.WRITE)
-	if file == null:
-		push_error("❌ Failed to save daily rewards: " + str(FileAccess.get_open_error()))
-		return
-
-	file.store_var(data)
-	file.close()
+	# H-002: Use SaveManager for unified save system
+	if not SaveManager.simple_save(SAVE_FILE, data):
+		push_error("❌ Failed to save daily rewards")
 
 func load_data() -> void:
-	if not FileAccess.file_exists(SAVE_FILE):
+	# H-002: Use SaveManager for unified save system
+	var data = SaveManager.simple_load(SAVE_FILE)
+
+	if data.is_empty():
 		print("🎁 No daily reward save found - starting fresh")
-		return
-
-	var file = FileAccess.open(SAVE_FILE, FileAccess.READ)
-	if file == null:
-		push_error("❌ Failed to load daily rewards: " + str(FileAccess.get_open_error()))
-		return
-
-	var data = file.get_var()
-	file.close()
-
-	if typeof(data) != TYPE_DICTIONARY:
-		push_error("❌ Daily reward save corrupted")
 		return
 
 	last_claim_timestamp = data.get("last_claim_timestamp", 0)
