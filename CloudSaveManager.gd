@@ -43,14 +43,16 @@ var http_request: HTTPRequest
 var http_validate_save: HTTPRequest
 
 func _ready() -> void:
-	# Create HTTP request nodes
+	# BUG-009 fix: Create HTTP request nodes with timeout protection
 	http_request = HTTPRequest.new()
 	add_child(http_request)
 	http_request.request_completed.connect(_on_http_request_completed)
+	http_request.timeout = 10.0  # 10 second timeout for general requests
 
 	http_validate_save = HTTPRequest.new()
 	add_child(http_validate_save)
 	http_validate_save.request_completed.connect(_on_validate_save_completed)
+	http_validate_save.timeout = 15.0  # 15 second timeout for validation (more complex)
 
 	# Load or generate encryption key
 	_load_or_generate_encryption_key()

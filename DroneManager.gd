@@ -70,9 +70,14 @@ func spawn_owned_drones(tower_position: Vector2) -> void:
 ## Refreshes all active drones with current upgrade levels
 ## Called when drone upgrades are purchased
 func refresh_all_drones() -> void:
+	# BUG-010 fix: Remove invalid drone references to prevent memory leak
+	var valid_drones: Array = []
+
 	for drone in active_drones:
 		if not is_instance_valid(drone):
-			continue
+			continue  # Skip freed drones
+
+		valid_drones.append(drone)
 
 		# Determine drone type and apply DroneUpgradeManager level
 		if drone.has_method("apply_upgrade"):
@@ -81,6 +86,9 @@ func refresh_all_drones() -> void:
 				var level = DroneUpgradeManager.get_drone_level(drone_type)
 				drone.apply_upgrade(level)
 			# Fire rate automatically updates in apply_upgrade()
+
+	# Replace with cleaned list
+	active_drones = valid_drones
 
 ## Cleans up all active drones (called on run end/quit)
 func cleanup_drones() -> void:

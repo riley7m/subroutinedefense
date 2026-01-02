@@ -5,6 +5,7 @@ extends Node
 
 signal tier_changed(new_tier: int)
 signal tier_unlocked(tier: int)
+signal wave_completed(tier: int, wave: int)  # Priority 4.1: Break circular dependencies
 
 # Tier Configuration
 const MAX_TIERS := 10
@@ -120,13 +121,8 @@ func update_highest_wave(wave: int) -> void:
 	if wave > current_highest:
 		highest_wave_per_tier[current_tier] = wave
 
-		# Track wave completion for achievements
-		if AchievementManager:
-			AchievementManager.add_wave_completed()
-
-		# Check milestone rewards
-		if MilestoneManager:
-			MilestoneManager.check_milestone_for_wave(current_tier, wave)
+		# Priority 4.1: Emit signal instead of direct call (breaks circular dependency)
+		wave_completed.emit(current_tier, wave)
 
 		# Check if this unlocks next tier
 		if wave >= WAVES_PER_TIER and current_tier < MAX_TIERS:

@@ -36,6 +36,10 @@ var unlock_multi_target_button: Button = null
 var upgrade_multi_target_button: Button = null
 var multi_target_label: Label = null
 
+# Priority 3.3 optimization: Cache upgrade costs to avoid recalculation
+var _cached_costs: Dictionary = {}  # {upgrade_key -> {dc, purchases, buy_amount, cost, text}}
+var _last_buy_amount: int = 1
+
 # === GENERIC UPGRADE HANDLER (Phase 1 Refactor) ===
 # Metadata table for all in-run upgrade handlers
 # Eliminates 11 duplicated button handlers (120+ lines → 1 generic function)
@@ -211,6 +215,9 @@ func handle_inrun_upgrade(upgrade_key: String) -> void:
 			if not UpgradeManager.call(metadata.upgrade_func):
 				break
 
+	# Priority 3.3 optimization: Invalidate cache after purchase
+	_cached_costs.erase(upgrade_key)
+
 	# Execute post-actions
 	for action in metadata.post_actions:
 		match action:
@@ -262,19 +269,39 @@ func update_upgrade_button_ui(upgrade_key: String) -> void:
 	var base_cost = UpgradeManager.get(metadata.base_cost)
 	var purchases = UpgradeManager.get(metadata.purchases)
 
-	# Calculate cost and text
+	# Priority 3.3 optimization: Check cache first
+	var cache_entry = _cached_costs.get(upgrade_key, {})
+	var cache_valid = (
+		cache_entry.get("purchases", -1) == purchases and
+		cache_entry.get("buy_amount", -1) == buy_amount
+	)
+
 	var cost: int
 	var text: String
 
-	if buy_amount == -1:
-		# Max mode: show how many can afford
-		var arr = BulkPurchaseCalculator.get_inrun_max_affordable(base_cost, purchases, dc)
-		cost = arr[1]
-		text = "%s x%d (%s DC)" % [metadata.label, arr[0], NumberFormatter.format(cost)]
+	if cache_valid:
+		# Use cached values (just update affordability)
+		cost = cache_entry.cost
+		text = cache_entry.text
 	else:
-		# Buy X mode: show cost for X purchases
-		cost = BulkPurchaseCalculator.get_inrun_total_cost(base_cost, purchases, buy_amount)
-		text = "%s x%d (%s DC)" % [metadata.label, buy_amount, NumberFormatter.format(cost)]
+		# Recalculate cost and cache it
+		if buy_amount == -1:
+			# Max mode: show how many can afford
+			var arr = BulkPurchaseCalculator.get_inrun_max_affordable(base_cost, purchases, dc)
+			cost = arr[1]
+			text = "%s x%d (%s DC)" % [metadata.label, arr[0], NumberFormatter.format(cost)]
+		else:
+			# Buy X mode: show cost for X purchases
+			cost = BulkPurchaseCalculator.get_inrun_total_cost(base_cost, purchases, buy_amount)
+			text = "%s x%d (%s DC)" % [metadata.label, buy_amount, NumberFormatter.format(cost)]
+
+		# Cache the result
+		_cached_costs[upgrade_key] = {
+			"purchases": purchases,
+			"buy_amount": buy_amount,
+			"cost": cost,
+			"text": text
+		}
 
 	button.text = text
 	button.disabled = dc < cost or cost == 0

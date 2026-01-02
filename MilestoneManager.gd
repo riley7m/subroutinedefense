@@ -128,6 +128,10 @@ var paid_tracks_unlocked: Dictionary = {}
 func _ready() -> void:
 	load_milestone_progress()
 
+	# Priority 4.1: Connect to TierManager signal (breaks circular dependency)
+	if TierManager:
+		TierManager.wave_completed.connect(check_milestone_for_wave)
+
 # --- MILESTONE CHECKING ---
 func check_milestone_for_wave(tier: int, wave: int) -> void:
 	if wave not in MILESTONE_WAVES:

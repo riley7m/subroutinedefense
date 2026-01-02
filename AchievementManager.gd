@@ -230,15 +230,22 @@ func _ready() -> void:
 
 # --- STAT TRACKING CONNECTIONS ---
 func _connect_stat_tracking() -> void:
+	# Priority 4.1: Connect to TierManager signal (breaks circular dependency)
+	if TierManager:
+		TierManager.wave_completed.connect(_on_wave_completed)
+
 	# Achievement stat tracking is integrated into existing managers:
-	# - Waves: TierManager.update_highest_wave()
+	# - Waves: TierManager.wave_completed signal → _on_wave_completed()
 	# - Kills/Bosses: RunStats.record_kill()
 	# - DC/AT/Fragments: RewardManager.add_data_credits/add_archive_tokens/add_fragments()
 	# - Data Disks: DataDiskManager.add_data_disk()
 	# - QC Spent: Add to wherever quantum_cores is spent (not yet implemented)
 	# - Lab Time: Add to SoftwareUpgradeManager when lab research completes
 	# - Tournaments: Add to BossRushManager.start_tournament() or similar
-	pass
+
+# Priority 4.1: Signal handler for wave completion (replaces direct call)
+func _on_wave_completed(tier: int, wave: int) -> void:
+	add_wave_completed()
 
 # --- STAT UPDATE FUNCTIONS ---
 func add_wave_completed() -> void:

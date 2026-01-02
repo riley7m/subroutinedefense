@@ -55,12 +55,18 @@ func spawn(pool_name: String, parent: Node) -> Node:
 	var pool_data = pools[pool_name]
 	var obj: Node = null
 
-	# Try to get from pool
+	# BUG-008 fix: Try to get from pool with validation
 	if pool_data["pool"].size() > 0:
 		obj = pool_data["pool"].pop_back()
-		stats[pool_name]["recycled"] += 1
-	else:
-		# Pool empty, create new object
+		# Validate we got a valid object (race condition safety)
+		if obj and is_instance_valid(obj):
+			stats[pool_name]["recycled"] += 1
+		else:
+			# Invalid object, create new one instead
+			obj = null
+
+	# Create new object if pool was empty or object was invalid
+	if obj == null:
 		obj = pool_data["scene"].instantiate()
 		obj.set_meta("pool_name", pool_name)
 		obj.set_meta("pooled", true)
@@ -96,10 +102,14 @@ func recycle(obj: Node) -> void:
 
 	var pool_data = pools[pool_name]
 
-	# Remove from active list
+	# BUG-008 fix: Remove from active list (skip if not found)
 	var idx = pool_data["active"].find(obj)
 	if idx >= 0:
 		pool_data["active"].remove_at(idx)
+	else:
+		# Object not in active list - might be double-recycled
+		push_warning("Attempted to recycle object not in active list: %s" % pool_name)
+		return
 
 	# Check pool size limit
 	if pool_data["pool"].size() >= MAX_POOL_SIZE:

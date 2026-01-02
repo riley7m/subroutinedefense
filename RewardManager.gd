@@ -216,11 +216,12 @@ func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 	var tier_mult = TierManager.get_reward_multiplier()
 	var scaled_at = int(base_at * (1.0 + wave_number * 0.02) * get_archive_token_multiplier() * tier_mult)
 
-	# Apply lucky drops bonus
-	var lucky_chance = UpgradeManager.get_lucky_drops()
-	if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
-		scaled_at = int(scaled_at * 1.5)  # 50% bonus on lucky drop
-		#print("🍀 Lucky drop! Bonus AT!")
+	# Apply lucky drops bonus (BUG-007 fix: Add null check)
+	if UpgradeManager:
+		var lucky_chance = UpgradeManager.get_lucky_drops()
+		if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
+			scaled_at = int(scaled_at * 1.5)  # 50% bonus on lucky drop
+			#print("🍀 Lucky drop! Bonus AT!")
 
 	archive_tokens += scaled_at
 	RunStats.add_at_earned(scaled_at)  # Track lifetime AT
@@ -237,11 +238,12 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	var tier_mult = TierManager.get_reward_multiplier()
 	var scaled_dc = int(base_dc * (1.0 + wave_number * 0.02) * get_data_credit_multiplier() * tier_mult)
 
-	# Apply lucky drops bonus
-	var lucky_chance = UpgradeManager.get_lucky_drops()
-	if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
-		scaled_dc = int(scaled_dc * 1.5)  # 50% bonus on lucky drop
-		#print("🍀 Lucky drop! Bonus DC!")
+	# Apply lucky drops bonus (BUG-007 fix: Add null check)
+	if UpgradeManager:
+		var lucky_chance = UpgradeManager.get_lucky_drops()
+		if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
+			scaled_dc = int(scaled_dc * 1.5)  # 50% bonus on lucky drop
+			#print("🍀 Lucky drop! Bonus DC!")
 
 	data_credits += scaled_dc
 	RunStats.add_dc_earned(scaled_dc)  # Track lifetime DC
