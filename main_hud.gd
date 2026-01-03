@@ -748,5 +748,10 @@ func _on_archive_tokens_changed() -> void:
 func _on_save_failed(error_message: String) -> void:
 	# BUG-002 fix: Display save error notification to user
 	push_warning(error_message)
-	# TODO: Show visual notification popup to user
-	# For now, console error is sufficient as the game auto-retries every 60s
+	# Show visual notification popup to user
+	if NotificationManager:
+		NotificationManager.show_custom_notification(
+			"Save Failed",
+			"Auto-save will retry in 60 seconds",
+			"⚠️"
+		)

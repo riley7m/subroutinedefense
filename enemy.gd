@@ -36,6 +36,7 @@ const STUN_MAX_DURATION: float = 2.0
 var wave_number: int = 1
 @export var attack_speed: float = 1
 var hp: BigNumber = null  # Changed to BigNumber for infinite scaling
+var max_hp: BigNumber = null  # Maximum HP after scaling (for overkill calculation)
 var damage_to_tower: int
 var move_speed: float
 @export var tower_position: Vector2 = Vector2.ZERO
@@ -453,6 +454,7 @@ func apply_wave_scaling():
 	hp_bn.multiply(tier_mult)
 	hp_bn.multiply(wave_mult)
 	hp = hp_bn  # No caps - infinite scaling with BigNumber
+	max_hp = hp.copy()  # Store max HP for overkill calculation
 
 	# Damage and speed use regular float (don't need extreme precision)
 	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
@@ -467,6 +469,7 @@ func apply_boss_rush_scaling():
 	# Apply exponential HP scaling (5% per wave vs 2% normal) using BigNumber
 	var calculated_hp = base_hp * boss_rush_mult
 	hp = BigNumber.new(calculated_hp)
+	max_hp = hp.copy()  # Store max HP for overkill calculation
 	damage_to_tower = int(base_damage * BossRushManager.get_boss_rush_damage_multiplier())
 	move_speed = base_speed * BossRushManager.get_boss_rush_speed_multiplier()
 
@@ -564,6 +567,9 @@ func apply_stun(level: int, duration_bonus: float = 0.0) -> void:
 
 func get_current_hp() -> BigNumber:
 	return hp
+
+func get_max_hp() -> BigNumber:
+	return max_hp
 
 func get_health() -> BigNumber:
 	return hp

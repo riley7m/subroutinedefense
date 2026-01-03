@@ -28,8 +28,7 @@ var free_upgrade_chance_level: int = 1
 
 # New upgrades (batch 1)
 var piercing_level: int = 0
-# NOTE: Overkill system disabled - enemies don't store max HP, calculation impossible
-# var overkill_damage_level: int = 0  # DISABLED until redesigned
+var overkill_damage_level: int = 0  # Enabled - enemies now track max HP
 var projectile_speed_level: int = 0
 var block_chance_level: int = 0
 var block_amount_level: int = 0
@@ -55,7 +54,7 @@ var archive_multiplier_purchases: int = 0
 var wave_skip_purchases: int = 0
 var free_upgrade_purchases: int = 0
 var piercing_purchases: int = 0
-# var overkill_purchases: int = 0  # DISABLED - overkill system non-functional
+var overkill_purchases: int = 0
 var projectile_speed_purchases: int = 0
 var block_chance_purchases: int = 0
 var block_amount_purchases: int = 0
@@ -93,9 +92,8 @@ const FREE_UPGRADE_MAX_CHANCE := 50.0
 # New upgrade constants
 const PIERCING_BASE_COST := 150
 const PIERCING_PER_LEVEL := 1  # +1 enemy pierced per level
-# OVERKILL DISABLED - System non-functional (enemies don't store max HP)
-# const OVERKILL_BASE_COST := 200
-# const OVERKILL_PER_LEVEL := 0.05  # +5% overkill damage spread
+const OVERKILL_BASE_COST := 200
+const OVERKILL_PER_LEVEL := 0.05  # +5% overkill damage spread
 const PROJECTILE_SPEED_BASE_COST := 75
 const PROJECTILE_SPEED_PER_LEVEL := 0.1  # +10% speed
 const BLOCK_CHANCE_BASE_COST := 150
@@ -349,9 +347,8 @@ func get_piercing() -> int:
 	return piercing_level * PIERCING_PER_LEVEL + RewardManager.perm_piercing
 
 func get_overkill_damage() -> float:
-	# Overkill system disabled - always return 0
-	return 0.0
-	# return overkill_damage_level * OVERKILL_PER_LEVEL + RewardManager.perm_overkill_damage
+	# Overkill system enabled - enemies now track max HP
+	return overkill_damage_level * OVERKILL_PER_LEVEL + RewardManager.perm_overkill_damage
 
 func get_projectile_speed() -> float:
 	return 1.0 + (projectile_speed_level * PROJECTILE_SPEED_PER_LEVEL) + RewardManager.perm_projectile_speed
@@ -1267,7 +1264,7 @@ func reset_run_upgrades():
 	free_upgrade_chance_level = 50
 	# Batch 1 upgrades
 	piercing_level = 0
-	# overkill_damage_level = 0  # DISABLED
+	overkill_damage_level = 0
 	projectile_speed_level = 0
 	block_chance_level = 0
 	block_amount_level = 0
@@ -1294,7 +1291,7 @@ func reset_run_upgrades():
 	wave_skip_purchases = 0
 	free_upgrade_purchases = 0
 	piercing_purchases = 0
-	# overkill_purchases = 0  # DISABLED
+	overkill_purchases = 0
 	projectile_speed_purchases = 0
 	block_chance_purchases = 0
 	block_amount_purchases = 0

@@ -95,6 +95,12 @@ func _on_body_entered(body: Node2D) -> void:
 
 		# Apply damage and get overkill amount
 		var overkill_damage = 0
+
+		# Get enemy's current HP before damage (for overkill calculation)
+		var hp_before_damage_bn = null
+		if body.has_method("get_health"):
+			hp_before_damage_bn = body.get_health().copy()
+
 		# Convert BigNumber to float for enemy.take_damage()
 		# BUG-003 fix: Cap damage at float max to prevent INF overflow
 		var dealt_dmg = dealt_dmg_bn.to_float()
@@ -115,10 +121,18 @@ func _on_body_entered(body: Node2D) -> void:
 				body.take_damage(dealt_dmg)
 
 			# Calculate overkill if enemy died
-			# TODO: Overkill calculation needs redesign - enemies don't store max HP
-			# For now, disable overkill to prevent errors
-			# if body.has_method("get_health") and body.get_health().less_equal(BigNumber.new(0)):
-			# 	overkill_damage calculation here
+			if hp_before_damage_bn and body.has_method("get_health"):
+				var hp_after_damage_bn = body.get_health()
+				# If enemy died (HP <= 0), calculate overkill
+				if hp_after_damage_bn.less_equal(BigNumber.new(0)):
+					# Overkill = damage dealt - HP before damage
+					var overkill_bn = dealt_dmg_bn.copy()
+					overkill_bn.subtract(hp_before_damage_bn)
+					# Only count positive overkill
+					if overkill_bn.greater(BigNumber.new(0)):
+						overkill_damage = overkill_bn.to_float()
+						if is_inf(overkill_damage):
+							overkill_damage = 1.7976931348623157e+308
 
 		# Handle piercing
 		var piercing = UpgradeManager.get_piercing()

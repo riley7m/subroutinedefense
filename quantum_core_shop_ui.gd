@@ -328,8 +328,11 @@ func _create_qc_shop_content() -> void:
 	content_list.add_child(lab_title)
 
 	# Lab rush (dynamically calculated)
-	# TODO: Need to check if there's an active lab research
-	# For now, just show it as disabled if no active research
+	# Only show if there's an active lab research
+	if SoftwareUpgradeManager and SoftwareUpgradeManager.get_first_active_slot() >= 0:
+		var lab_rush_item = QuantumCoreShop.SHOP_ITEMS["lab_rush"]
+		var time_remaining = SoftwareUpgradeManager.get_active_lab_time_remaining_hours()
+		_create_lab_rush_widget("lab_rush", lab_rush_item, time_remaining)
 
 	# Lab slots
 	var slot_ids = ["lab_slot_3", "lab_slot_4", "lab_slot_5"]
@@ -387,6 +390,67 @@ func _create_shop_item_widget(item_id: String, item: Dictionary) -> void:
 		button.disabled = true
 
 	hbox.add_child(button)
+
+func _create_lab_rush_widget(item_id: String, item: Dictionary, time_remaining_hours: int) -> void:
+	var container = PanelContainer.new()
+	container.custom_minimum_size = Vector2(400, 90)
+	content_list.add_child(container)
+
+	var vbox = VBoxContainer.new()
+	container.add_child(vbox)
+
+	# Name
+	var name_label = Label.new()
+	name_label.text = "%s %s" % [item["icon"], item["name"]]
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_label)
+
+	# Description with time remaining
+	var desc_label = Label.new()
+	desc_label.text = "%s\nTime remaining: %d hours" % [item["description"], time_remaining_hours]
+	desc_label.add_theme_font_size_override("font_size", 11)
+	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(desc_label)
+
+	# Rush options (1h, 4h, or all remaining time)
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(hbox)
+
+	var rush_options = [
+		{"hours": min(1, time_remaining_hours), "label": "Rush 1h"},
+		{"hours": min(4, time_remaining_hours), "label": "Rush 4h"},
+		{"hours": time_remaining_hours, "label": "Rush All"}
+	]
+
+	for option in rush_options:
+		var hours = option["hours"]
+		if hours <= 0:
+			continue
+
+		var qc_cost = hours * 25
+		var can_afford = RewardManager.quantum_cores >= qc_cost
+
+		var button = Button.new()
+		button.custom_minimum_size = Vector2(120, 30)
+
+		if can_afford:
+			button.text = "%s (%s 🔮)" % [option["label"], NumberFormatter.format(qc_cost)]
+			button.pressed.connect(_on_lab_rush_pressed.bind(hours))
+		else:
+			button.text = "%s (%s 🔮)" % [option["label"], NumberFormatter.format(qc_cost)]
+			button.disabled = true
+
+		hbox.add_child(button)
+
+func _on_lab_rush_pressed(hours: int) -> void:
+	# Purchase lab rush with specified hours
+	if QuantumCoreShop.purchase_shop_item("lab_rush", hours):
+		print("✅ Lab rushed by %d hours!" % hours)
+		_refresh_ui()
+	else:
+		print("❌ Failed to rush lab")
 
 func _on_tab_pressed(tab_id: String) -> void:
 	current_tab = tab_id
