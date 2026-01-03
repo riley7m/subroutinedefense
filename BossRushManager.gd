@@ -34,8 +34,9 @@ var http_submit_score: HTTPRequest
 var http_fetch_leaderboard: HTTPRequest
 var http_validate_score: HTTPRequest
 
-# PlayFab Configuration
-const PLAYFAB_TITLE_ID := "1DEAD6"
+# PlayFab Configuration (loaded from ConfigLoader)
+# Uses config/playfab_config.json for external configuration
+var PLAYFAB_TITLE_ID: String = ""
 const LEADERBOARD_NAME := "BossRushDamage"
 
 # Boss Rush Configuration
@@ -67,6 +68,15 @@ var leaderboard: Array = []
 const MAX_LEADERBOARD_ENTRIES := 10
 
 func _ready() -> void:
+	# Load PlayFab configuration from ConfigLoader
+	if ConfigLoader:
+		PLAYFAB_TITLE_ID = ConfigLoader.get_playfab_title_id()
+		if not ConfigLoader.is_playfab_config_loaded():
+			push_warning("⚠️ PlayFab config not loaded, using fallback defaults")
+	else:
+		push_error("❌ ConfigLoader not available, PlayFab integration disabled")
+		PLAYFAB_TITLE_ID = "1DEAD6"
+
 	# Create HTTP nodes for PlayFab
 	http_submit_score = HTTPRequest.new()
 	add_child(http_submit_score)

@@ -2,15 +2,21 @@ extends Node
 
 # Game Balance Configuration Loader
 # Loads balance values from config/game_balance.json
+# Loads PlayFab configuration from config/playfab_config.json
 # This allows tuning the game without modifying code
 
 var config: Dictionary = {}
 var loaded: bool = false
 
+var playfab_config: Dictionary = {}
+var playfab_loaded: bool = false
+
 const CONFIG_PATH := "res://config/game_balance.json"
+const PLAYFAB_CONFIG_PATH := "res://config/playfab_config.json"
 
 func _ready() -> void:
 	load_config()
+	load_playfab_config()
 
 func load_config() -> bool:
 	var file = FileAccess.open(CONFIG_PATH, FileAccess.READ)
@@ -229,3 +235,51 @@ func get_raw_config() -> Dictionary:
 func print_config() -> void:
 	print("📋 Game Balance Configuration:")
 	print(JSON.stringify(config, "  "))
+
+# === PLAYFAB CONFIGURATION ===
+func load_playfab_config() -> bool:
+	var file = FileAccess.open(PLAYFAB_CONFIG_PATH, FileAccess.READ)
+
+	if not file:
+		push_warning("⚠️ PlayFab config not found at: %s (using defaults)" % PLAYFAB_CONFIG_PATH)
+		# Use fallback defaults
+		playfab_config = {
+			"title_id": "1DEAD6",
+			"api_url": "https://{{TITLE_ID}}.playfabapi.com"
+		}
+		playfab_loaded = false
+		return false
+
+	var json_text = file.get_as_text()
+	file.close()
+
+	var json = JSON.new()
+	var parse_result = json.parse(json_text)
+
+	if parse_result != OK:
+		push_error("❌ Failed to parse PlayFab config JSON: %s" % json.get_error_message())
+		playfab_loaded = false
+		return false
+
+	if not json.data is Dictionary:
+		push_error("❌ PlayFab config JSON must be a dictionary, got: %s" % type_string(typeof(json.data)))
+		playfab_loaded = false
+		return false
+
+	playfab_config = json.data
+	playfab_loaded = true
+	print("✅ PlayFab configuration loaded (Title ID: %s)" % get_playfab_title_id())
+	return true
+
+func get_playfab_title_id() -> String:
+	return playfab_config.get("title_id", "1DEAD6")
+
+func get_playfab_api_url() -> String:
+	var title_id = get_playfab_title_id()
+	var url_template = playfab_config.get("api_url", "https://{{TITLE_ID}}.playfabapi.com")
+	# Replace {{TITLE_ID}} placeholder with actual title ID
+	return url_template.replace("{{TITLE_ID}}", title_id)
+
+func is_playfab_config_loaded() -> bool:
+	return playfab_loaded
+
