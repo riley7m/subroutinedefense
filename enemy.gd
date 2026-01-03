@@ -36,6 +36,7 @@ const STUN_MAX_DURATION: float = 2.0
 var wave_number: int = 1
 @export var attack_speed: float = 1
 var hp: BigNumber = null  # Changed to BigNumber for infinite scaling
+var max_hp: BigNumber = null  # Maximum HP after scaling (for overkill calculation)
 var damage_to_tower: int
 var move_speed: float
 @export var tower_position: Vector2 = Vector2.ZERO
@@ -86,9 +87,18 @@ const MAX_TRAIL_POINTS: int = 20
 const TRAIL_SPACING: float = 8.0
 var last_trail_pos: Vector2
 
+# Cached zero BigNumber for efficient death checks (avoids allocation every frame)
+static var _zero_bn: BigNumber = null
+
 
 func _ready() -> void:
+	# Initialize shared zero BigNumber (once for all enemies)
+	if _zero_bn == null:
+		_zero_bn = BigNumber.new(0)
 	add_to_group("enemies")
+
+	# Register with EnemyTracker for efficient targeting
+	EnemyTracker.register_enemy(self)
 
 	# Initialize stats (will be overwritten by apply_wave_scaling, but safe defaults)
 	hp = BigNumber.new(base_hp)
@@ -150,8 +160,7 @@ func _ready() -> void:
 
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		trail = AdvancedVisuals.create_projectile_trail(parent, trail_color)
-		trail.width = 4.0  # Enemies have thicker trails than projectiles
+		trail = TrailPool.get_trail(parent, trail_color, 4.0)
 		last_trail_pos = global_position
 	else:
 		trail = null
@@ -177,10 +186,10 @@ func _physics_process(delta: float) -> void:
 	velocity = direction * move_speed
 	move_and_slide()
 
-	# Update trail using AdvancedVisuals
+	# Update trail using TrailPool
 	if trail and is_instance_valid(trail):
 		if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
-			AdvancedVisuals.update_trail(trail, global_position, MAX_TRAIL_POINTS)
+			TrailPool.update_trail(trail, global_position, MAX_TRAIL_POINTS)
 			last_trail_pos = global_position
 
 	time_since_last_attack += delta
@@ -225,7 +234,7 @@ func _physics_process(delta: float) -> void:
 			VisualFactory.remove_status_effect_overlay("burn", self)
 			AdvancedVisuals.remove_status_icon("burn", self)
 			#print("🔥", name, "burn ended")
-		if hp.less_equal(BigNumber.new(0)) and not is_dead:
+		if hp.less_equal(_zero_bn) and not is_dead:
 			is_dead = true
 			die()
 
@@ -249,7 +258,7 @@ func _physics_process(delta: float) -> void:
 			VisualFactory.remove_status_effect_overlay("poison", self)
 			AdvancedVisuals.remove_status_icon("poison", self)
 			#print("🟣", name, "poison ended")
-		if hp.less_equal(BigNumber.new(0)) and not is_dead:
+		if hp.less_equal(_zero_bn) and not is_dead:
 			is_dead = true
 			die()
 	# --- Apply slow effect ---
@@ -269,7 +278,7 @@ func _physics_process(delta: float) -> void:
 			velocity *= slow_multiplier
 
 	# --- Final death check (in case status effects reduced hp to 0) ---
-	if hp.less_equal(BigNumber.new(0)) and not is_dead:
+	if hp.less_equal(_zero_bn) and not is_dead:
 		is_dead = true
 		die()
 
@@ -302,7 +311,7 @@ func take_damage(amount: int, is_critical: bool = false) -> void:
 
 	# Apply damage using BigNumber
 	hp.subtract(BigNumber.new(amount))
-	if hp.less_equal(BigNumber.new(0)):
+	if hp.less_equal(_zero_bn):
 		is_dead = true
 		die()
 
@@ -326,9 +335,10 @@ func _trigger_hit_flash(is_critical: bool = false) -> void:
 func die():
 	is_dead = true
 
-	# Clean up trail
+	# Recycle trail back to pool
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
+		trail = null
 
 	# Disconnect attack zone signals to prevent leaks
 	if has_node("AttackZone"):
@@ -436,10 +446,17 @@ func apply_wave_scaling():
 	# Get tier multiplier
 	var tier_mult = TierManager.get_enemy_multiplier()
 
-	# Apply tier multiplier to base stats, then wave scaling
-	# Exponential HP scaling using BigNumber for infinite progression
-	var calculated_hp = base_hp * tier_mult * pow(HP_SCALING_BASE, wave_number)
-	hp = BigNumber.new(calculated_hp)
+	# Use BigNumber for intermediate calculations to prevent float precision loss
+	var wave_mult = pow(HP_SCALING_BASE, wave_number)
+
+	# Calculate HP using BigNumber to maintain precision
+	var hp_bn = BigNumber.new(base_hp)
+	hp_bn.multiply(tier_mult)
+	hp_bn.multiply(wave_mult)
+	hp = hp_bn  # No caps - infinite scaling with BigNumber
+	max_hp = hp.copy()  # Store max HP for overkill calculation
+
+	# Damage and speed use regular float (don't need extreme precision)
 	damage_to_tower = int((base_damage * tier_mult) + (wave_number * DAMAGE_PER_WAVE))
 	move_speed = ((base_speed * tier_mult) + (wave_number * SPEED_PER_WAVE)) / 2
 	#print("wave number:", wave_number)
@@ -452,6 +469,7 @@ func apply_boss_rush_scaling():
 	# Apply exponential HP scaling (5% per wave vs 2% normal) using BigNumber
 	var calculated_hp = base_hp * boss_rush_mult
 	hp = BigNumber.new(calculated_hp)
+	max_hp = hp.copy()  # Store max HP for overkill calculation
 	damage_to_tower = int(base_damage * BossRushManager.get_boss_rush_damage_multiplier())
 	move_speed = base_speed * BossRushManager.get_boss_rush_speed_multiplier()
 
@@ -550,6 +568,9 @@ func apply_stun(level: int, duration_bonus: float = 0.0) -> void:
 func get_current_hp() -> BigNumber:
 	return hp
 
+func get_max_hp() -> BigNumber:
+	return max_hp
+
 func get_health() -> BigNumber:
 	return hp
 
@@ -566,20 +587,28 @@ func reset_pooled_object() -> void:
 	# Called when enemy is taken from pool
 	is_pooled = true
 
+	# Re-register with EnemyTracker
+	EnemyTracker.register_enemy(self)
+
 	# Reset state
 	is_dead = false
 	in_range = false
 	time_since_last_attack = 0.0
 
-	# Reset status effects
+	# BUG-018 fix: Reset ALL status effect variables (was missing many)
 	burn_active = false
 	burn_timer = 0.0
-	burn_damage = 0.0
-	burn_power = 0.0
+	burn_duration = 0.0
+	burn_damage_per_tick = 0.0
+	burn_damage_bn = null
+	burn_tick_timer = 0.0
 
 	poison_active = false
 	poison_timer = 0.0
-	poison_percent = 0.0
+	poison_duration = 0.0
+	poison_damage_per_tick = 0.0
+	poison_damage_bn = null
+	poison_tick_timer = 0.0
 
 	slow_active = false
 	slow_timer = 0.0
@@ -629,6 +658,9 @@ func cleanup_pooled_object() -> void:
 	target = null
 
 func _cleanup_and_recycle() -> void:
+	# Unregister from EnemyTracker
+	EnemyTracker.unregister_enemy(self)
+
 	# Remove from group
 	remove_from_group("enemies")
 

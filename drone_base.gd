@@ -66,7 +66,7 @@ func is_in_range(enemy: Node2D) -> bool:
 func pick_lowest_hp_enemy() -> Node2D:
 	var best: Node2D = null
 	var min_hp = INF
-	for enemy in get_tree().get_nodes_in_group("enemies"):
+	for enemy in EnemyTracker.get_active_enemies():
 		if not is_instance_valid(enemy):
 			continue
 		if not enemy.has_method("get_current_hp"):

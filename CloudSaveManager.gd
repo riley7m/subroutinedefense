@@ -11,9 +11,10 @@ signal save_uploaded()
 signal save_downloaded(data: Dictionary)
 signal account_created(player_id: String)
 
-# PlayFab Configuration
-const PLAYFAB_TITLE_ID = "1DEAD6"  # Your PlayFab Title ID
-const PLAYFAB_API_URL = "https://%s.playfabapi.com" % PLAYFAB_TITLE_ID
+# PlayFab Configuration (loaded from ConfigLoader)
+# Uses config/playfab_config.json for external configuration
+var PLAYFAB_TITLE_ID: String = ""
+var PLAYFAB_API_URL: String = ""
 
 # Session State
 var session_ticket: String = ""
@@ -43,14 +44,27 @@ var http_request: HTTPRequest
 var http_validate_save: HTTPRequest
 
 func _ready() -> void:
-	# Create HTTP request nodes
+	# Load PlayFab configuration from ConfigLoader
+	if ConfigLoader:
+		PLAYFAB_TITLE_ID = ConfigLoader.get_playfab_title_id()
+		PLAYFAB_API_URL = ConfigLoader.get_playfab_api_url()
+		if not ConfigLoader.is_playfab_config_loaded():
+			push_warning("⚠️ PlayFab config not loaded, using fallback defaults")
+	else:
+		push_error("❌ ConfigLoader not available, PlayFab integration disabled")
+		PLAYFAB_TITLE_ID = "1DEAD6"
+		PLAYFAB_API_URL = "https://1DEAD6.playfabapi.com"
+
+	# BUG-009 fix: Create HTTP request nodes with timeout protection
 	http_request = HTTPRequest.new()
 	add_child(http_request)
 	http_request.request_completed.connect(_on_http_request_completed)
+	http_request.timeout = 10.0  # 10 second timeout for general requests
 
 	http_validate_save = HTTPRequest.new()
 	add_child(http_validate_save)
 	http_validate_save.request_completed.connect(_on_validate_save_completed)
+	http_validate_save.timeout = 15.0  # 15 second timeout for validation (more complex)
 
 	# Load or generate encryption key
 	_load_or_generate_encryption_key()

@@ -14,7 +14,7 @@ func pick_target() -> Node2D:
 func _get_fastest_enemies(max_count: int) -> Array:
 	# Get all enemies sorted by speed (descending)
 	var enemies = []
-	for enemy in get_tree().get_nodes_in_group("enemies"):
+	for enemy in EnemyTracker.get_active_enemies():
 		if not is_instance_valid(enemy):
 			continue
 		if not "move_speed" in enemy:

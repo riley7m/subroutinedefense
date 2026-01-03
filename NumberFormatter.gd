@@ -7,8 +7,17 @@ extends Node
 ##   NumberFormatter.format(1500000000000)  # "1.50T"
 ##   NumberFormatter.format_big(BigNumber)  # For BigNumber objects
 
+# Priority 2 optimization: Cache formatted numbers to avoid repeated string operations
+var _format_cache: Dictionary = {}  # {value:decimal_places -> formatted_string}
+var _cache_keys: Array = []  # Track insertion order for LRU eviction
+const MAX_CACHE_SIZE := 100  # Limit cache size to prevent memory bloat
+
 ## Format regular int/float with suffix (up to int64 max ~10^18)
 func format(num, decimal_places: int = 2) -> String:
+	# Priority 2 optimization: Check cache first
+	var cache_key = str(num) + ":" + str(decimal_places)
+	if _format_cache.has(cache_key):
+		return _format_cache[cache_key]
 	if num is BigNumber:
 		return num.format(decimal_places)
 
@@ -21,9 +30,9 @@ func format(num, decimal_places: int = 2) -> String:
 
 	# Small numbers (< 1000) - show raw value
 	if abs_num < 1000:
-		if decimal_places == 0:
-			return str(int_num)
-		return str(int_num)
+		var result = str(int_num)
+		_cache_result(cache_key, result)
+		return result
 
 	# Define thresholds and suffixes for big numbers
 	# Supports up to int64 max (~10^18 quintillion)
@@ -47,14 +56,30 @@ func format(num, decimal_places: int = 2) -> String:
 	]
 
 	# Find appropriate suffix
+	var result: String
 	for i in range(THRESHOLDS.size()):
 		if abs_num >= THRESHOLDS[i]:
 			var value = abs_num / DIVISORS[i]
 			var format_str = "%s%." + str(decimal_places) + "f%s"
-			return format_str % [sign, value, SUFFIXES[i]]
+			result = format_str % [sign, value, SUFFIXES[i]]
+			_cache_result(cache_key, result)
+			return result
 
 	# Fallback
-	return str(int_num)
+	result = str(int_num)
+	_cache_result(cache_key, result)
+	return result
+
+## Priority 2 optimization: Store result in cache with LRU eviction
+func _cache_result(key: String, value: String) -> void:
+	# Add to cache
+	_format_cache[key] = value
+	_cache_keys.append(key)
+
+	# Evict oldest if cache is full (LRU)
+	if _cache_keys.size() > MAX_CACHE_SIZE:
+		var oldest_key = _cache_keys.pop_front()
+		_format_cache.erase(oldest_key)
 
 ## Format BigNumber with extended suffixes (up to 1az = 10^237)
 func format_big(bn: BigNumber, decimal_places: int = 2) -> String:

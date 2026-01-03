@@ -30,10 +30,10 @@ func _ready() -> void:
 	# Add quick spawn animation
 	VisualFactory.add_spawn_animation(self, 0.15)
 
-	# Create trail effect using AdvancedVisuals
+	# Get trail from pool
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		trail = AdvancedVisuals.create_projectile_trail(parent, Color(0.3, 0.9, 1.0))
+		trail = TrailPool.get_trail(parent, Color(0.3, 0.9, 1.0), 3.0)
 		last_trail_pos = global_position
 	else:
 		trail = null
@@ -44,10 +44,10 @@ func _process(delta: float) -> void:
 		global_position += direction * speed * delta
 		rotation = direction.angle()
 
-		# Update trail using AdvancedVisuals
+		# Update trail using TrailPool
 		if trail and is_instance_valid(trail):
 			if global_position.distance_to(last_trail_pos) > TRAIL_SPACING:
-				AdvancedVisuals.update_trail(trail, global_position, MAX_TRAIL_POINTS)
+				TrailPool.update_trail(trail, global_position, MAX_TRAIL_POINTS)
 				last_trail_pos = global_position
 	else:
 		# Target is invalid, clean up
@@ -56,7 +56,8 @@ func _process(delta: float) -> void:
 func _exit_tree() -> void:
 	# Safety cleanup if projectile is freed without hitting target
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
+		trail = null
 
 	# Disconnect signal if still connected
 	if body_entered.is_connected(Callable(self, "_on_body_entered")):
@@ -84,8 +85,8 @@ func _on_body_entered(body: Node2D) -> void:
 			dealt_dmg_bn = base_dmg_bn.copy().multiply(crit_multiplier)
 
 		# --- Record damage dealt before applying to enemy (for run stats)
-		# Convert to float for stats tracking (loses precision for huge values but that's okay for stats)
-		RunStats.damage_dealt += dealt_dmg_bn.to_float()
+		# Use BigNumber to maintain precision for infinite scaling
+		RunStats.add_damage_dealt_bn(dealt_dmg_bn)
 
 		# Create impact effect (with null safety check)
 		var parent = get_parent()
@@ -94,8 +95,17 @@ func _on_body_entered(body: Node2D) -> void:
 
 		# Apply damage and get overkill amount
 		var overkill_damage = 0
+
+		# Get enemy's current HP before damage (for overkill calculation)
+		var hp_before_damage_bn = null
+		if body.has_method("get_health"):
+			hp_before_damage_bn = body.get_health().copy()
+
 		# Convert BigNumber to float for enemy.take_damage()
+		# BUG-003 fix: Cap damage at float max to prevent INF overflow
 		var dealt_dmg = dealt_dmg_bn.to_float()
+		if is_inf(dealt_dmg):
+			dealt_dmg = 1.7976931348623157e+308  # Float max (effectively one-shot)
 		if body.has_method("take_damage"):
 			# Check if take_damage accepts is_critical parameter
 			var method_info = body.get_method_list()
@@ -111,10 +121,18 @@ func _on_body_entered(body: Node2D) -> void:
 				body.take_damage(dealt_dmg)
 
 			# Calculate overkill if enemy died
-			# TODO: Overkill calculation needs redesign - enemies don't store max HP
-			# For now, disable overkill to prevent errors
-			# if body.has_method("get_health") and body.get_health().less_equal(BigNumber.new(0)):
-			# 	overkill_damage calculation here
+			if hp_before_damage_bn and body.has_method("get_health"):
+				var hp_after_damage_bn = body.get_health()
+				# If enemy died (HP <= 0), calculate overkill
+				if hp_after_damage_bn.less_equal(BigNumber.new(0)):
+					# Overkill = damage dealt - HP before damage
+					var overkill_bn = dealt_dmg_bn.copy()
+					overkill_bn.subtract(hp_before_damage_bn)
+					# Only count positive overkill
+					if overkill_bn.greater(BigNumber.new(0)):
+						overkill_damage = overkill_bn.to_float()
+						if is_inf(overkill_damage):
+							overkill_damage = 1.7976931348623157e+308
 
 		# Handle piercing
 		var piercing = UpgradeManager.get_piercing()
@@ -134,7 +152,8 @@ func _on_body_entered(body: Node2D) -> void:
 			if nearest_enemy:
 				ricochet_count += 1
 				target = nearest_enemy
-				pierced_targets.clear()  # Reset piercing for ricochet
+				# BUG-017 fix: Don't clear pierced_targets - prevents retargeting same enemy
+				# pierced_targets.clear()  # Removed to prevent hitting same enemy twice
 				return  # Continue to ricocheted target
 
 		# Handle overkill damage spread
@@ -148,7 +167,7 @@ func _on_body_entered(body: Node2D) -> void:
 		_cleanup_and_recycle()
 
 func _find_nearest_enemy(exclude: Node2D) -> Node2D:
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var enemies = EnemyTracker.get_active_enemies()
 	var nearest: Node2D = null
 	var nearest_dist: float = INF
 
@@ -169,7 +188,7 @@ func _spread_overkill_damage(damage: int, origin: Node2D) -> void:
 	if damage <= 0:
 		return
 
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var enemies = EnemyTracker.get_active_enemies()
 	var nearby_enemies = []
 
 	# Find enemies within 150 units
@@ -190,7 +209,7 @@ func _spread_overkill_damage(damage: int, origin: Node2D) -> void:
 		for enemy in nearby_enemies:
 			if enemy.has_method("take_damage"):
 				enemy.take_damage(split_damage)
-				RunStats.damage_dealt += split_damage
+				RunStats.add_damage_dealt(split_damage)
 
 # --- OBJECT POOLING METHODS ---
 
@@ -215,19 +234,19 @@ func reset_pooled_object() -> void:
 	# Add quick spawn animation
 	VisualFactory.add_spawn_animation(self, 0.15)
 
-	# Create trail effect
+	# Get trail from pool
 	var parent = get_parent()
 	if parent and is_instance_valid(parent):
-		trail = AdvancedVisuals.create_projectile_trail(parent, Color(0.3, 0.9, 1.0))
+		trail = TrailPool.get_trail(parent, Color(0.3, 0.9, 1.0), 3.0)
 		last_trail_pos = global_position
 	else:
 		trail = null
 
 func cleanup_pooled_object() -> void:
 	# Called when projectile is returned to pool
-	# Clean up trail
+	# Recycle trail back to pool
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
 		trail = null
 
 	# Disconnect signal
@@ -239,9 +258,9 @@ func cleanup_pooled_object() -> void:
 	pierced_targets.clear()
 
 func _cleanup_and_recycle() -> void:
-	# Clean up trail
+	# Recycle trail back to pool
 	if trail and is_instance_valid(trail):
-		trail.queue_free()
+		TrailPool.recycle_trail(trail)
 		trail = null
 
 	# Disconnect signal

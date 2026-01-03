@@ -100,35 +100,18 @@ func get_closest_enemy() -> Node2D:
 	if _cache_frame_counter % CACHE_REFRESH_FRAMES != 0 and _cached_closest_enemy and is_instance_valid(_cached_closest_enemy):
 		return _cached_closest_enemy
 
-	# Recalculate and cache
-	var closest: Node2D = null
-	var closest_dist := INF
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if not is_instance_valid(enemy):
-			continue
-		var dist = global_position.distance_to(enemy.global_position)
-		if dist < closest_dist:
-			closest = enemy
-			closest_dist = dist
-
-	_cached_closest_enemy = closest
-	return closest
+	# Use EnemyTracker for efficient lookup (no array allocation)
+	_cached_closest_enemy = EnemyTracker.get_closest_to_position(global_position)
+	return _cached_closest_enemy
 
 func get_nearest_enemies(count: int) -> Array:
 	# Use cached result if still valid
 	if _cache_frame_counter % CACHE_REFRESH_FRAMES != 0 and _cached_enemy_list.size() > 0:
 		return _cached_enemy_list.slice(0, count)
 
-	# Recalculate and cache
-	var enemy_list: Array = []
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if not is_instance_valid(enemy):
-			continue
-		enemy_list.append(enemy)
-	enemy_list.sort_custom(func(a, b): return global_position.distance_to(a.global_position) < global_position.distance_to(b.global_position))
-
-	_cached_enemy_list = enemy_list
-	return enemy_list.slice(0, count)
+	# Use EnemyTracker for efficient lookup
+	_cached_enemy_list = EnemyTracker.get_nearest_to_position(global_position, count)
+	return _cached_enemy_list
 
 
 func _on_fire_timer_timeout() -> void:
@@ -215,8 +198,9 @@ func take_damage(amount: int, attacker: Node2D = null) -> void:
 		tower_hp -= reduced_amount
 		#print("💥 Tower hit! Remaining HP:", tower_hp)
 
-		# Check for death
-		if tower_hp <= 0:
+		# BUG-016 fix: Only die if HP AND all shields are depleted
+		# Shield can still regen and protect even at 0 HP
+		if tower_hp <= 0 and current_shield <= 0 and current_overshield <= 0:
 			_cleanup_before_death()
 
 			# Check if boss rush is active - use custom death screen

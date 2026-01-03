@@ -28,7 +28,7 @@ var free_upgrade_chance_level: int = 1
 
 # New upgrades (batch 1)
 var piercing_level: int = 0
-var overkill_damage_level: int = 0
+var overkill_damage_level: int = 0  # Enabled - enemies now track max HP
 var projectile_speed_level: int = 0
 var block_chance_level: int = 0
 var block_amount_level: int = 0
@@ -131,7 +131,18 @@ const UPGRADE_COST_SCALING := 1.15  # 15% increase per purchase
 # Purchase 20: 818 DC (16.37x)
 # Purchase 50: 36,841 DC (736x)
 func get_purchase_scaled_cost(base_cost: int, purchase_count: int) -> int:
-	return int(base_cost * pow(UPGRADE_COST_SCALING, purchase_count))
+	# For low purchase counts, use fast int calculation
+	if purchase_count < 100:
+		return int(base_cost * pow(UPGRADE_COST_SCALING, purchase_count))
+
+	# For high purchase counts, use BigNumber to prevent overflow
+	# pow(1.15, 400) ≈ 1.87e9 (approaching int32/int64 max)
+	var cost_bn = BigNumber.new(base_cost)
+	var multiplier = pow(UPGRADE_COST_SCALING, purchase_count)
+	cost_bn.multiply(multiplier)
+
+	# Return int, capping at int64 max if needed
+	return cost_bn.to_int()
 
 # --- PER-PURCHASE COST GETTERS ---
 func get_damage_upgrade_cost() -> int:
@@ -197,10 +208,11 @@ const PERM_DRONE_MAX_LEVEL := 30  # Max level for permanent drone upgrades
 # Exponential cost scaling for permanent upgrades (AT-based)
 # Formula: base * (1.13 ^ level)
 #
+# Uses BigNumber to prevent int64 overflow at high levels (150+)
 # This creates a 3-year progression timeline where:
 # - Early levels: affordable with basic gameplay (1-50)
 # - Mid levels: require focused farming (50-200)
-# - Late levels: endgame grind (200-500)
+# - Late levels: endgame grind (200-500+)
 #
 # Example costs for base=5000:
 # - Level 1: 5,650 AT (1.13x)
@@ -208,10 +220,19 @@ const PERM_DRONE_MAX_LEVEL := 30  # Max level for permanent drone upgrades
 # - Level 50: 423,063 AT (84.6x)
 # - Level 100: 35,847,267 AT (7,169x)
 # - Level 200: 1.03e12 AT (206 billion)
+# - Level 500: 1.9e25 AT (requires BigNumber)
 #
 # Note: The 'increment' parameter is legacy and not used
 func get_perm_cost(base: int, increment: int, level: int) -> int:
-	return int(base * pow(1.13, level))
+	# For levels < 100, use simple int calculation (faster)
+	if level < 100:
+		return int(base * pow(1.13, level))
+
+	# For high levels, use BigNumber to prevent overflow
+	var cost_bn = BigNumber.new(base)
+	var multiplier = pow(1.13, level)
+	cost_bn.multiply(multiplier)
+	return cost_bn.to_int()  # Will cap at int64 max if needed
 
 func get_perm_drone_upgrade_cost(level: int) -> int:
 	return 2500 + level * 1000
@@ -326,6 +347,7 @@ func get_piercing() -> int:
 	return piercing_level * PIERCING_PER_LEVEL + RewardManager.perm_piercing
 
 func get_overkill_damage() -> float:
+	# Overkill system enabled - enemies now track max HP
 	return overkill_damage_level * OVERKILL_PER_LEVEL + RewardManager.perm_overkill_damage
 
 func get_projectile_speed() -> float:
@@ -689,7 +711,17 @@ func is_multi_target_unlocked() -> bool:
 
 func get_multi_target_cost_for_level(level: int) -> int:
 	# Level is 1-based: 1 = unlock, 2+ = upgrades
-	return int(MULTI_TARGET_BASE_COST * pow(MULTI_TARGET_COST_SCALE, max(level-1, 0)))
+	var adjusted_level = max(level - 1, 0)
+
+	# For low levels, use fast int calculation
+	if adjusted_level < 50:
+		return int(MULTI_TARGET_BASE_COST * pow(MULTI_TARGET_COST_SCALE, adjusted_level))
+
+	# For high levels, use BigNumber to prevent overflow
+	var cost_bn = BigNumber.new(MULTI_TARGET_BASE_COST)
+	var multiplier = pow(MULTI_TARGET_COST_SCALE, adjusted_level)
+	cost_bn.multiply(multiplier)
+	return cost_bn.to_int()
 
 func get_multi_target_upgrade_cost() -> int:
 	# For current upgrade button (next level)
@@ -755,10 +787,24 @@ func upgrade_perm_projectile_damage() -> bool:
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent projectile damage.")
 		return false
+
+	# Transaction safety: backup currency before deducting
+	var backup_at = RewardManager.archive_tokens
+	var backup_damage = RewardManager.get_perm_projectile_damage_bn().copy()
+
+	# Apply upgrade
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.add_perm_projectile_damage(10)
-	RewardManager.save_permanent_upgrades()
+
+	# Try to save - if it fails, rollback
+	if not RewardManager.save_permanent_upgrades():
+		push_error("❌ CRITICAL: Save failed! Rolling back permanent damage upgrade.")
+		RewardManager.archive_tokens = backup_at
+		RewardManager.set_perm_projectile_damage_bn(backup_damage)
+		RunStats.add_at_spent_perm_upgrade(-cost)  # Rollback stat tracking
+		return false
+
 	print("🏅 Permanent Projectile Damage +10. Now:", RewardManager.get_perm_projectile_damage_int())
 	return true
 
@@ -767,10 +813,24 @@ func upgrade_perm_projectile_fire_rate() -> bool:
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent fire rate.")
 		return false
+
+	# Transaction safety: backup currency before deducting
+	var backup_at = RewardManager.archive_tokens
+	var backup_fire_rate = RewardManager.perm_projectile_fire_rate
+
+	# Apply upgrade
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_projectile_fire_rate += 0.1
-	RewardManager.save_permanent_upgrades()
+
+	# Try to save - if it fails, rollback
+	if not RewardManager.save_permanent_upgrades():
+		push_error("❌ CRITICAL: Save failed! Rolling back fire rate upgrade.")
+		RewardManager.archive_tokens = backup_at
+		RewardManager.perm_projectile_fire_rate = backup_fire_rate
+		RunStats.add_at_spent_perm_upgrade(-cost)
+		return false
+
 	print("🏅 Permanent Fire Rate +0.1. Now:", RewardManager.perm_projectile_fire_rate)
 	return true
 
@@ -779,10 +839,24 @@ func upgrade_perm_crit_chance() -> bool:
 	if RewardManager.archive_tokens < cost:
 		print("❌ Not enough AT for permanent crit chance.")
 		return false
+
+	# Transaction safety: backup currency before deducting
+	var backup_at = RewardManager.archive_tokens
+	var backup_crit = RewardManager.perm_crit_chance
+
+	# Apply upgrade
 	RewardManager.archive_tokens -= cost
 	RunStats.add_at_spent_perm_upgrade(cost)
 	RewardManager.perm_crit_chance += 1
-	RewardManager.save_permanent_upgrades()
+
+	# Try to save - if it fails, rollback
+	if not RewardManager.save_permanent_upgrades():
+		push_error("❌ CRITICAL: Save failed! Rolling back crit chance upgrade.")
+		RewardManager.archive_tokens = backup_at
+		RewardManager.perm_crit_chance = backup_crit
+		RunStats.add_at_spent_perm_upgrade(-cost)
+		return false
+
 	print("🏅 Permanent Crit Chance +1%. Now:", RewardManager.perm_crit_chance)
 	return true
 
@@ -1078,7 +1152,8 @@ func try_upgrade_economy() -> bool:
 		options.append(func(): upgrade_archive_token_multiplier(true))
 	if wave_skip_chance_level * WAVE_SKIP_CHANCE_PER_LEVEL < WAVE_SKIP_MAX_CHANCE:
 		options.append(func(): upgrade_wave_skip_chance(true))
-	if free_upgrade_chance_level * FREE_UPGRADE_CHANCE_PER_LEVEL < FREE_UPGRADE_MAX_CHANCE:
+	# BUG-015 fix: Check total free upgrade chance (including perm bonus), not just level
+	if get_free_upgrade_chance() < FREE_UPGRADE_MAX_CHANCE:
 		options.append(func(): upgrade_free_upgrade_chance(true))
 	if options.is_empty():
 		return false

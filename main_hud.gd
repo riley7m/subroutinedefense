@@ -1,21 +1,25 @@
 extends Control
 
 # Wave and Tower Status
-var wave: int = 1
-var current_wave: int = 1
-var wave_number: int = 1
+# Wave tracking removed - use spawner.current_wave (single source of truth, fixes BUG-001)
 var tower_hp: int = 1000
 var wave_timer: float = 0.0
 const WAVE_INTERVAL := 2.0
 
 # Cleanup tracking
-var active_drones: Array = []
 var refresh_timer: Timer = null
 
-const DRONE_FLAME_SCENE = preload("res://drone_flame.tscn")
-const DRONE_POISON_SCENE = preload("res://drone_poison.tscn")
-const DRONE_FROST_SCENE = preload("res://drone_frost.tscn")
-const DRONE_SHOCK_SCENE = preload("res://drone_shock.tscn")
+# Drone management (Phase 2.2 Refactor)
+var drone_manager: DroneManager = null
+
+# Game state management (Phase 3.1 Refactor)
+var game_state_manager: GameStateManager = null
+
+# Permanent upgrade management (Phase 3.3 Refactor)
+var perm_upgrade_manager: PermanentUpgradeManager = null
+
+# In-run upgrade management (Phase 3.4 Refactor)
+var inrun_upgrade_panel: InRunUpgradePanel = null
 
 @onready var perm_nodes = {
 	"projectile_damage": {
@@ -78,8 +82,8 @@ var tier_selection_button: Button = null
 var boss_rush_panel: Control = null
 var boss_rush_button: Button = null
 
-# Statistics panel
-var statistics_panel: Panel = null
+# Statistics panel (Phase 3.2 Refactor)
+var statistics_panel: StatisticsPanel = null
 var statistics_button: Button = null
 
 # Drone upgrade panel
@@ -98,17 +102,7 @@ var milestone_button: Button = null
 var achievement_panel: Control = null
 var achievement_button: Button = null
 
-# Drone purchase UI (in perm panel)
-var drone_purchase_containers: Dictionary = {}
-var drone_purchase_buttons: Dictionary = {}
-var drone_status_labels: Dictionary = {}
-
-var drone_scenes = {
-	"flame": DRONE_FLAME_SCENE,
-	"poison": DRONE_POISON_SCENE,
-	"frost": DRONE_FROST_SCENE,
-	"shock": DRONE_SHOCK_SCENE,
-}
+# Drone purchase UI tracking moved to PermanentUpgradeManager (Phase 3.3 Refactor)
 
 var buy_x_options = [1, 5, 10, "Max"]
 var current_buy_index = 0
@@ -231,8 +225,11 @@ func _ready() -> void:
 	statistics_button.pressed.connect(_on_statistics_button_pressed)
 	add_child(statistics_button)
 
-	# Create statistics panel
-	_create_statistics_panel()
+	# Create statistics panel (Phase 3.2 Refactor)
+	statistics_panel = StatisticsPanel.new()
+	statistics_panel.panel_closed.connect(_on_statistics_panel_closed)
+	statistics_panel.bind_account_requested.connect(_on_bind_account_requested)
+	add_child(statistics_panel)
 
 	# ROW 2 - Progression Systems
 	# Add Drone Upgrade panel and button
@@ -322,28 +319,12 @@ func _ready() -> void:
 		top_banner.add_child(tier_label)
 		UIStyler.apply_theme_to_node(tier_label)
 
-	# Connect upgrade and toggle buttons
-	offense_button.pressed.connect(_on_offense_button_pressed)
-	damage_upgrade.pressed.connect(_on_damage_upgrade_pressed)
-	fire_rate_upgrade.pressed.connect(_on_fire_rate_upgrade_pressed)
-	crit_upgrade_button.pressed.connect(_on_crit_chance_upgrade_pressed)
-	crit_damage_upgrade.pressed.connect(_on_crit_damage_upgrade_pressed)
-	defense_button.pressed.connect(_on_defense_button_pressed)
-	shield_upgrade.pressed.connect(_on_shield_upgrade_pressed)
-	reduction_upgrade.pressed.connect(_on_damage_reduction_upgrade_pressed)
-	regen_upgrade.pressed.connect(_on_shield_regen_upgrade_pressed)
-	economy_button.pressed.connect(_on_economy_button_pressed)
-	data_credits_upgrade.pressed.connect(_on_data_credits_upgrade_pressed)
-	archive_token_upgrade.pressed.connect(_on_archive_token_upgrade_pressed)
-	free_upgrade_chance.pressed.connect(_on_free_upgrade_chance_pressed)
-	wave_skip_chance.pressed.connect(_on_wave_skip_chance_pressed)
+	# Connect non-upgrade buttons
 	speed_button.pressed.connect(_on_speed_button_pressed)
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
 	buy_x_button.pressed.connect(_on_buy_x_button_pressed)
 	quit_button.pressed.connect(_on_quit_button_pressed)
 	perm_panel_toggle_button.pressed.connect(_on_perm_panel_toggle_button_pressed)
-	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
-	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
 
 	for key in perm_nodes.keys():
 		var button = perm_nodes[key]["button"]
@@ -362,29 +343,95 @@ func _ready() -> void:
 	economy_panel.visible = false
 	perm_panel.visible = false
 
+	# Initialize drone manager (Phase 2.2 Refactor)
+	drone_manager = DroneManager.new()
+	drone_manager.spawn_parent = self
+	add_child(drone_manager)
+
 	# Auto-spawn owned drones (purchased out-of-run)
-	_spawn_owned_drones()
+	var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
+	drone_manager.spawn_owned_drones(tower_pos)
+
+	# Initialize game state manager (Phase 3.1 Refactor)
+	game_state_manager = GameStateManager.new()
+	game_state_manager.spawner = spawner
+	game_state_manager.tower = tower
+	game_state_manager.main_hud = self
+	add_child(game_state_manager)
+
+	# Initialize permanent upgrade manager (Phase 3.3 Refactor)
+	perm_upgrade_manager = PermanentUpgradeManager.new()
+	perm_upgrade_manager.perm_nodes = perm_nodes
+	perm_upgrade_manager.perm_panel = perm_panel
+	perm_upgrade_manager.perm_panel_toggle_button = perm_panel_toggle_button
+	perm_upgrade_manager.main_hud = self
+	perm_upgrade_manager.permanent_upgrade_purchased.connect(_on_perm_upgrade_purchased)
+	perm_upgrade_manager.drone_purchased.connect(_on_drone_purchased)
+	add_child(perm_upgrade_manager)
+
+	# Initialize in-run upgrade panel (Phase 3.4 Refactor)
+	inrun_upgrade_panel = InRunUpgradePanel.new()
+	inrun_upgrade_panel.main_hud = self
+	inrun_upgrade_panel.tower = tower
+	inrun_upgrade_panel.offense_panel = offense_panel
+	inrun_upgrade_panel.defense_panel = defense_panel
+	inrun_upgrade_panel.economy_panel = economy_panel
+	inrun_upgrade_panel.perm_panel = perm_panel
+	inrun_upgrade_panel.damage_upgrade = damage_upgrade
+	inrun_upgrade_panel.fire_rate_upgrade = fire_rate_upgrade
+	inrun_upgrade_panel.crit_upgrade_button = crit_upgrade_button
+	inrun_upgrade_panel.crit_damage_upgrade = crit_damage_upgrade
+	inrun_upgrade_panel.shield_upgrade = shield_upgrade
+	inrun_upgrade_panel.reduction_upgrade = reduction_upgrade
+	inrun_upgrade_panel.regen_upgrade = regen_upgrade
+	inrun_upgrade_panel.data_credits_upgrade = data_credits_upgrade
+	inrun_upgrade_panel.archive_token_upgrade = archive_token_upgrade
+	inrun_upgrade_panel.free_upgrade_chance = free_upgrade_chance
+	inrun_upgrade_panel.wave_skip_chance = wave_skip_chance
+	inrun_upgrade_panel.unlock_multi_target_button = unlock_multi_target_button
+	inrun_upgrade_panel.upgrade_multi_target_button = upgrade_multi_target_button
+	inrun_upgrade_panel.multi_target_label = multi_target_label
+	add_child(inrun_upgrade_panel)
+
+	# Connect in-run upgrade buttons to panel (Phase 3.4 Refactor)
+	offense_button.pressed.connect(_on_offense_button_pressed)
+	damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage"))
+	fire_rate_upgrade.pressed.connect(_handle_inrun_upgrade.bind("fire_rate"))
+	crit_upgrade_button.pressed.connect(_handle_inrun_upgrade.bind("crit_chance"))
+	crit_damage_upgrade.pressed.connect(_handle_inrun_upgrade.bind("crit_damage"))
+	defense_button.pressed.connect(_on_defense_button_pressed)
+	shield_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield"))
+	reduction_upgrade.pressed.connect(_handle_inrun_upgrade.bind("damage_reduction"))
+	regen_upgrade.pressed.connect(_handle_inrun_upgrade.bind("shield_regen"))
+	economy_button.pressed.connect(_on_economy_button_pressed)
+	data_credits_upgrade.pressed.connect(_handle_inrun_upgrade.bind("data_credits"))
+	archive_token_upgrade.pressed.connect(_handle_inrun_upgrade.bind("archive_token"))
+	free_upgrade_chance.pressed.connect(_handle_inrun_upgrade.bind("free_upgrade"))
+	wave_skip_chance.pressed.connect(_handle_inrun_upgrade.bind("wave_skip"))
+	unlock_multi_target_button.pressed.connect(_on_unlock_multi_target_pressed)
+	upgrade_multi_target_button.pressed.connect(_on_upgrade_multi_target_pressed)
 
 	# Spawner hookup
 	spawner.set_main_hud(self)
-	spawner.start_wave(wave)
+	spawner.start_wave(1)  # Start at wave 1 (BUG-001 fix: removed duplicate wave variables)
 	randomize()
 	RewardManager.load_permanent_upgrades()
-	update_all_perm_upgrade_ui()
+	perm_upgrade_manager.update_all_perm_upgrade_ui()
 
 	# Create drone purchase UI in permanent upgrades panel
-	_create_drone_purchase_ui()
+	perm_upgrade_manager.create_drone_purchase_ui()
 
 	# Start tracking this run's performance
-	RewardManager.start_run_tracking(wave)
+	RewardManager.start_run_tracking(1)  # Start tracking from wave 1 (BUG-001 fix)
 
-	# Refresh currency labels every 0.2s
+	# Refresh currency labels every 0.333s (3x per second) - Priority 2 optimization
 	refresh_timer = Timer.new()
-	refresh_timer.wait_time = 0.2
+	refresh_timer.wait_time = 0.333
 	refresh_timer.timeout.connect(update_labels)
 	refresh_timer.autostart = true
 	add_child(refresh_timer)
-	RewardManager.archive_tokens_changed.connect(update_all_perm_upgrade_ui)
+	RewardManager.archive_tokens_changed.connect(_on_archive_tokens_changed)
+	RewardManager.save_failed.connect(_on_save_failed)  # BUG-002 fix: Show save error notification
 	update_labels()
 	update_damage_label()
 	update_all_inrun_upgrade_ui()  # Initialize in-run upgrade button costs
@@ -401,14 +448,12 @@ func _exit_tree() -> void:
 		refresh_timer.queue_free()
 
 	# Disconnect signal from RewardManager
-	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "update_all_perm_upgrade_ui")):
-		RewardManager.archive_tokens_changed.disconnect(Callable(self, "update_all_perm_upgrade_ui"))
+	if RewardManager.archive_tokens_changed.is_connected(Callable(self, "_on_archive_tokens_changed")):
+		RewardManager.archive_tokens_changed.disconnect(Callable(self, "_on_archive_tokens_changed"))
 
-	# Clean up drones
-	for drone in active_drones:
-		if is_instance_valid(drone):
-			drone.queue_free()
-	active_drones.clear()
+	# Clean up drones (Phase 2.2 Refactor)
+	if drone_manager:
+		drone_manager.cleanup_drones()
 
 func _process(delta: float) -> void:
 	wave_timer += delta
@@ -437,379 +482,52 @@ func update_damage_label() -> void:
 	# Debug function - no UI update needed (damage_label node removed)
 	pass
 
-# --- Offense Panel Logic ---
+# === IN-RUN UPGRADE PANEL DELEGATORS (Phase 3.4 Refactor) ===
+# Panel toggle functions delegated to InRunUpgradePanel
+
 func _on_offense_button_pressed() -> void:
-	var new_state = not offense_panel.visible
-	offense_panel.visible = new_state
-	defense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.toggle_offense_panel()
 
-func _on_damage_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_projectile_damage():
-			print("Bought one (Max mode)")
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_projectile_damage():
-				print("Stopped at %d upgrades" % i)
-				break
-			else:
-				print("Bought upgrade %d" % (i+1))
-	update_damage_label()
-	if tower and is_instance_valid(tower):
-		tower.update_visual_tier()  # Update tower visuals after damage upgrade
+func _on_defense_button_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.toggle_defense_panel()
 
-
-func _on_fire_rate_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_fire_rate():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_fire_rate():
-				break
-	if tower and is_instance_valid(tower):
-		tower.refresh_fire_rate()
-		tower.update_visual_tier()  # Update tower visuals after fire rate upgrade
-	# Drones have independent fire rates based on their level, no need to refresh
-	update_labels()
-
-func _on_crit_chance_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_crit_chance():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_crit_chance():
-				break
-	update_crit_label()
-	update_labels()
-
-func _on_crit_damage_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_crit_damage():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_crit_damage():
-				break
-	update_labels()
+func _on_economy_button_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.toggle_economy_panel()
 
 func update_crit_label():
-	var chance = UpgradeManager.get_crit_chance()
-	print("Crit Chance: %d%%" % chance)
-	
-func _on_unlock_multi_target_pressed():
-	if UpgradeManager.unlock_multi_target():
-		update_multi_target_ui()
-		update_labels()
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.update_crit_label()
 
-func _on_upgrade_multi_target_pressed():
-	if UpgradeManager.upgrade_multi_target():
-		update_multi_target_ui()
-		update_labels()
-		
-func update_multi_target_ui():
-	if not UpgradeManager.multi_target_unlocked:
-		unlock_multi_target_button.visible = true
-		upgrade_multi_target_button.visible = false
-		var cost = UpgradeManager.get_multi_target_cost_for_level(1)
-		unlock_multi_target_button.text = "Unlock Multi Target (%d DC)" % cost
-		unlock_multi_target_button.disabled = RewardManager.data_credits < cost
-		multi_target_label.text = "Multi Target: Locked"
-	else:
-		unlock_multi_target_button.visible = false
-		upgrade_multi_target_button.visible = true
-		var lvl = UpgradeManager.multi_target_level
-		var targets = lvl + 1
+# Upgrade handler and UI update functions delegated to InRunUpgradePanel (Phase 3.4 Refactor)
+# - UPGRADE_METADATA constant (moved to InRunUpgradePanel)
+# - BUTTON_UI_METADATA constant (moved to InRunUpgradePanel)
+# - _handle_inrun_upgrade() → inrun_upgrade_panel.handle_inrun_upgrade()
+# - _update_upgrade_button_ui() → inrun_upgrade_panel.update_upgrade_button_ui()
+# - update_all_inrun_upgrade_ui() → inrun_upgrade_panel.update_all_inrun_upgrade_ui()
+# - update_multi_target_ui() → inrun_upgrade_panel.update_multi_target_ui()
 
-		# Handle max level separately to avoid type mismatch
-		if lvl >= UpgradeManager.MULTI_TARGET_MAX_LEVEL:
-			upgrade_multi_target_button.text = "Max Level Reached"
-			upgrade_multi_target_button.disabled = true
-		else:
-			var next_cost = UpgradeManager.get_multi_target_cost_for_level(lvl + 1)
-			upgrade_multi_target_button.text = "Upgrade Multi Target (%d DC)" % next_cost
-			upgrade_multi_target_button.disabled = RewardManager.data_credits < next_cost
-
-		multi_target_label.text = "Multi Target: %d" % targets
-
-# --- IN-RUN UPGRADE UI UPDATE FUNCTIONS ---
-# Update all in-run upgrade buttons with current costs and availability
+func _handle_inrun_upgrade(upgrade_key: String) -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.handle_inrun_upgrade(upgrade_key)
 
 func update_all_inrun_upgrade_ui() -> void:
-	update_offense_upgrade_ui()
-	update_defense_upgrade_ui()
-	update_economy_upgrade_ui()
-	update_multi_target_ui()
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.update_all_inrun_upgrade_ui()
 
-func update_offense_upgrade_ui() -> void:
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
+func _on_unlock_multi_target_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.handle_unlock_multi_target()
 
-	# Damage upgrade
-	var damage_cost: int
-	var damage_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.DAMAGE_UPGRADE_BASE_COST, UpgradeManager.damage_purchases)
-		damage_cost = arr[1]
-		damage_text = "Damage x%d (%s DC)" % [arr[0], NumberFormatter.format(damage_cost)]
-	else:
-		damage_cost = get_inrun_total_cost(UpgradeManager.DAMAGE_UPGRADE_BASE_COST, UpgradeManager.damage_purchases, buy_amount)
-		damage_text = "Damage x%d (%s DC)" % [buy_amount, NumberFormatter.format(damage_cost)]
-	damage_upgrade.text = damage_text
-	damage_upgrade.disabled = dc < damage_cost or damage_cost == 0
+func _on_upgrade_multi_target_pressed() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.handle_upgrade_multi_target()
 
-	# Fire rate upgrade
-	var fire_rate_cost: int
-	var fire_rate_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.FIRE_RATE_UPGRADE_BASE_COST, UpgradeManager.fire_rate_purchases)
-		fire_rate_cost = arr[1]
-		fire_rate_text = "Fire Rate x%d (%s DC)" % [arr[0], NumberFormatter.format(fire_rate_cost)]
-	else:
-		fire_rate_cost = get_inrun_total_cost(UpgradeManager.FIRE_RATE_UPGRADE_BASE_COST, UpgradeManager.fire_rate_purchases, buy_amount)
-		fire_rate_text = "Fire Rate x%d (%s DC)" % [buy_amount, NumberFormatter.format(fire_rate_cost)]
-	fire_rate_upgrade.text = fire_rate_text
-	fire_rate_upgrade.disabled = dc < fire_rate_cost or fire_rate_cost == 0
-
-	# Crit chance upgrade
-	if UpgradeManager.get_crit_chance() >= UpgradeManager.CRIT_CHANCE_CAP:
-		crit_upgrade_button.text = "Crit Chance (MAX)"
-		crit_upgrade_button.disabled = true
-	else:
-		var crit_chance_cost: int
-		var crit_chance_text: String
-		if buy_amount == -1:
-			var arr = get_inrun_max_affordable(UpgradeManager.CRIT_CHANCE_UPGRADE_BASE_COST, UpgradeManager.crit_chance_purchases)
-			crit_chance_cost = arr[1]
-			crit_chance_text = "Crit Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(crit_chance_cost)]
-		else:
-			crit_chance_cost = get_inrun_total_cost(UpgradeManager.CRIT_CHANCE_UPGRADE_BASE_COST, UpgradeManager.crit_chance_purchases, buy_amount)
-			crit_chance_text = "Crit Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(crit_chance_cost)]
-		crit_upgrade_button.text = crit_chance_text
-		crit_upgrade_button.disabled = dc < crit_chance_cost or crit_chance_cost == 0
-
-	# Crit damage upgrade
-	var crit_damage_cost: int
-	var crit_damage_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.CRIT_DAMAGE_UPGRADE_BASE_COST, UpgradeManager.crit_damage_purchases)
-		crit_damage_cost = arr[1]
-		crit_damage_text = "Crit Damage x%d (%s DC)" % [arr[0], NumberFormatter.format(crit_damage_cost)]
-	else:
-		crit_damage_cost = get_inrun_total_cost(UpgradeManager.CRIT_DAMAGE_UPGRADE_BASE_COST, UpgradeManager.crit_damage_purchases, buy_amount)
-		crit_damage_text = "Crit Damage x%d (%s DC)" % [buy_amount, NumberFormatter.format(crit_damage_cost)]
-	crit_damage_upgrade.text = crit_damage_text
-	crit_damage_upgrade.disabled = dc < crit_damage_cost or crit_damage_cost == 0
-
-func update_defense_upgrade_ui() -> void:
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
-
-	# Shield integrity upgrade
-	var shield_cost: int
-	var shield_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.SHIELD_UPGRADE_BASE_COST, UpgradeManager.shield_purchases)
-		shield_cost = arr[1]
-		shield_text = "Shield Integrity x%d (%s DC)" % [arr[0], NumberFormatter.format(shield_cost)]
-	else:
-		shield_cost = get_inrun_total_cost(UpgradeManager.SHIELD_UPGRADE_BASE_COST, UpgradeManager.shield_purchases, buy_amount)
-		shield_text = "Shield Integrity x%d (%s DC)" % [buy_amount, NumberFormatter.format(shield_cost)]
-	shield_upgrade.text = shield_text
-	shield_upgrade.disabled = dc < shield_cost or shield_cost == 0
-
-	# Damage reduction upgrade
-	var reduction_cost: int
-	var reduction_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.DAMAGE_REDUCTION_UPGRADE_BASE_COST, UpgradeManager.damage_reduction_purchases)
-		reduction_cost = arr[1]
-		reduction_text = "Damage Reduction x%d (%s DC)" % [arr[0], NumberFormatter.format(reduction_cost)]
-	else:
-		reduction_cost = get_inrun_total_cost(UpgradeManager.DAMAGE_REDUCTION_UPGRADE_BASE_COST, UpgradeManager.damage_reduction_purchases, buy_amount)
-		reduction_text = "Damage Reduction x%d (%s DC)" % [buy_amount, NumberFormatter.format(reduction_cost)]
-	reduction_upgrade.text = reduction_text
-	reduction_upgrade.disabled = dc < reduction_cost or reduction_cost == 0
-
-	# Shield regen upgrade
-	var regen_cost: int
-	var regen_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.SHIELD_REGEN_UPGRADE_BASE_COST, UpgradeManager.shield_regen_purchases)
-		regen_cost = arr[1]
-		regen_text = "Shield Regen x%d (%s DC)" % [arr[0], NumberFormatter.format(regen_cost)]
-	else:
-		regen_cost = get_inrun_total_cost(UpgradeManager.SHIELD_REGEN_UPGRADE_BASE_COST, UpgradeManager.shield_regen_purchases, buy_amount)
-		regen_text = "Shield Regen x%d (%s DC)" % [buy_amount, NumberFormatter.format(regen_cost)]
-	regen_upgrade.text = regen_text
-	regen_upgrade.disabled = dc < regen_cost or regen_cost == 0
-
-func update_economy_upgrade_ui() -> void:
-	var dc = RewardManager.data_credits
-	var buy_amount = get_current_buy_amount()
-
-	# Data credits multiplier upgrade
-	var dc_mult_cost: int
-	var dc_mult_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.DATA_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.data_multiplier_purchases)
-		dc_mult_cost = arr[1]
-		dc_mult_text = "Data Credits Multiplier x%d (%s DC)" % [arr[0], NumberFormatter.format(dc_mult_cost)]
-	else:
-		dc_mult_cost = get_inrun_total_cost(UpgradeManager.DATA_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.data_multiplier_purchases, buy_amount)
-		dc_mult_text = "Data Credits Multiplier x%d (%s DC)" % [buy_amount, NumberFormatter.format(dc_mult_cost)]
-	data_credits_upgrade.text = dc_mult_text
-	data_credits_upgrade.disabled = dc < dc_mult_cost or dc_mult_cost == 0
-
-	# Archive token multiplier upgrade
-	var at_mult_cost: int
-	var at_mult_text: String
-	if buy_amount == -1:
-		var arr = get_inrun_max_affordable(UpgradeManager.ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.archive_multiplier_purchases)
-		at_mult_cost = arr[1]
-		at_mult_text = "Archive Token Multiplier x%d (%s DC)" % [arr[0], NumberFormatter.format(at_mult_cost)]
-	else:
-		at_mult_cost = get_inrun_total_cost(UpgradeManager.ARCHIVE_MULTIPLIER_UPGRADE_BASE_COST, UpgradeManager.archive_multiplier_purchases, buy_amount)
-		at_mult_text = "Archive Token Multiplier x%d (%s DC)" % [buy_amount, NumberFormatter.format(at_mult_cost)]
-	archive_token_upgrade.text = at_mult_text
-	archive_token_upgrade.disabled = dc < at_mult_cost or at_mult_cost == 0
-
-	# Free upgrade chance
-	if UpgradeManager.get_free_upgrade_chance() >= UpgradeManager.FREE_UPGRADE_MAX_CHANCE:
-		free_upgrade_chance.text = "Free Upgrade Chance (MAX)"
-		free_upgrade_chance.disabled = true
-	else:
-		var free_cost: int
-		var free_text: String
-		if buy_amount == -1:
-			var arr = get_inrun_max_affordable(UpgradeManager.FREE_UPGRADE_BASE_COST, UpgradeManager.free_upgrade_purchases)
-			free_cost = arr[1]
-			free_text = "Free Upgrade Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(free_cost)]
-		else:
-			free_cost = get_inrun_total_cost(UpgradeManager.FREE_UPGRADE_BASE_COST, UpgradeManager.free_upgrade_purchases, buy_amount)
-			free_text = "Free Upgrade Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(free_cost)]
-		free_upgrade_chance.text = free_text
-		free_upgrade_chance.disabled = dc < free_cost or free_cost == 0
-
-	# Wave skip chance
-	if UpgradeManager.get_wave_skip_chance() >= UpgradeManager.WAVE_SKIP_MAX_CHANCE:
-		wave_skip_chance.text = "Wave Skip Chance (MAX)"
-		wave_skip_chance.disabled = true
-	else:
-		var skip_cost: int
-		var skip_text: String
-		if buy_amount == -1:
-			var arr = get_inrun_max_affordable(UpgradeManager.WAVE_SKIP_UPGRADE_BASE_COST, UpgradeManager.wave_skip_purchases)
-			skip_cost = arr[1]
-			skip_text = "Wave Skip Chance x%d (%s DC)" % [arr[0], NumberFormatter.format(skip_cost)]
-		else:
-			skip_cost = get_inrun_total_cost(UpgradeManager.WAVE_SKIP_UPGRADE_BASE_COST, UpgradeManager.wave_skip_purchases, buy_amount)
-			skip_text = "Wave Skip Chance x%d (%s DC)" % [buy_amount, NumberFormatter.format(skip_cost)]
-		wave_skip_chance.text = skip_text
-		wave_skip_chance.disabled = dc < skip_cost or skip_cost == 0
-
-
-# --- Defense Panel Logic ---
-func _on_defense_button_pressed():
-	var new_state = not defense_panel.visible
-	defense_panel.visible = new_state
-	offense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
-	
-func _on_shield_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_shield_integrity():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_shield_integrity():
-				break
-	tower.refresh_shield_stats()
-	update_labels()
-
-func _on_damage_reduction_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_damage_reduction():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_damage_reduction():
-				break
-	update_labels()
-
-func _on_shield_regen_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_shield_regen():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_shield_regen():
-				break
-	tower.refresh_shield_stats()
-	update_labels()
-
-# --- Economy Panel Logic ---
-func _on_economy_button_pressed():
-	var new_state = not economy_panel.visible
-	economy_panel.visible = new_state
-	offense_panel.visible = false
-	defense_panel.visible = false
-	perm_panel.visible = false
-
-func _on_data_credits_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_data_credit_multiplier():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_data_credit_multiplier():
-				break
-	update_labels()
-
-func _on_archive_token_upgrade_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_archive_token_multiplier():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_archive_token_multiplier():
-				break
-	update_labels()
-
-func _on_free_upgrade_chance_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_free_upgrade_chance():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_free_upgrade_chance():
-				break
-	update_labels()
-
-func _on_wave_skip_chance_pressed() -> void:
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_wave_skip_chance():
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_wave_skip_chance():
-				break
-	update_labels()
+func update_multi_target_ui() -> void:
+	if inrun_upgrade_panel:
+		inrun_upgrade_panel.update_multi_target_ui()
 
 # --- Speed Button Logic ---
 func _on_speed_button_pressed() -> void:
@@ -823,292 +541,59 @@ func _update_speed_button_label() -> void:
 	var new_speed = speed_levels[current_speed_index]
 	speed_button.text = "%.0fx Speed" % new_speed
 	
+# Permanent upgrade handler delegated to PermanentUpgradeManager (Phase 3.3 Refactor)
 func _on_perm_upgrade_pressed(key):
-	var amount = get_current_buy_amount()
-	if amount == -1:
-		while UpgradeManager.upgrade_permanent(key):
-			pass
-	else:
-		for i in range(amount):
-			if not UpgradeManager.upgrade_permanent(key):
-				break
-	update_all_perm_upgrade_ui()
+	if perm_upgrade_manager:
+		perm_upgrade_manager.handle_upgrade_purchase(key)
 
-	# Refresh drones if drone upgrades were purchased
-	if key in ["drone_flame", "drone_frost", "drone_poison", "drone_shock"]:
-		refresh_all_drones()
-
-	
 func _on_buy_x_button_pressed():
 	current_buy_index = (current_buy_index + 1) % buy_x_options.size()
 	buy_x_button.text = "Buy x" + str(buy_x_options[current_buy_index])
 
 
-
+# Permanent upgrade UI functions delegated to PermanentUpgradeManager (Phase 3.3 Refactor)
 func update_perm_upgrade_ui(key):
-	var level = UpgradeManager.get_perm_level(key)
-	var at = RewardManager.archive_tokens
-	var buy_amount = get_current_buy_amount()
-	var label_text = ""
-	var total_cost = 0
-
-	if buy_amount == -1:
-		# Max: Calculate how many upgrades you can actually afford, and total cost for that amount
-		var arr = get_perm_max_affordable(key)
-		var max_afford = arr[0]
-		var max_cost = arr[1]
-		label_text = "Upgrade x%s (%s AT)" % [str(max_afford), str(max_cost)]
-		total_cost = max_cost
-	else:
-		total_cost = get_perm_total_upgrade_cost(key, buy_amount)
-		label_text = "Upgrade x%s (%s AT)" % [str(buy_amount), str(total_cost)]
-
-	perm_nodes[key]["level"].text = "Lvl %d" % level
-	perm_nodes[key]["button"].text = label_text
-	perm_nodes[key]["button"].disabled = at < (total_cost if total_cost > 0 else UpgradeManager.get_perm_upgrade_cost(key))
-
+	if perm_upgrade_manager:
+		perm_upgrade_manager.update_perm_upgrade_ui(key)
 
 func update_all_perm_upgrade_ui():
-	for key in perm_nodes.keys():
-		update_perm_upgrade_ui(key)
+	if perm_upgrade_manager:
+		perm_upgrade_manager.update_all_perm_upgrade_ui()
 
-func refresh_all_drones() -> void:
-	# Update all active drones with current DroneUpgradeManager levels
-	for drone in active_drones:
-		if not is_instance_valid(drone):
-			continue
-
-		# Determine drone type and apply DroneUpgradeManager level
-		if drone.has_method("apply_upgrade"):
-			var drone_type = drone.drone_type if drone.get("drone_type") else ""
-			if drone_type in DroneUpgradeManager.DRONE_TYPES:
-				var level = DroneUpgradeManager.get_drone_level(drone_type)
-				drone.apply_upgrade(level)
-			# Fire rate automatically updates in apply_upgrade()
-
-# === DRONE AUTO-SPAWN SYSTEM ===
-# Drones are purchased out-of-run and auto-spawn if owned
-
-func _spawn_owned_drones() -> void:
-	var drone_types = ["flame", "frost", "poison", "shock"]
-	var drone_scenes_map = {
-		"flame": DRONE_FLAME_SCENE,
-		"frost": DRONE_FROST_SCENE,
-		"poison": DRONE_POISON_SCENE,
-		"shock": DRONE_SHOCK_SCENE
-	}
-
-	var tower_pos = Vector2(193, 637)  # Tower position from tower.tscn
-	var slot_index = 0
-
-	for drone_type in drone_types:
-		# Check if this drone is owned (purchased out-of-run)
-		if not RewardManager.owns_drone(drone_type):
-			continue
-
-		# Spawn the drone
-		var drone = drone_scenes_map[drone_type].instantiate()
-		active_drones.append(drone)
-		add_child(drone)
-
-		# Apply DroneUpgradeManager level
-		if drone_type in DroneUpgradeManager.DRONE_TYPES:
-			var level = DroneUpgradeManager.get_drone_level(drone_type)
-			drone.apply_upgrade(level)
-
-		# Position drone in horizontal line from tower
-		var horizontal_offsets = [-80.0, -40.0, 40.0, 80.0]
-		var horizontal_offset = horizontal_offsets[slot_index]
-		drone.global_position = tower_pos + Vector2(horizontal_offset, 0)
-
-		slot_index += 1
-		print("✅ Auto-spawned", drone_type, "drone (owned)")
+# Drone spawn and refresh functions extracted to DroneManager.gd (Phase 2.2 Refactor)
+# - spawn_owned_drones()
+# - refresh_all_drones()
+# - cleanup_drones()
 
 func get_current_buy_amount() -> int:
 	var x = buy_x_options[current_buy_index]
 	return -1 if x is String and x == "Max" else x
-	
-# Calculates the total cost to buy 'amount' upgrades of a perm stat
-func get_perm_total_upgrade_cost(key: String, amount: int) -> int:
-	var level = UpgradeManager.get_perm_level(key)
-	var total_cost = 0
-	for i in range(amount):
-		var this_cost = UpgradeManager.get_perm_upgrade_cost_for_level(key, level + i)
-		total_cost += this_cost
-	return total_cost
 
-# Returns [max_buyable, total_cost] for current tokens
-func get_perm_max_affordable(key: String) -> Array:
-	var at = RewardManager.archive_tokens
-	var level = UpgradeManager.get_perm_level(key)
-	var total_cost = 0
-	var max_count = 0
-	var safety_counter = 0
-	const MAX_ITERATIONS = 10000  # Safety limit to prevent infinite loops
+# Bulk purchase calculations extracted to BulkPurchaseCalculator.gd (Phase 2.1 Refactor)
+# - get_perm_total_cost()
+# - get_perm_max_affordable()
+# - get_inrun_total_cost()
+# - get_inrun_max_affordable()
 
-	while safety_counter < MAX_ITERATIONS:
-		var this_cost = UpgradeManager.get_perm_upgrade_cost_for_level(key, level + max_count)
-
-		# Guard against zero/negative costs which would cause infinite loop
-		if this_cost <= 0:
-			push_warning("get_perm_max_affordable: Invalid cost %d for level %d" % [this_cost, level + max_count])
-			break
-
-		if at >= total_cost + this_cost:
-			total_cost += this_cost
-			max_count += 1
-		else:
-			break
-
-		safety_counter += 1
-
-	if safety_counter >= MAX_ITERATIONS:
-		push_error("get_perm_max_affordable: Hit safety limit! Possible infinite loop prevented.")
-
-	return [max_count, total_cost]
-
-# --- IN-RUN UPGRADE BULK COST CALCULATION ---
-# Calculate total cost for buying X in-run upgrades (accounts for exponential scaling)
-
-func get_inrun_total_cost(base_cost: int, current_purchases: int, amount: int) -> int:
-	var total_cost = 0
-	for i in range(amount):
-		var cost = int(base_cost * pow(UpgradeManager.UPGRADE_COST_SCALING, current_purchases + i))
-		total_cost += cost
-	return total_cost
-
-func get_inrun_max_affordable(base_cost: int, current_purchases: int) -> Array:
-	var dc = RewardManager.data_credits
-	var total_cost = 0
-	var max_count = 0
-	var safety_counter = 0
-	const MAX_ITERATIONS = 10000
-
-	while safety_counter < MAX_ITERATIONS:
-		var this_cost = int(base_cost * pow(UpgradeManager.UPGRADE_COST_SCALING, current_purchases + max_count))
-
-		if this_cost <= 0:
-			push_warning("get_inrun_max_affordable: Invalid cost %d for purchase %d" % [this_cost, current_purchases + max_count])
-			break
-
-		if dc >= total_cost + this_cost:
-			total_cost += this_cost
-			max_count += 1
-		else:
-			break
-
-		safety_counter += 1
-
-	if safety_counter >= MAX_ITERATIONS:
-		push_error("get_inrun_max_affordable: Hit safety limit! Possible infinite loop prevented.")
-
-	return [max_count, total_cost]
-
-# === DRONE PURCHASE UI (IN PERM PANEL) ===
-
-func _create_drone_purchase_ui() -> void:
-	var perm_list = get_node_or_null("PermUpgradesPanel/PermUpgradesList")
-	if not perm_list:
-		print("⚠️ PermUpgradesList not found!")
-		return
-
-	# Add separator before drones section
-	var separator = HSeparator.new()
-	perm_list.add_child(separator)
-
-	# Add drones section title
-	var title_container = HBoxContainer.new()
-	perm_list.add_child(title_container)
-
-	var title = Label.new()
-	title.text = "=== DRONES (Purchase with 💎 Fragments) ==="
-	title.custom_minimum_size = Vector2(400, 25)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_container.add_child(title)
-
-	# Drone types and info
-	var drone_info = {
-		"flame": {"name": "🔥 Flame", "desc": "Burns enemies"},
-		"frost": {"name": "❄️ Frost", "desc": "Slows fastest"},
-		"poison": {"name": "🟣 Poison", "desc": "Poisons enemies"},
-		"shock": {"name": "⚡ Shock", "desc": "Stuns closest"}
-	}
-
-	for drone_type in ["flame", "frost", "poison", "shock"]:
-		var info = drone_info[drone_type]
-
-		# Create container
-		var container = HBoxContainer.new()
-		container.custom_minimum_size = Vector2(400, 30)
-		drone_purchase_containers[drone_type] = container
-		perm_list.add_child(container)
-
-		# Name label
-		var name_label = Label.new()
-		name_label.text = info["name"]
-		name_label.custom_minimum_size = Vector2(80, 30)
-		container.add_child(name_label)
-
-		# Status label
-		var status_label = Label.new()
-		status_label.text = "Not Owned"
-		status_label.custom_minimum_size = Vector2(120, 30)
-		drone_status_labels[drone_type] = status_label
-		container.add_child(status_label)
-
-		# Purchase button
-		var button = Button.new()
-		button.text = "Purchase (5000 💎)"
-		button.custom_minimum_size = Vector2(180, 30)
-		button.pressed.connect(_on_drone_purchase_button_pressed.bind(drone_type))
-		drone_purchase_buttons[drone_type] = button
-		container.add_child(button)
-
-	# Initial UI update
-	_update_drone_purchase_ui()
-
-func _on_drone_purchase_button_pressed(drone_type: String) -> void:
-	var cost = RewardManager.get_drone_purchase_cost(drone_type)
-	if RewardManager.purchase_drone_permanent(drone_type, cost):
-		_update_drone_purchase_ui()
-		print("💎 Successfully purchased", drone_type, "drone!")
-
-func _update_drone_purchase_ui() -> void:
-	for drone_type in ["flame", "frost", "poison", "shock"]:
-		if not drone_status_labels.has(drone_type) or not drone_purchase_buttons.has(drone_type):
-			continue
-
-		var status_label = drone_status_labels[drone_type]
-		var button = drone_purchase_buttons[drone_type]
-		var is_owned = RewardManager.owns_drone(drone_type)
-		var cost = RewardManager.get_drone_purchase_cost(drone_type)
-
-		# Update status
-		if is_owned:
-			status_label.text = "✅ Owned"
-			button.text = "Owned"
-			button.disabled = true
-		else:
-			status_label.text = "Not Owned"
-			button.text = "Purchase (%d 💎)" % cost
-			button.disabled = RewardManager.fragments < cost
+# Drone purchase UI functions extracted to PermanentUpgradeManager (Phase 3.3 Refactor)
+# - create_drone_purchase_ui()
+# - update_drone_purchase_ui()
+# - _on_drone_purchase_button_pressed()
 
 # === PERM PANEL FUNCTIONS ===
 
+# Perm panel toggle delegated to PermanentUpgradeManager (Phase 3.3 Refactor)
 func _on_perm_panel_toggle_button_pressed():
-	perm_panel.visible = not perm_panel.visible
+	if perm_upgrade_manager:
+		perm_upgrade_manager.toggle_panel()
+
+	# Hide all other panels when perm panel is shown
 	if perm_panel.visible:
-		perm_panel_toggle_button.text = "Hide Upgrades"
-		# Hide all other panels when perm panel is shown
 		offense_panel.visible = false
 		defense_panel.visible = false
 		economy_panel.visible = false
 		if software_upgrade_panel:
 			software_upgrade_panel.visible = false
-		# Update drone purchase UI when opening perm panel
-		_update_drone_purchase_ui()
-	else:
-		perm_panel_toggle_button.text = "Show Upgrades"
 
 func _on_software_upgrade_button_pressed():
 	if software_upgrade_panel:
@@ -1128,385 +613,42 @@ func _on_boss_rush_button_pressed():
 		if boss_rush_panel.visible:
 			_hide_all_progression_panels_except("boss_rush")
 
+# Game state management functions delegated to GameStateManager (Phase 3.1 Refactor)
 func reset_to_wave_1():
-	# Called when entering a new tier - resets to wave 1 but keeps permanent upgrades
-	print("🔄 Resetting to Wave 1 for new tier...")
-
-	# 1. Reset in-run upgrades
-	if Engine.has_singleton("UpgradeManager"):
-		UpgradeManager.reset_run_upgrades()
-
-	# 2. Reset run currency (keep AT/Fragments, reset DC)
-	if Engine.has_singleton("RewardManager"):
-		RewardManager.reset_run_currency()
-
-	# 3. Reset wave and clear enemies
-	if spawner.has_method("reset_wave_timers"):
-		spawner.reset_wave_timers()
-	spawner.wave_spawning = false
-	spawner.current_wave = 1
-	spawner.enemies_to_spawn = 0
-	spawner.spawned_enemies = 0
-
-	# Remove any enemy nodes
-	for e in spawner.get_children():
-		if is_instance_valid(e) and e.is_in_group("enemies"):
-			e.queue_free()
-
-	# 4. Reset the tower
-	tower.tower_hp = 1000
-	tower.refresh_shield_stats()
-	tower.current_shield = tower.max_shield
-	tower.update_bars()
-
-	# 5. Hide all upgrade panels
-	offense_panel.visible = false
-	defense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
-	if software_upgrade_panel:
-		software_upgrade_panel.visible = false
-	if tier_selection_panel:
-		tier_selection_panel.visible = false
-
-	# 6. Start wave 1
-	wave_timer = 0.0
-	spawner.start_wave(1)
-	update_labels()
-
-	# 7. Start tracking this run's performance
-	RewardManager.start_run_tracking(1)
-
-	print("✅ Reset complete! Starting Wave 1 in Tier %d" % TierManager.get_current_tier())
+	if game_state_manager:
+		game_state_manager.reset_to_wave_1()
 
 func start_boss_rush():
-	# Called when boss rush starts from UI
-	print("🏆 Starting Boss Rush mode...")
-
-	if not BossRushManager.start_boss_rush():
-		print("⚠️ Failed to start boss rush!")
-		return
-
-	# Reset game state (similar to tier reset but for boss rush)
-	# 1. Reset in-run upgrades
-	if Engine.has_singleton("UpgradeManager"):
-		UpgradeManager.reset_run_upgrades()
-
-	# 2. Reset run currency
-	if Engine.has_singleton("RewardManager"):
-		RewardManager.reset_run_currency()
-
-	# 3. Reset wave and clear enemies
-	if spawner.has_method("reset_wave_timers"):
-		spawner.reset_wave_timers()
-	spawner.wave_spawning = false
-	spawner.current_wave = 1
-	spawner.enemies_to_spawn = 0
-	spawner.spawned_enemies = 0
-
-	# Remove any enemy nodes
-	for e in spawner.get_children():
-		if is_instance_valid(e) and e.is_in_group("enemies"):
-			e.queue_free()
-
-	# 4. Reset the tower
-	tower.tower_hp = 1000
-	tower.refresh_shield_stats()
-	tower.current_shield = tower.max_shield
-	tower.update_bars()
-
-	# 5. Hide all panels
-	offense_panel.visible = false
-	defense_panel.visible = false
-	economy_panel.visible = false
-	perm_panel.visible = false
-	if software_upgrade_panel:
-		software_upgrade_panel.visible = false
-	if tier_selection_panel:
-		tier_selection_panel.visible = false
-	if boss_rush_panel:
-		boss_rush_panel.visible = false
-
-	# 6. Reset RunStats for damage tracking
-	RunStats.reset()
-
-	# 7. Start wave 1
-	wave_timer = 0.0
-	spawner.start_wave(1)
-	update_labels()
-
-	print("✅ Boss Rush started! Good luck!")
+	if game_state_manager:
+		game_state_manager.start_boss_rush()
 
 func exit_boss_rush():
-	# Called when exiting boss rush (player quits or dies)
-	print("🏆 Exiting Boss Rush mode...")
-
-	# End boss rush in spawner (this will trigger leaderboard entry)
-	if spawner and spawner.has_method("end_boss_rush"):
-		spawner.end_boss_rush()
-
-	# Return to start screen
-	_on_quit_button_pressed()
+	if game_state_manager:
+		game_state_manager.exit_boss_rush()
 
 func _on_quit_button_pressed():
-	# Record run performance before quitting
-	if Engine.has_singleton("RewardManager") and spawner:
-		RewardManager.record_run_performance(spawner.current_wave)
+	if game_state_manager:
+		game_state_manager.quit_to_menu()
 
-	# 1. Reset in-run upgrades
-	if Engine.has_singleton("UpgradeManager"):
-		UpgradeManager.reset_run_upgrades()
-		UpgradeManager.maybe_grant_free_upgrade() # Optional
-
-	# 2. Save permanent upgrades and reset currencies
-	if Engine.has_singleton("RewardManager"):
-		RewardManager.save_permanent_upgrades()
-		RewardManager.reset_run_currency()
-
-	# 3. Reset wave and clear enemies
-	if spawner.has_method("reset_wave_timers"):
-		spawner.reset_wave_timers()
-	spawner.wave_spawning = false
-	spawner.current_wave = 1
-	spawner.enemies_to_spawn = 0
-	spawner.spawned_enemies = 0
-	# Remove any enemy nodes
-	for e in spawner.get_children():
-		if is_instance_valid(e) and e.is_in_group("enemies"):
-			e.queue_free()
-
-	# 4. Reset the tower
-	tower.tower_hp = 1000
-	tower.refresh_shield_stats()
-	tower.current_shield = tower.max_shield
-	tower.update_bars()
-
-	# 5. Hide all upgrade panels
-	if has_node("OffensePanel"):
-		$OffensePanel.visible = false
-	if has_node("DefensePanel"):
-		$DefensePanel.visible = false
-	if has_node("EconomyPanel"):
-		$EconomyPanel.visible = false
-	if has_node("PermUpgradesPanel"):
-		$PermUpgradesPanel.visible = false
-
-	# 6. Return to the Start Screen
-	get_tree().change_scene_to_file("res://StartScreen.tscn")
-
-	print("=== RUN STATS ON DEATH ===")
-	print("AT Earned: ", RunStats.archive_tokens_earned)
-	print("DC Earned: ", RunStats.data_credits_earned)
-	print("Damage Dealt: ", RunStats.damage_dealt)
-	print("Damage Taken: ", RunStats.damage_taken)
-	print("==========================")	
-	RunStats.reset()
-
-# === STATISTICS PANEL ===
-
-func _create_statistics_panel() -> void:
-	# Create panel (fits 390px mobile screen)
-	statistics_panel = Panel.new()
-	statistics_panel.custom_minimum_size = Vector2(360, 700)
-	statistics_panel.position = Vector2(15, 50)
-	statistics_panel.visible = false
-	add_child(statistics_panel)
-
-	# Create scroll container
-	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(340, 680)
-	scroll.position = Vector2(10, 10)
-	statistics_panel.add_child(scroll)
-
-	# Create VBox for content
-	var vbox = VBoxContainer.new()
-	scroll.add_child(vbox)
-
-	# Title
-	var title = Label.new()
-	title.text = "=== LIFETIME STATISTICS ==="
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.custom_minimum_size = Vector2(320, 30)
-	vbox.add_child(title)
-	UIStyler.apply_theme_to_node(title)
-
-	# Separator
-	var sep_account = HSeparator.new()
-	vbox.add_child(sep_account)
-
-	# Account Section
-	var account_title = Label.new()
-	account_title.text = "🔐 Account"
-	account_title.custom_minimum_size = Vector2(320, 25)
-	vbox.add_child(account_title)
-	UIStyler.apply_theme_to_node(account_title)
-
-	var account_status = Label.new()
-	account_status.name = "AccountStatusLabel"
-	if CloudSaveManager and CloudSaveManager.is_logged_in:
-		if CloudSaveManager.is_guest:
-			account_status.text = "👤 Guest Account (ID: %s)" % CloudSaveManager.player_id.substr(0, 8)
-		else:
-			account_status.text = "✅ Registered Account (ID: %s)" % CloudSaveManager.player_id.substr(0, 8)
-	else:
-		account_status.text = "❌ Not Logged In"
-	account_status.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(account_status)
-	UIStyler.apply_theme_to_node(account_status)
-
-	# Bind account button (only for guests)
-	if CloudSaveManager and CloudSaveManager.is_logged_in and CloudSaveManager.is_guest:
-		var bind_button = Button.new()
-		bind_button.text = "🔗 Bind Email to Save Progress"
-		bind_button.custom_minimum_size = Vector2(300, 40)
-		bind_button.pressed.connect(_on_bind_account_pressed)
-		vbox.add_child(bind_button)
-		UIStyler.apply_theme_to_node(bind_button)
-
-	# Separator
-	var sep1 = HSeparator.new()
-	vbox.add_child(sep1)
-
-	# Currency Stats
-	var currency_title = Label.new()
-	currency_title.text = "💰 Currency Earned"
-	currency_title.custom_minimum_size = Vector2(320, 25)
-	vbox.add_child(currency_title)
-	UIStyler.apply_theme_to_node(currency_title)
-
-	var dc_stat = Label.new()
-	dc_stat.name = "DCStatLabel"
-	dc_stat.text = "Data Credits: 0"
-	dc_stat.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(dc_stat)
-	UIStyler.apply_theme_to_node(dc_stat)
-
-	var at_stat = Label.new()
-	at_stat.name = "ATStatLabel"
-	at_stat.text = "Archive Tokens: 0"
-	at_stat.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(at_stat)
-	UIStyler.apply_theme_to_node(at_stat)
-
-	var frag_stat = Label.new()
-	frag_stat.name = "FragStatLabel"
-	frag_stat.text = "Fragments: 0"
-	frag_stat.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(frag_stat)
-	UIStyler.apply_theme_to_node(frag_stat)
-
-	# Separator
-	var sep2 = HSeparator.new()
-	vbox.add_child(sep2)
-
-	# Spending Stats
-	var spending_title = Label.new()
-	spending_title.text = "💸 Archive Tokens Spent"
-	spending_title.custom_minimum_size = Vector2(320, 25)
-	vbox.add_child(spending_title)
-	UIStyler.apply_theme_to_node(spending_title)
-
-	var lab_spent = Label.new()
-	lab_spent.name = "LabSpentLabel"
-	lab_spent.text = "On Labs: 0"
-	lab_spent.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(lab_spent)
-	UIStyler.apply_theme_to_node(lab_spent)
-
-	var perm_spent = Label.new()
-	perm_spent.name = "PermSpentLabel"
-	perm_spent.text = "On Permanent Upgrades: 0"
-	perm_spent.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(perm_spent)
-	UIStyler.apply_theme_to_node(perm_spent)
-
-	var total_spent = Label.new()
-	total_spent.name = "TotalSpentLabel"
-	total_spent.text = "Total Spent: 0"
-	total_spent.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(total_spent)
-	UIStyler.apply_theme_to_node(total_spent)
-
-	# Separator
-	var sep3 = HSeparator.new()
-	vbox.add_child(sep3)
-
-	# Kill Stats
-	var kills_title = Label.new()
-	kills_title.text = "⚔️ Enemies Defeated"
-	kills_title.custom_minimum_size = Vector2(320, 25)
-	vbox.add_child(kills_title)
-	UIStyler.apply_theme_to_node(kills_title)
-
-	var breacher_kills = Label.new()
-	breacher_kills.name = "BreacherKillsLabel"
-	breacher_kills.text = "Breachers: 0"
-	breacher_kills.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(breacher_kills)
-	UIStyler.apply_theme_to_node(breacher_kills)
-
-	var slicer_kills = Label.new()
-	slicer_kills.name = "SlicerKillsLabel"
-	slicer_kills.text = "Slicers: 0"
-	slicer_kills.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(slicer_kills)
-	UIStyler.apply_theme_to_node(slicer_kills)
-
-	var sentinel_kills = Label.new()
-	sentinel_kills.name = "SentinelKillsLabel"
-	sentinel_kills.text = "Sentinels: 0"
-	sentinel_kills.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(sentinel_kills)
-	UIStyler.apply_theme_to_node(sentinel_kills)
-
-	var signal_kills = Label.new()
-	signal_kills.name = "SignalKillsLabel"
-	signal_kills.text = "Signal Runners: 0"
-	signal_kills.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(signal_kills)
-	UIStyler.apply_theme_to_node(signal_kills)
-
-	var null_kills = Label.new()
-	null_kills.name = "NullKillsLabel"
-	null_kills.text = "Null Walkers: 0"
-	null_kills.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(null_kills)
-	UIStyler.apply_theme_to_node(null_kills)
-
-	var boss_kills = Label.new()
-	boss_kills.name = "BossKillsLabel"
-	boss_kills.text = "Bosses (Override): 0"
-	boss_kills.custom_minimum_size = Vector2(320, 20)
-	vbox.add_child(boss_kills)
-	UIStyler.apply_theme_to_node(boss_kills)
-
-	var total_kills = Label.new()
-	total_kills.name = "TotalKillsLabel"
-	total_kills.text = "Total Kills: 0"
-	total_kills.custom_minimum_size = Vector2(320, 25)
-	vbox.add_child(total_kills)
-	UIStyler.apply_theme_to_node(total_kills)
-
-	# Close button
-	var close_button = Button.new()
-	close_button.text = "Close"
-	close_button.custom_minimum_size = Vector2(200, 40)
-	close_button.position = Vector2(200, 640)
-	close_button.pressed.connect(_on_statistics_panel_close)
-	statistics_panel.add_child(close_button)
-	UIStyler.apply_theme_to_node(close_button)
+# === STATISTICS PANEL (Phase 3.2 Refactor) ===
+# Statistics panel extracted to StatisticsPanel.gd
 
 func _on_statistics_button_pressed() -> void:
 	if not statistics_panel:
 		return
 
-	statistics_panel.visible = not statistics_panel.visible
-
 	if statistics_panel.visible:
-		_update_statistics_panel()
+		statistics_panel.hide_panel()
+	else:
+		statistics_panel.show_panel()
 		_hide_all_progression_panels_except("statistics")
 
-func _on_bind_account_pressed() -> void:
+func _on_statistics_panel_closed() -> void:
+	# Signal handler from StatisticsPanel
+	pass
+
+func _on_bind_account_requested() -> void:
+	# Handle bind account request from StatisticsPanel
 	if not CloudSaveManager:
 		print("⚠️ CloudSaveManager not available")
 		return
@@ -1524,116 +666,12 @@ func _on_bind_account_pressed() -> void:
 		# Refresh statistics panel to show new account status
 		if statistics_panel and statistics_panel.visible:
 			statistics_panel.queue_free()
-			_create_statistics_panel()
-			statistics_panel.visible = true
-			_update_statistics_panel()
+			statistics_panel = StatisticsPanel.new()
+			statistics_panel.panel_closed.connect(_on_statistics_panel_closed)
+			statistics_panel.bind_account_requested.connect(_on_bind_account_requested)
+			add_child(statistics_panel)
+			statistics_panel.show_panel()
 	)
-
-func _on_statistics_panel_close() -> void:
-	if statistics_panel:
-		statistics_panel.visible = false
-
-func _update_statistics_panel() -> void:
-	if not statistics_panel:
-		return
-
-	# Update currency stats
-	var dc_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/DCStatLabel")
-	if dc_label:
-		dc_label.text = "Data Credits: %s" % _format_number(RunStats.lifetime_dc_earned)
-
-	var at_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/ATStatLabel")
-	if at_label:
-		at_label.text = "Archive Tokens: %s" % _format_number(RunStats.lifetime_at_earned)
-
-	var frag_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/FragStatLabel")
-	if frag_label:
-		frag_label.text = "Fragments: %s" % _format_number(RunStats.lifetime_fragments_earned)
-
-	# Update spending stats
-	var lab_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/LabSpentLabel")
-	if lab_label:
-		lab_label.text = "On Labs: %s" % _format_number(RunStats.lifetime_at_spent_labs)
-
-	var perm_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/PermSpentLabel")
-	if perm_label:
-		perm_label.text = "On Permanent Upgrades: %s" % _format_number(RunStats.lifetime_at_spent_perm_upgrades)
-
-	var total_spent_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/TotalSpentLabel")
-	if total_spent_label:
-		var total = RunStats.lifetime_at_spent_labs + RunStats.lifetime_at_spent_perm_upgrades
-		total_spent_label.text = "Total Spent: %s" % _format_number(total)
-
-	# Update kill stats
-	var breacher_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/BreacherKillsLabel")
-	if breacher_label:
-		breacher_label.text = "Breachers: %s" % _format_number(RunStats.lifetime_kills.get("breacher", 0))
-
-	var slicer_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/SlicerKillsLabel")
-	if slicer_label:
-		slicer_label.text = "Slicers: %s" % _format_number(RunStats.lifetime_kills.get("slicer", 0))
-
-	var sentinel_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/SentinelKillsLabel")
-	if sentinel_label:
-		sentinel_label.text = "Sentinels: %s" % _format_number(RunStats.lifetime_kills.get("sentinel", 0))
-
-	var signal_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/SignalKillsLabel")
-	if signal_label:
-		signal_label.text = "Signal Runners: %s" % _format_number(RunStats.lifetime_kills.get("signal_runner", 0))
-
-	var null_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/NullKillsLabel")
-	if null_label:
-		null_label.text = "Null Walkers: %s" % _format_number(RunStats.lifetime_kills.get("nullwalker", 0))
-
-	var boss_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/BossKillsLabel")
-	if boss_label:
-		boss_label.text = "Bosses (Override): %s" % _format_number(RunStats.lifetime_kills.get("override", 0))
-
-	var total_kills_label = statistics_panel.get_node_or_null("ScrollContainer/VBoxContainer/TotalKillsLabel")
-	if total_kills_label:
-		var total_kills = 0
-		for kills in RunStats.lifetime_kills.values():
-			total_kills += kills
-		total_kills_label.text = "Total Kills: %s" % _format_number(total_kills)
-
-func _format_number(num: int) -> String:
-	# Handle negative numbers
-	var sign = "" if num >= 0 else "-"
-	var abs_num = abs(num)
-
-	# Small numbers (< 1000) - show raw value
-	if abs_num < 1000:
-		return str(num)
-
-	# Define thresholds and suffixes for big numbers
-	# Supports up to int64 max (~10^18 quintillion)
-	const THRESHOLDS = [
-		1000000000000000000,  # 10^18 Quintillion (Qi)
-		1000000000000000,     # 10^15 Quadrillion (Qa)
-		1000000000000,        # 10^12 Trillion (T)
-		1000000000,           # 10^9 Billion (B)
-		1000000,              # 10^6 Million (M)
-		1000                  # 10^3 Thousand (K)
-	]
-
-	const SUFFIXES_BIG = ["Qi", "Qa", "T", "B", "M", "K"]
-	const DIVISORS = [
-		1000000000000000000.0,
-		1000000000000000.0,
-		1000000000000.0,
-		1000000000.0,
-		1000000.0,
-		1000.0
-	]
-
-	# Find appropriate suffix
-	for i in range(THRESHOLDS.size()):
-		if abs_num >= THRESHOLDS[i]:
-			var value = abs_num / DIVISORS[i]
-			return "%s%.2f%s" % [sign, value, SUFFIXES_BIG[i]]
-
-	# Fallback (shouldn't reach here)
-	return str(num)
 
 # === NEW PROGRESSION UI BUTTON HANDLERS ===
 
@@ -1689,3 +727,31 @@ func _hide_all_progression_panels_except(keep_visible: String) -> void:
 		milestone_panel.visible = false
 	if achievement_panel and keep_visible != "achievement":
 		achievement_panel.visible = false
+
+# === PERMANENT UPGRADE MANAGER SIGNAL HANDLERS (Phase 3.3 Refactor) ===
+
+func _on_perm_upgrade_purchased(upgrade_key: String) -> void:
+	# Refresh drones if drone upgrades were purchased
+	if upgrade_key in ["drone_flame", "drone_frost", "drone_poison", "drone_shock"]:
+		if drone_manager:
+			drone_manager.refresh_all_drones()
+
+func _on_drone_purchased(drone_type: String) -> void:
+	# Handle drone purchase events if needed
+	pass
+
+func _on_archive_tokens_changed() -> void:
+	# Update all perm upgrade UI when AT changes
+	if perm_upgrade_manager:
+		perm_upgrade_manager.update_all_perm_upgrade_ui()
+
+func _on_save_failed(error_message: String) -> void:
+	# BUG-002 fix: Display save error notification to user
+	push_warning(error_message)
+	# Show visual notification popup to user
+	if NotificationManager:
+		NotificationManager.show_custom_notification(
+			"Save Failed",
+			"Auto-save will retry in 60 seconds",
+			"⚠️"
+		)

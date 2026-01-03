@@ -72,18 +72,15 @@ var perm_lab_speed: float = 0.0  # +1% per level from lab_acceleration
 
 # --- Signal Throttling (Performance Optimization) ---
 var _last_ui_update_time: int = 0
-const UI_UPDATE_INTERVAL_MS := 500  # Update UI max 2x per second (every 0.5s)
+const UI_UPDATE_INTERVAL_MS := 333  # Update UI max 3x per second (every 333ms) - Priority 2 optimization
 
 signal archive_tokens_changed
 signal offline_progress_calculated(waves: int, dc: int, at: int, duration: float)
-
-var UpgradeManager = null
+signal save_failed(error_message: String)  # BUG-002 fix: Notify UI when auto-save fails
 
 func _ready() -> void:
-	# Safely get UpgradeManager
-	UpgradeManager = get_node_or_null("UpgradeManager")
-	if not UpgradeManager:
-		push_error("UpgradeManager not found as child of RewardManager")
+	# H-003: UpgradeManager is an autoload - no need to get as child node
+	# The global UpgradeManager autoload is automatically available
 
 	# Connect to tree exit signal only if not already connected
 	if not get_tree().tree_exiting.is_connected(Callable(self, "save_permanent_upgrades")):
@@ -115,7 +112,7 @@ func _on_autosave_timer_timeout() -> void:
 	var success = save_permanent_upgrades()
 	if not success:
 		push_error("❌ Auto-save failed! Progress may not be saved.")
-		# Note: User should be notified via UI, but we don't have direct access to main_hud here
+		save_failed.emit("Auto-save failed! Progress may not be saved.")  # BUG-002 fix: Notify UI
 
 
 # === Reward Functions ===
@@ -123,7 +120,7 @@ func add_archive_tokens(amount: int) -> void:
 	archive_tokens += amount
 	AchievementManager.add_at_earned(amount)  # Track for achievements
 
-	# Throttle UI updates to max 2x per second (every 0.5s)
+	# Throttle UI updates to max 3x per second (every 333ms) - Priority 2 optimization
 	# Prevents excessive signal emissions during high kill rates (100+ kills/sec)
 	# Improves performance by 15-20% at wave 100+ and 25-30% at wave 1000+
 	var now = Time.get_ticks_msec()
@@ -215,11 +212,12 @@ func reward_enemy_at(enemy_type: String, wave_number: int) -> void:
 	var tier_mult = TierManager.get_reward_multiplier()
 	var scaled_at = int(base_at * (1.0 + wave_number * 0.02) * get_archive_token_multiplier() * tier_mult)
 
-	# Apply lucky drops bonus
-	var lucky_chance = UpgradeManager.get_lucky_drops()
-	if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
-		scaled_at = int(scaled_at * 1.5)  # 50% bonus on lucky drop
-		#print("🍀 Lucky drop! Bonus AT!")
+	# Apply lucky drops bonus (BUG-007 fix: Add null check)
+	if UpgradeManager:
+		var lucky_chance = UpgradeManager.get_lucky_drops()
+		if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
+			scaled_at = int(scaled_at * 1.5)  # 50% bonus on lucky drop
+			#print("🍀 Lucky drop! Bonus AT!")
 
 	archive_tokens += scaled_at
 	RunStats.add_at_earned(scaled_at)  # Track lifetime AT
@@ -236,11 +234,12 @@ func reward_enemy(enemy_type: String, wave_number: int) -> void:
 	var tier_mult = TierManager.get_reward_multiplier()
 	var scaled_dc = int(base_dc * (1.0 + wave_number * 0.02) * get_data_credit_multiplier() * tier_mult)
 
-	# Apply lucky drops bonus
-	var lucky_chance = UpgradeManager.get_lucky_drops()
-	if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
-		scaled_dc = int(scaled_dc * 1.5)  # 50% bonus on lucky drop
-		#print("🍀 Lucky drop! Bonus DC!")
+	# Apply lucky drops bonus (BUG-007 fix: Add null check)
+	if UpgradeManager:
+		var lucky_chance = UpgradeManager.get_lucky_drops()
+		if lucky_chance > 0 and randf() * 100.0 < lucky_chance:
+			scaled_dc = int(scaled_dc * 1.5)  # 50% bonus on lucky drop
+			#print("🍀 Lucky drop! Bonus DC!")
 
 	data_credits += scaled_dc
 	RunStats.add_dc_earned(scaled_dc)  # Track lifetime DC
@@ -423,7 +422,7 @@ func get_best_run_last_week() -> Dictionary:
 # - Ensures offline rewards reflect actual player skill/progression
 #
 # Caps and limits:
-# - Maximum absence: 24 hours (86,400 seconds)
+# - Maximum absence: 1 week (604,800 seconds) - allows multi-day breaks
 # - Minimum absence: 1 minute (60 seconds) to avoid spam
 # - Maximum AT reward: 1,000,000 (prevents exploits/bugs)
 #
@@ -440,8 +439,9 @@ func calculate_offline_progress(watched_ad: bool = false) -> void:
 	# Update timestamp for next session
 	last_play_time = now
 
-	# Cap at 24 hours (86400 seconds)
-	seconds_away = min(seconds_away, 86400)
+	# BUG-012 fix: Cap at 1 week (604800 seconds) instead of 24h
+	# Allows players to take multi-day breaks without losing all progress
+	seconds_away = min(seconds_away, WEEK_IN_SECONDS)
 
 	# Ignore absences less than 1 minute
 	if seconds_away < 60:
@@ -525,8 +525,6 @@ func apply_offline_rewards() -> void:
 # Version 2: BigNumber format with perm_projectile_damage_mantissa/exponent
 const SAVE_VERSION = 2
 const SAVE_FILE = "user://perm_upgrades.save"
-const SAVE_FILE_TEMP = "user://perm_upgrades.save.tmp"
-const SAVE_FILE_BACKUP = "user://perm_upgrades.save.backup"
 
 func save_permanent_upgrades() -> bool:
 	# Update last play time on save
@@ -580,97 +578,33 @@ func save_permanent_upgrades() -> bool:
 		"lifetime_kills": RunStats.lifetime_kills,
 	}
 
-	# ATOMIC SAVE WITH BACKUP
-	# Step 1: Backup existing save file
-	if FileAccess.file_exists(SAVE_FILE):
-		var dir = DirAccess.open("user://")
-		if dir:
-			if FileAccess.file_exists(SAVE_FILE_BACKUP):
-				dir.remove(SAVE_FILE_BACKUP)
-			var copy_err = dir.copy(SAVE_FILE, SAVE_FILE_BACKUP)
-			if copy_err != OK:
-				print("⚠️ Failed to create backup (error %d), continuing anyway..." % copy_err)
+	# Use SaveManager for atomic save (Priority 4.2: Unified save system)
+	var success = SaveManager.atomic_save(SAVE_FILE, data)
+	if success:
+		print("💾 Permanent upgrades saved (atomic write successful)")
 
-	# Step 2: Write to temporary file
-	var file = FileAccess.open(SAVE_FILE_TEMP, FileAccess.WRITE)
-	if file == null:
-		push_error("❌ Failed to open temp save file: " + str(FileAccess.get_open_error()))
-		return false
-	file.store_var(data)
-	file.close()
+		# Upload to cloud if logged in
+		if CloudSaveManager and CloudSaveManager.is_logged_in:
+			CloudSaveManager.upload_save_data(data)
 
-	# Step 3: Verify temporary file
-	file = FileAccess.open(SAVE_FILE_TEMP, FileAccess.READ)
-	if file == null:
-		push_error("❌ Failed to verify temp save file!")
-		return false
-	var verification = file.get_var()
-	file.close()
-
-	if typeof(verification) != TYPE_DICTIONARY:
-		push_error("❌ Save verification failed: Invalid data type!")
-		var dir = DirAccess.open("user://")
-		if dir:
-			dir.remove(SAVE_FILE_TEMP)
-		return false
-
-	# Step 4: Atomic rename (replace old save with new)
-	var dir = DirAccess.open("user://")
-	if not dir:
-		push_error("❌ Failed to access save directory!")
-		return false
-
-	if FileAccess.file_exists(SAVE_FILE):
-		dir.remove(SAVE_FILE)
-
-	var rename_err = dir.rename(SAVE_FILE_TEMP, SAVE_FILE)
-	if rename_err != OK:
-		push_error("❌ Failed to finalize save file (error %d)!" % rename_err)
-		return false
-
-	print("💾 Permanent upgrades saved (atomic write successful)")
-
-	# Upload to cloud if logged in
-	if CloudSaveManager and CloudSaveManager.is_logged_in:
-		CloudSaveManager.upload_save_data(data)
-
-	return true
+	return success
 
 func load_permanent_upgrades():
-	# Try loading from main save, then backup if corrupted
-	var files_to_try = [SAVE_FILE, SAVE_FILE_BACKUP]
+	# Use SaveManager for atomic load (Priority 4.2: Unified save system)
+	var data = SaveManager.atomic_load(SAVE_FILE)
 
-	for save_file_path in files_to_try:
-		if not FileAccess.file_exists(save_file_path):
-			continue
-
-		var file = FileAccess.open(save_file_path, FileAccess.READ)
-		if file == null:
-			push_error("Failed to open %s for reading: %s" % [save_file_path, str(FileAccess.get_open_error())])
-			continue
-
-		var data = file.get_var()
-		file.close()
-
-		# Validate data is a dictionary
-		if typeof(data) != TYPE_DICTIONARY:
-			push_error("Save file %s corrupted: Invalid data type" % save_file_path)
-			continue
-
-		# Successfully loaded save
-		if save_file_path == SAVE_FILE_BACKUP:
-			print("⚠️ Main save corrupted, loaded from backup!")
-
-		_apply_save_data(data)
+	if data.is_empty():
+		print("❌ All save files corrupted or missing. Starting fresh.")
 		return
 
-	print("❌ All save files corrupted or missing. Starting fresh.")
+	_apply_save_data(data)
 
 func _apply_save_data(data: Dictionary) -> void:
 	# Check save version and handle migrations
 	var save_version = data.get("version", 1)  # Default to version 1 if missing
 	if save_version < SAVE_VERSION:
 		print("📦 Migrating save from version %d to version %d" % [save_version, SAVE_VERSION])
+		data = _migrate_save_data(data, save_version, SAVE_VERSION)
 	elif save_version > SAVE_VERSION:
 		push_warning("⚠️ Save file version %d is newer than current version %d! Loading may fail." % [save_version, SAVE_VERSION])
 
@@ -798,6 +732,36 @@ func _apply_save_data(data: Dictionary) -> void:
 
 	# Calculate offline progress (without ad by default - UI will handle ad option)
 	calculate_offline_progress(false)
+
+## Migration Framework: Apply version-specific migrations
+func _migrate_save_data(data: Dictionary, from_version: int, to_version: int) -> Dictionary:
+	# Apply migrations sequentially from old version to new
+	for version in range(from_version + 1, to_version + 1):
+		print("  Applying migration for version %d..." % version)
+		data = _apply_migration_for_version(data, version)
+	return data
+
+## Apply specific migration logic for each version
+func _apply_migration_for_version(data: Dictionary, target_version: int) -> Dictionary:
+	match target_version:
+		2:
+			# Version 2: Migrate perm_projectile_damage from int to BigNumber
+			if data.has("perm_projectile_damage") and not data.has("perm_projectile_damage_mantissa"):
+				var old_value = data.get("perm_projectile_damage", 0)
+				if old_value > 0:
+					var bn = BigNumber.new(old_value)
+					data["perm_projectile_damage_mantissa"] = bn.mantissa
+					data["perm_projectile_damage_exponent"] = bn.exponent
+					print("    Migrated perm_projectile_damage: %d → BigNumber(%.2f, %d)" % [old_value, bn.mantissa, bn.exponent])
+				data.erase("perm_projectile_damage")  # Remove old field
+		# Add future version migrations here:
+		# 3:
+		#     # Migration logic for version 3
+		# 4:
+		#     # Migration logic for version 4
+		_:
+			pass  # No migration needed for this version
+	return data
 
 # === CLOUD SAVE INTEGRATION ===
 

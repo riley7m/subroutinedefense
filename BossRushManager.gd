@@ -18,7 +18,7 @@ signal score_submitted(success: bool, rank: int)
 
 # Boss Rush State
 var is_active: bool = false
-var current_run_damage: int = 0
+var current_run_damage: float = 0.0  # Float to handle BigNumber.to_float() without overflow
 var current_run_wave: int = 0
 var fragments_awarded_for_current_run: bool = false  # Prevent double fragment awards
 
@@ -34,8 +34,9 @@ var http_submit_score: HTTPRequest
 var http_fetch_leaderboard: HTTPRequest
 var http_validate_score: HTTPRequest
 
-# PlayFab Configuration
-const PLAYFAB_TITLE_ID := "1DEAD6"
+# PlayFab Configuration (loaded from ConfigLoader)
+# Uses config/playfab_config.json for external configuration
+var PLAYFAB_TITLE_ID: String = ""
 const LEADERBOARD_NAME := "BossRushDamage"
 
 # Boss Rush Configuration
@@ -67,6 +68,15 @@ var leaderboard: Array = []
 const MAX_LEADERBOARD_ENTRIES := 10
 
 func _ready() -> void:
+	# Load PlayFab configuration from ConfigLoader
+	if ConfigLoader:
+		PLAYFAB_TITLE_ID = ConfigLoader.get_playfab_title_id()
+		if not ConfigLoader.is_playfab_config_loaded():
+			push_warning("⚠️ PlayFab config not loaded, using fallback defaults")
+	else:
+		push_error("❌ ConfigLoader not available, PlayFab integration disabled")
+		PLAYFAB_TITLE_ID = "1DEAD6"
+
 	# Create HTTP nodes for PlayFab
 	http_submit_score = HTTPRequest.new()
 	add_child(http_submit_score)
@@ -129,14 +139,14 @@ func start_boss_rush() -> bool:
 		return false
 
 	is_active = true
-	current_run_damage = 0
+	current_run_damage = 0.0
 	current_run_wave = 0
 	fragments_awarded_for_current_run = false  # Reset fragment award flag
 	print("🏆 Boss Rush started!")
 	boss_rush_started.emit()
 	return true
 
-func end_boss_rush(final_damage: int, final_wave: int) -> void:
+func end_boss_rush(final_damage: float, final_wave: int) -> void:
 	if not is_active:
 		return
 
@@ -182,10 +192,21 @@ func get_boss_rush_hp_multiplier(wave: int) -> float:
 	# - Wave 10: 1.13^10 * 5 = 16.97x base HP
 	# - Wave 20: 1.13^20 * 5 = 57.59x base HP
 	# - Wave 50: 1.13^50 * 5 = 2,249x base HP
+	# - Wave 100: 1.13^100 * 5 = 1.01e6x (requires BigNumber)
+	# - Wave 500: 1.13^500 * 5 = 1.9e25x (catastrophic overflow without BigNumber)
 	#
 	# This aggressive scaling ensures Boss Rush ends quickly (5-15 minutes)
 	# and rewards top-tier builds for leaderboard competition
-	return pow(BOSS_HP_SCALING_BASE, wave) * BOSS_ENEMY_MULTIPLIER
+
+	# For low waves, use fast float calculation
+	if wave < 100:
+		return pow(BOSS_HP_SCALING_BASE, wave) * BOSS_ENEMY_MULTIPLIER
+
+	# For high waves, use BigNumber to prevent overflow
+	var multiplier_bn = BigNumber.new(BOSS_ENEMY_MULTIPLIER)
+	var wave_multiplier = pow(BOSS_HP_SCALING_BASE, wave)
+	multiplier_bn.multiply(wave_multiplier)
+	return multiplier_bn.to_float()
 
 func get_boss_rush_damage_multiplier() -> float:
 	# Bosses deal 5x base damage
@@ -198,7 +219,7 @@ func get_boss_rush_speed_multiplier() -> float:
 # === ONLINE LEADERBOARD (PlayFab) ===
 
 ## Submit score to PlayFab with server-side validation
-func submit_score_online(damage: int, waves: int) -> void:
+func submit_score_online(damage: float, waves: int) -> void:
 	# Rate limiting: prevent spam submissions
 	var now = int(Time.get_unix_time_from_system())
 	if now - last_score_submit < MIN_SUBMIT_INTERVAL:
@@ -214,7 +235,7 @@ func submit_score_online(damage: int, waves: int) -> void:
 	validate_score_with_server(damage, waves)
 
 ## Validate score with PlayFab CloudScript (server-side anti-cheat)
-func validate_score_with_server(damage: int, waves: int) -> void:
+func validate_score_with_server(damage: float, waves: int) -> void:
 	if not CloudSaveManager or not CloudSaveManager.session_ticket:
 		print("❌ Not logged in to PlayFab")
 		return
@@ -242,7 +263,7 @@ func validate_score_with_server(damage: int, waves: int) -> void:
 		is_online = false
 
 ## Submit validated score to PlayFab leaderboard
-func _submit_validated_score(damage: int, waves: int) -> void:
+func _submit_validated_score(damage: float, waves: int) -> void:
 	if not CloudSaveManager or not CloudSaveManager.session_ticket:
 		return
 
@@ -414,16 +435,17 @@ func _award_fragments_for_rank(rank: int) -> void:
 		print("⚠️ Fragments already awarded for this run")
 		return
 
-	var fragments = get_fragment_reward_for_rank(rank)
+	# Set flag BEFORE awarding to prevent race condition
+	fragments_awarded_for_current_run = true
 
+	var fragments = get_fragment_reward_for_rank(rank)
 	if fragments > 0 and RewardManager:
 		RewardManager.add_fragments(fragments)
-		fragments_awarded_for_current_run = true  # Mark as awarded
 		print("💎 Awarded %d fragments for rank #%d!" % [fragments, rank])
 
 # === LOCAL LEADERBOARD (Fallback/Cache) ===
 
-func add_leaderboard_entry(damage: int, waves: int) -> void:
+func add_leaderboard_entry(damage: float, waves: int) -> void:
 	var entry = {
 		"damage": damage,
 		"waves": waves,
@@ -462,36 +484,28 @@ func save_leaderboard() -> void:
 	}
 
 	var save_path = "user://boss_rush_leaderboard.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# Use SaveManager for simple save (Priority 4.2: Unified save system)
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Boss rush leaderboard saved")
 	else:
 		print("⚠️ Failed to save boss rush leaderboard")
 
 func load_leaderboard() -> void:
 	var save_path = "user://boss_rush_leaderboard.save"
-	if not FileAccess.file_exists(save_path):
+
+	# Use SaveManager for simple load (Priority 4.2: Unified save system)
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📊 No boss rush leaderboard found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
-
-		if save_data and save_data is Dictionary:
-			leaderboard = save_data.get("leaderboard", [])
-			print("📊 Boss rush leaderboard loaded: %d entries" % leaderboard.size())
-		else:
-			print("⚠️ Invalid boss rush leaderboard data")
-	else:
-		print("⚠️ Failed to load boss rush leaderboard")
+	leaderboard = save_data.get("leaderboard", [])
+	print("📊 Boss rush leaderboard loaded: %d entries" % leaderboard.size())
 
 # === UTILITY ===
 
-func format_damage(damage: int) -> String:
+func format_damage(damage: float) -> String:
 	if damage < 1000:
 		return str(damage)
 	elif damage < 1000000:
@@ -501,7 +515,7 @@ func format_damage(damage: int) -> String:
 	else:
 		return "%.1fB" % (damage / 1000000000.0)
 
-func get_rank_for_damage(damage: int) -> int:
+func get_rank_for_damage(damage: float) -> int:
 	# Returns what rank this damage would place (1 = best)
 	var rank = 1
 	for entry in leaderboard:

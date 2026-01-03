@@ -230,15 +230,22 @@ func _ready() -> void:
 
 # --- STAT TRACKING CONNECTIONS ---
 func _connect_stat_tracking() -> void:
+	# Priority 4.1: Connect to TierManager signal (breaks circular dependency)
+	if TierManager:
+		TierManager.wave_completed.connect(_on_wave_completed)
+
 	# Achievement stat tracking is integrated into existing managers:
-	# - Waves: TierManager.update_highest_wave()
+	# - Waves: TierManager.wave_completed signal → _on_wave_completed()
 	# - Kills/Bosses: RunStats.record_kill()
 	# - DC/AT/Fragments: RewardManager.add_data_credits/add_archive_tokens/add_fragments()
 	# - Data Disks: DataDiskManager.add_data_disk()
 	# - QC Spent: Add to wherever quantum_cores is spent (not yet implemented)
 	# - Lab Time: Add to SoftwareUpgradeManager when lab research completes
 	# - Tournaments: Add to BossRushManager.start_tournament() or similar
-	pass
+
+# Priority 4.1: Signal handler for wave completion (replaces direct call)
+func _on_wave_completed(tier: int, wave: int) -> void:
+	add_wave_completed()
 
 # --- STAT UPDATE FUNCTIONS ---
 func add_wave_completed() -> void:
@@ -364,31 +371,26 @@ func save_achievements() -> void:
 	}
 
 	var save_path = "user://achievements.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# H-002: Use SaveManager for unified save system
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Achievements saved")
 	else:
 		push_error("❌ Failed to save achievements")
 
 func load_achievements() -> void:
 	var save_path = "user://achievements.save"
-	if not FileAccess.file_exists(save_path):
+
+	# H-002: Use SaveManager for unified save system
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📂 No achievement save file found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
+	stats = save_data.get("stats", stats)
+	unlocked_tiers = save_data.get("unlocked_tiers", {})
 
-		stats = save_data.get("stats", stats)
-		unlocked_tiers = save_data.get("unlocked_tiers", {})
-
-		print("✅ Achievements loaded (%d stats tracked, %d achievements unlocked)" % [stats.size(), unlocked_tiers.size()])
-	else:
-		push_error("❌ Failed to load achievements")
+	print("✅ Achievements loaded (%d stats tracked, %d achievements unlocked)" % [stats.size(), unlocked_tiers.size()])
 
 # --- DEBUG/TESTING ---
 func grant_test_progress() -> void:

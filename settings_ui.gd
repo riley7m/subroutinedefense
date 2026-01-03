@@ -419,33 +419,28 @@ func _save_settings() -> void:
 		"screen_effects_enabled": screen_effects_enabled,
 	}
 
-	var file = FileAccess.open("user://settings.save", FileAccess.WRITE)
-	if file:
-		file.store_var(settings_data)
-		file.close()
+	# H-002: Use SaveManager for unified save system
+	SaveManager.simple_save("user://settings.save", settings_data)
 
 func _load_settings() -> void:
-	if not FileAccess.file_exists("user://settings.save"):
+	# H-002: Use SaveManager for unified save system
+	var data = SaveManager.simple_load("user://settings.save")
+
+	if data.is_empty():
 		return
 
-	var file = FileAccess.open("user://settings.save", FileAccess.READ)
-	if file:
-		var data = file.get_var()
-		file.close()
+	master_volume = data.get("master_volume", 1.0)
+	music_volume = data.get("music_volume", 0.7)
+	sfx_volume = data.get("sfx_volume", 1.0)
+	particles_enabled = data.get("particles_enabled", true)
+	screen_effects_enabled = data.get("screen_effects_enabled", true)
 
-		if typeof(data) == TYPE_DICTIONARY:
-			master_volume = data.get("master_volume", 1.0)
-			music_volume = data.get("music_volume", 0.7)
-			sfx_volume = data.get("sfx_volume", 1.0)
-			particles_enabled = data.get("particles_enabled", true)
-			screen_effects_enabled = data.get("screen_effects_enabled", true)
-
-			# Apply loaded settings
-			_apply_master_volume(master_volume)
-			_apply_music_volume(music_volume)
-			_apply_sfx_volume(sfx_volume)
-			_apply_particles(particles_enabled)
-			_apply_screen_effects(screen_effects_enabled)
+	# Apply loaded settings
+	_apply_master_volume(master_volume)
+	_apply_music_volume(music_volume)
+	_apply_sfx_volume(sfx_volume)
+	_apply_particles(particles_enabled)
+	_apply_screen_effects(screen_effects_enabled)
 
 func _on_close_pressed() -> void:
 	queue_free()

@@ -643,8 +643,6 @@ func get_active_lab_time_remaining_hours() -> int:
 
 # === SAVE/LOAD ===
 const LAB_SAVE_FILE = "user://software_upgrades.save"
-const LAB_SAVE_FILE_TEMP = "user://software_upgrades.save.tmp"
-const LAB_SAVE_FILE_BACKUP = "user://software_upgrades.save.backup"
 
 func save_upgrade_state() -> bool:
 	var data = {
@@ -652,69 +650,23 @@ func save_upgrade_state() -> bool:
 		"lab_levels": lab_levels,
 	}
 
-	# ATOMIC SAVE WITH BACKUP
-	# Step 1: Backup existing save
-	if FileAccess.file_exists(LAB_SAVE_FILE):
-		var dir = DirAccess.open("user://")
-		if dir:
-			if FileAccess.file_exists(LAB_SAVE_FILE_BACKUP):
-				dir.remove(LAB_SAVE_FILE_BACKUP)
-			dir.copy(LAB_SAVE_FILE, LAB_SAVE_FILE_BACKUP)
+	# Use SaveManager for atomic save (Priority 4.2: Unified save system)
+	var success = SaveManager.atomic_save(LAB_SAVE_FILE, data)
+	if success:
+		print("💾 Software upgrades saved (atomic)")
 
-	# Step 2: Write to temp file
-	var file = FileAccess.open(LAB_SAVE_FILE_TEMP, FileAccess.WRITE)
-	if file == null:
-		push_error("❌ Failed to save software upgrades: " + str(FileAccess.get_open_error()))
-		return false
-	file.store_var(data)
-	file.close()
-
-	# Step 3: Verify temp file
-	file = FileAccess.open(LAB_SAVE_FILE_TEMP, FileAccess.READ)
-	if file == null or typeof(file.get_var()) != TYPE_DICTIONARY:
-		push_error("❌ Lab save verification failed!")
-		return false
-	file.close()
-
-	# Step 4: Atomic rename
-	var dir = DirAccess.open("user://")
-	if not dir:
-		return false
-	if FileAccess.file_exists(LAB_SAVE_FILE):
-		dir.remove(LAB_SAVE_FILE)
-	dir.rename(LAB_SAVE_FILE_TEMP, LAB_SAVE_FILE)
-
-	print("💾 Software upgrades saved (atomic)")
-	return true
+	return success
 
 func load_upgrade_state() -> void:
-	# Try main save, then backup if corrupted
-	var files_to_try = [LAB_SAVE_FILE, LAB_SAVE_FILE_BACKUP]
+	# Use SaveManager for atomic load (Priority 4.2: Unified save system)
+	var data = SaveManager.atomic_load(LAB_SAVE_FILE)
 
-	for save_file_path in files_to_try:
-		if not FileAccess.file_exists(save_file_path):
-			continue
-
-		var file = FileAccess.open(save_file_path, FileAccess.READ)
-		if file == null:
-			continue
-
-		var data = file.get_var()
-		file.close()
-
-		if typeof(data) != TYPE_DICTIONARY:
-			continue
-
-		# Successfully loaded
-		if save_file_path == LAB_SAVE_FILE_BACKUP:
-			print("⚠️ Lab save corrupted, loaded from backup!")
-
-		active_upgrades = data.get("active_upgrades", [null, null])
-		lab_levels = data.get("lab_levels", {})
-
-		print("🔄 Software upgrades loaded")
-		# Update any completed upgrades that finished while offline
-		update_upgrades()
+	if data.is_empty():
 		return
 
-	print("No software upgrade save found")
+	active_upgrades = data.get("active_upgrades", [null, null])
+	lab_levels = data.get("lab_levels", {})
+
+	print("🔄 Software upgrades loaded")
+	# Update any completed upgrades that finished while offline
+	update_upgrades()

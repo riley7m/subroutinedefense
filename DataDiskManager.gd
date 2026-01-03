@@ -689,34 +689,29 @@ func save_data_disks() -> void:
 	}
 
 	var save_path = "user://data_disks.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# H-002: Use SaveManager for unified save system
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Data disks saved")
 	else:
 		push_error("❌ Failed to save data disks")
 
 func load_data_disks() -> void:
 	var save_path = "user://data_disks.save"
-	if not FileAccess.file_exists(save_path):
+
+	# H-002: Use SaveManager for unified save system
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📂 No data disk save file found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
+	data_disk_inventory = save_data.get("data_disk_inventory", {})
+	equipped_disks = save_data.get("equipped_disks", [])
 
-		data_disk_inventory = save_data.get("data_disk_inventory", {})
-		equipped_disks = save_data.get("equipped_disks", [])
+	# Apply buffs on load
+	_apply_disk_buffs()
 
-		# Apply buffs on load
-		_apply_disk_buffs()
-
-		print("✅ Data disks loaded (%d unique, %d total)" % [get_unique_disk_count(), get_total_disk_count()])
-	else:
-		push_error("❌ Failed to load data disks")
+	print("✅ Data disks loaded (%d unique, %d total)" % [get_unique_disk_count(), get_total_disk_count()])
 
 # --- DEBUG/TESTING ---
 func grant_test_disks() -> void:

@@ -470,39 +470,34 @@ func save_drone_upgrades() -> void:
 	}
 
 	var save_path = "user://drone_upgrades.save"
-	var file = FileAccess.open(save_path, FileAccess.WRITE)
-	if file:
-		file.store_var(save_data)
-		file.close()
+	# H-002: Use SaveManager for unified save system
+	if SaveManager.simple_save(save_path, save_data):
 		print("💾 Drone upgrades saved")
 	else:
 		push_error("❌ Failed to save drone upgrades")
 
 func load_drone_upgrades() -> void:
 	var save_path = "user://drone_upgrades.save"
-	if not FileAccess.file_exists(save_path):
+
+	# H-002: Use SaveManager for unified save system
+	var save_data = SaveManager.simple_load(save_path)
+
+	if save_data.is_empty():
 		print("📂 No drone upgrade save file found, starting fresh")
 		return
 
-	var file = FileAccess.open(save_path, FileAccess.READ)
-	if file:
-		var save_data = file.get_var()
-		file.close()
+	active_slots_unlocked = save_data.get("active_slots_unlocked", 1)
+	drone_levels = save_data.get("drone_levels", {"flame": 1, "poison": 1, "frost": 1, "shock": 1})
+	flame_upgrades = save_data.get("flame_upgrades", {"tick_rate": 0, "hp_cap": 0})
+	poison_upgrades = save_data.get("poison_upgrades", {"duration": 0, "stacking": 0})
+	frost_upgrades = save_data.get("frost_upgrades", {"aoe": 0, "duration": 0})
+	shock_upgrades = save_data.get("shock_upgrades", {"chain": 0, "duration": 0})
 
-		active_slots_unlocked = save_data.get("active_slots_unlocked", 1)
-		drone_levels = save_data.get("drone_levels", {"flame": 1, "poison": 1, "frost": 1, "shock": 1})
-		flame_upgrades = save_data.get("flame_upgrades", {"tick_rate": 0, "hp_cap": 0})
-		poison_upgrades = save_data.get("poison_upgrades", {"duration": 0, "stacking": 0})
-		frost_upgrades = save_data.get("frost_upgrades", {"aoe": 0, "duration": 0})
-		shock_upgrades = save_data.get("shock_upgrades", {"chain": 0, "duration": 0})
+	print("✅ Drone upgrades loaded (%d active slots)" % active_slots_unlocked)
 
-		print("✅ Drone upgrades loaded (%d active slots)" % active_slots_unlocked)
-
-		# Apply loaded levels to existing drones
-		for drone_type in DRONE_TYPES:
-			_apply_drone_level_upgrade(drone_type, drone_levels[drone_type])
-	else:
-		push_error("❌ Failed to load drone upgrades")
+	# Apply loaded levels to existing drones
+	for drone_type in DRONE_TYPES:
+		_apply_drone_level_upgrade(drone_type, drone_levels[drone_type])
 
 # --- DEBUG ---
 func grant_test_fragments(amount: int) -> void:
